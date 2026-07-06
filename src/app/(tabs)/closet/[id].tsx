@@ -1,14 +1,13 @@
-import DetailClosetItem from '@/components/DetailClosetItem';
+import ClothingItemDetail from '@/components/ClothingItemDetail';
 import { useLocalSearchParams } from 'expo-router';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-const { height } = Dimensions.get('window');
 export default function Details() {
-  const { id} = useLocalSearchParams<{ id: string }>(); 
+  const { id } = useLocalSearchParams<{ id: string }>();
 
   return (
-        <View style={styles.container}>
-          <DetailClosetItem item_id = {id} />
+    <View style={styles.container}>
+      <ClothingItemDetail itemId={id} />
       <Text accessibilityRole="header" style={styles.heading}>Worn in the Wild</Text>
     </View>
   );

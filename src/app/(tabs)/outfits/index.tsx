@@ -1,19 +1,21 @@
-import OutfitFlatLay from '@/components/OutfitFlatLay';
+import OutfitsGrid from '@/components/OutfitsGrid';
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
+  const router = useRouter();
+
+  const handleNavigation = (id: string) => {
+    router.push({
+      pathname: '/outfits/[id]',
+      params: { id },
+    });
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>My outfits screen</Text>
-            <View style={{ width: '100%', flex: 1 }}>
-        <OutfitFlatLay 
-          itemIds={['shirt_1', 'pants_2']} 
-          itemImages={{ 
-            shirt_1: require('../../../../assets/images/clothes/top.jpg'), 
-            pants_2: require('../../../../assets/images/clothes/pants.jpg') 
-          }} 
-        />
-</View>
+      <OutfitsGrid onOutfitPress={handleNavigation} />
     </View>
   );
 }
@@ -21,8 +23,10 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingTop: 12,
+    paddingHorizontal: 12,
   },
   text: {
     color: '#000',

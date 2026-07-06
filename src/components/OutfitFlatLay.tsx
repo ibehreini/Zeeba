@@ -1,65 +1,94 @@
-import React from 'react';
-import { Image, ImageSourcePropType, ScrollView, StyleSheet, View } from 'react-native';
+import { ClothingItemMap } from '@/constants/closetData';
+import { Image, StyleSheet, View, ViewStyle } from 'react-native';
 
-interface OutfitFlatLayProps {
-  itemIds: string[];
-  // Update the type to accept required local assets or network images
-  itemImages: Record<string, ImageSourcePropType>; 
-}
+type OutfitFlatLayProps = {
+  itemIds: readonly string[];
+  style?: ViewStyle;
+};
 
-export default function OutfitFlatLay({
-  itemIds,
-  itemImages,
-}: OutfitFlatLayProps) {
-  const getGridColumns = (count: number) => {
-    if (count <= 2) return 2;
-    if (count <= 4) return 2;
-    return 3;
-  };
+// Tops, bottoms, and dresses are the "main" garments and always go in the
+// left column. Everything else (shoes, accessories) is smaller and goes
+// in the right column.
+const LEFT_COLUMN_CATEGORIES = new Set(['top', 'bottom', 'dress']);
 
-  const columns = getGridColumns(itemIds.length);
+export default function OutfitFlatLay({ itemIds, style }: OutfitFlatLayProps) {
+  const items = itemIds.map(id => ClothingItemMap[id]).filter(Boolean);
+  const leftItems = items.filter(item => LEFT_COLUMN_CATEGORIES.has(item.category));
+  const rightItems = items.filter(item => !LEFT_COLUMN_CATEGORIES.has(item.category));
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.grid, { flexDirection: 'row', flexWrap: 'wrap' }]}>
-        {itemIds.map((itemId) => (
-          <View
-            key={itemId}
-            style={[
-              styles.itemContainer,
-              {
-                width: `${100 / columns}%`,
-                aspectRatio: 1,
-              },
-            ]}
-          >
-            {/* FIX HERE: Pass the source directly without the { uri } wrapper */}
-            <Image
-              source={itemImages[itemId]}
-              style={styles.image}
-              resizeMode="contain"
-            />
+    <View style={[styles.card, style]}>
+      <View style={styles.row}>
+        {leftItems.length > 0 && (
+          <View style={styles.leftColumn}>
+            {leftItems.map(item => (
+              <View key={item.id} style={styles.leftCell}>
+                <Image source={item.img} style={styles.image} resizeMode="contain" />
+              </View>
+            ))}
           </View>
-        ))}
+        )}
+
+        {rightItems.length > 0 && (
+          <View style={styles.rightColumn}>
+            {rightItems.map(item => (
+              <View key={item.id} style={styles.rightCell}>
+                <Image source={item.img} style={styles.image} resizeMode="contain" />
+              </View>
+            ))}
+          </View>
+        )}
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
-// ... keep your styles the same
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  card: {
+    width: '100%',
+    aspectRatio: 1,
     backgroundColor: '#fff',
-  },
-  grid: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#d4d4d4',
     padding: 8,
   },
-  itemContainer: {
-    padding: 8,
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  // Main garments: stacked evenly, each cell taking an equal share of the
+  // column's height so 1 dress fills it and 2+ garments split it cleanly.
+  leftColumn: {
+    flex: 2,
+    gap: 8,
+  },
+  leftCell: {
+    flex: 1,
+    backgroundColor: '#f6f6f6',
+    borderRadius: 10,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+  },
+  // Shoes/accessories: fixed-size square tiles that wrap onto new rows, so
+  // any number of items lays out the same way without stretching the grid.
+  rightColumn: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignContent: 'flex-start',
+    gap: 6,
+  },
+  rightCell: {
+    width: '48%',
+    aspectRatio: 1,
+    backgroundColor: '#f6f6f6',
+    borderRadius: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
     width: '100%',
