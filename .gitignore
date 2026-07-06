@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Claude Code local tooling
+.agents/
+.claude/
+skills-lock.json
+
+# Supabase CLI local link cache
+supabase/.temp/

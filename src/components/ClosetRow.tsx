@@ -1,10 +1,10 @@
-import type { ClothingItemData } from '@/constants/closetData';
+import type { ClosetItem } from '@/services/dataService.types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import ClothingItem from './ClothingItem';
 
 type Props = {
-  items: ClothingItemData[];
+  items: ClosetItem[];
   onItemPress: (id: string) => void;
 };
 
@@ -12,11 +12,11 @@ export default function ClosetRow({ items, onItemPress }: Props) {
   return (
     <View style={styles.row}>
       {items.map((item) => (
-        <View key={item.id} style={styles.itemWrapper}>
+        <View key={item.item_id} style={styles.itemWrapper}>
           <ClothingItem
             source={item.img}
             accessibilityLabel={item.name}
-            onPress={() => onItemPress(item.id)}
+            onPress={() => onItemPress(item.item_id)}
           />
         </View>
       ))}

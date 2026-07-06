@@ -1,39 +1,86 @@
-import { ClothingItemMap } from '@/constants/closetData';
+import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { Image, StyleSheet, View, ViewStyle } from 'react-native';
 
 type OutfitFlatLayProps = {
   itemIds: readonly string[];
+  closetItems: ClosetItem[];
   style?: ViewStyle;
 };
 
-// Tops, bottoms, and dresses are the "main" garments and always go in the
-// left column. Everything else (shoes, accessories) is smaller and goes
-// in the right column.
-const LEFT_COLUMN_CATEGORIES = new Set(['top', 'bottom', 'dress']);
+// Column 1: jacket (optional) on top, then a bag/purse, then shoes -
+// stacked in that fixed order, one below the other.
+const COLUMN_1_ORDER: ClosetItem['category'][] = ['jacket', 'bag', 'shoes'];
 
-export default function OutfitFlatLay({ itemIds, style }: OutfitFlatLayProps) {
-  const items = itemIds.map(id => ClothingItemMap[id]).filter(Boolean);
-  const leftItems = items.filter(item => LEFT_COLUMN_CATEGORIES.has(item.category));
-  const rightItems = items.filter(item => !LEFT_COLUMN_CATEGORIES.has(item.category));
+// Column 2: the main garment(s) - a top+bottom pairing, or a single
+// dress/romper.
+const MAIN_CATEGORIES = new Set(['top', 'bottom', 'dress']);
+
+// Column 3 fits at most 5 accessories (jewelry, sunglasses, etc.); the grid
+// resizes its cells based on how many are present.
+const MAX_ACCESSORIES = 5;
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    rows.push(arr.slice(i, i + size));
+  }
+  return rows;
+}
+
+export default function OutfitFlatLay({ itemIds, closetItems, style }: OutfitFlatLayProps) {
+  const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
+  const items = itemIds.map(id => itemsById.get(id)).filter((item): item is ClosetItem => Boolean(item));
+
+  const column1Items = COLUMN_1_ORDER.map(category =>
+    items.find(item => item.category === category),
+  ).filter((item): item is ClosetItem => Boolean(item));
+
+  const mainItems = items.filter(item => MAIN_CATEGORIES.has(item.category));
+  const accessoryItems = items
+    .filter(item => item.category === 'accessory')
+    .slice(0, MAX_ACCESSORIES);
+
+  const accessoryCols = accessoryItems.length > 1 ? 2 : 1;
+  const accessoryRows = chunk(accessoryItems, accessoryCols);
 
   return (
     <View style={[styles.card, style]}>
       <View style={styles.row}>
-        {leftItems.length > 0 && (
-          <View style={styles.leftColumn}>
-            {leftItems.map(item => (
-              <View key={item.id} style={styles.leftCell}>
-                <Image source={item.img} style={styles.image} resizeMode="contain" />
+        {column1Items.length > 0 && (
+          <View style={styles.column}>
+            {column1Items.map(item => (
+              <View key={item.item_id} style={styles.stackedCell}>
+                <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
               </View>
             ))}
           </View>
         )}
 
-        {rightItems.length > 0 && (
-          <View style={styles.rightColumn}>
-            {rightItems.map(item => (
-              <View key={item.id} style={styles.rightCell}>
-                <Image source={item.img} style={styles.image} resizeMode="contain" />
+        {mainItems.length > 0 && (
+          <View style={[styles.column, styles.mainColumn]}>
+            {mainItems.map(item => (
+              <View key={item.item_id} style={styles.stackedCell}>
+                <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
+              </View>
+            ))}
+          </View>
+        )}
+
+        {accessoryItems.length > 0 && (
+          <View style={styles.column}>
+            {accessoryRows.map((row, rowIndex) => (
+              <View key={rowIndex} style={styles.accessoryRow}>
+                {row.map(item => (
+                  <View key={item.item_id} style={styles.accessoryCell}>
+                    <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
+                  </View>
+                ))}
+                {/* Pad an incomplete last row so its cells stay the same
+                    size as the rest instead of stretching to fill. */}
+                {row.length < accessoryCols &&
+                  Array.from({ length: accessoryCols - row.length }).map((_, i) => (
+                    <View key={`spacer-${i}`} style={styles.accessorySpacer} />
+                  ))}
               </View>
             ))}
           </View>
@@ -58,13 +105,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  // Main garments: stacked evenly, each cell taking an equal share of the
-  // column's height so 1 dress fills it and 2+ garments split it cleanly.
-  leftColumn: {
-    flex: 2,
+  column: {
+    flex: 1,
     gap: 8,
   },
-  leftCell: {
+  mainColumn: {
+    flex: 1.3,
+  },
+  // Shared by column 1 (jacket/bag/shoes) and column 2 (main garment):
+  // cells split the column's height evenly, so 1 item fills it and 2+
+  // items split it cleanly.
+  stackedCell: {
     flex: 1,
     backgroundColor: '#f6f6f6',
     borderRadius: 10,
@@ -72,23 +123,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Shoes/accessories: fixed-size square tiles that wrap onto new rows, so
-  // any number of items lays out the same way without stretching the grid.
-  rightColumn: {
+  // Accessories: a dynamic grid - rows/cells grow or shrink to fill the
+  // column based on how many accessories are present.
+  accessoryRow: {
     flex: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignContent: 'flex-start',
     gap: 6,
   },
-  rightCell: {
-    width: '48%',
-    aspectRatio: 1,
+  accessoryCell: {
+    flex: 1,
     backgroundColor: '#f6f6f6',
     borderRadius: 8,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  accessorySpacer: {
+    flex: 1,
   },
   image: {
     width: '100%',

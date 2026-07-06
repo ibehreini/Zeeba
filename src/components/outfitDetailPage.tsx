@@ -1,5 +1,5 @@
 import OutfitFlatLay from '@/components/OutfitFlatLay';
-import { ClothingItemMap } from '@/constants/closetData';
+import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type OutfitDetailItem = {
@@ -11,10 +11,12 @@ type OutfitDetailItem = {
 
 type Props = {
   outfit: OutfitDetailItem;
+  closetItems: ClosetItem[];
 };
 
-export default function OutfitDetailPage({ outfit }: Props) {
-  const pieces = outfit.itemIds.map(itemId => ClothingItemMap[itemId]).filter(Boolean);
+export default function OutfitDetailPage({ outfit, closetItems }: Props) {
+  const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
+  const pieces = outfit.itemIds.map(itemId => itemsById.get(itemId)).filter((item): item is ClosetItem => Boolean(item));
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -24,7 +26,7 @@ export default function OutfitDetailPage({ outfit }: Props) {
         accessibilityLabel={`${outfit.name ?? 'Outfit'} preview`}
         style={styles.flatLayWrapper}
       >
-        <OutfitFlatLay itemIds={outfit.itemIds} />
+        <OutfitFlatLay itemIds={outfit.itemIds} closetItems={closetItems} />
       </View>
 
       <View style={styles.content}>
@@ -39,13 +41,13 @@ export default function OutfitDetailPage({ outfit }: Props) {
           <View style={styles.pieceGrid}>
             {pieces.map(item => (
               <View
-                key={item.id}
+                key={item.item_id}
                 accessible
                 accessibilityRole="image"
                 accessibilityLabel={item.name}
                 style={styles.pieceBox}
               >
-                <Image source={item.img} style={styles.pieceImage} resizeMode="contain" />
+                <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
                 <Text style={styles.pieceLabel} numberOfLines={1}>
                   {item.name}
                 </Text>
