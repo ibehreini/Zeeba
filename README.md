@@ -1,16 +1,14 @@
 # Welcome to your Expo app 👋
 I left off on:
 
-database setup
-https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-nativee
+left off on finishing db setup
+npx expo start will start server and run on phone
 
-upload a few items from phone and make dummy data but with real iphone pics Ithink will be good
-then I want to clean up code - helper functions - enforce one outfit grid type
-https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-native
-also add ability to add multiple sub pyhotos for the clothing item and outfit? worn in the wild? to look at fit and different cuts and fabrics and tones
-eventually will use the react view shot libary here https://docs.expo.dev/versions/latest/sdk/captureRef/
+then work on the crud functions - with outfit items save new outfit, delete outfit, edit outfit
+lastly do the image upload from camera roll
+
+
 To to: 
-This dummy data - I may want to have a 'preview mode' for users to try out the generic closet before logging in. so keep the dummy data somewehre.
 make new tags? who can make? admin only?
 clothing item can have fit - boxy, hitsz above knees, etc
 clothing item can have care instructions ex - dry clean only add once then its always there
@@ -53,3 +51,23 @@ ability to request to borrow friend's outfit or item from closet? comment? save?
    for expo to build on iphone again
    eas login
       eas build --platform ios --profile development                                                                    
+
+
+
+Flow for collaborator
+MVP
+1 - login
+2 - enter closet key or url for ida's closet
+3 - view her clothing details and outfits
+4- I want to make Ida a new outfit so I go into outfits and click 'create new'
+5 - I select the clothing items and edit as needed then save
+6 - it saves successfully
+
+
+
+2.0
+1. I am stylist and log in
+2 - 
+
+Tech debt:
+google react pacakge I am using will eventaully be phased out. Replace with open source free package expo recomments

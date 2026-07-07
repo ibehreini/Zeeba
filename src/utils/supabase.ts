@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
-import { Platform } from 'react-native'
+import { AppState, Platform } from 'react-native'
 
 // AsyncStorage's web shim assumes `window` exists, which breaks Expo Router's
 // SSR pass (web.output: "static" pre-renders in Node, before any window).
@@ -17,3 +17,17 @@ export const supabase = createClient(
       detectSessionInUrl: false,
     },
   })
+
+// supabase-js's token auto-refresh relies on a running JS timer, which RN
+// suspends while the app is backgrounded. Tying it to AppState ensures a
+// session that expired in the background is refreshed the moment the app
+// comes back to the foreground instead of surfacing as a stale/invalid token.
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', state => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh()
+    } else {
+      supabase.auth.stopAutoRefresh()
+    }
+  })
+}
