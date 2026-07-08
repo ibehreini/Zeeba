@@ -16,7 +16,8 @@ export type ClothingItemType =
   | 'jewelry'
   | 'accessory';
 
-const CLOTHING_ITEM_TYPES: readonly ClothingItemType[] = [
+/** All values allowed by the item_type check constraint - drives the create-item form's type select. */
+export const CLOTHING_ITEM_TYPES: readonly ClothingItemType[] = [
   'shirt',
   'pants',
   'dress_romper',
@@ -70,6 +71,20 @@ export function mapCategoryToDefaultItemType(category: ClothingCategory): Clothi
   return CATEGORY_TO_DEFAULT_ITEM_TYPE[category];
 }
 
+/**
+ * fit_notes is freeform text in the db (see schema.sql), but the create-item
+ * form presents it as a select of the same common phrases already used in
+ * the seed data, rather than a free text box.
+ */
+export const FIT_NOTES_OPTIONS: readonly string[] = [
+  'True to size',
+  'Runs small',
+  'Runs large',
+  'Fits loose/oversized',
+  'Fits boxy',
+  'Runs tight',
+];
+
 /** A require()'d local asset (number) in preview mode, or a remote URL (string) once live. */
 export type ImageSource = string | number;
 
@@ -118,12 +133,52 @@ export interface Outfit {
   created_at: string;
 }
 
+/** A closet the current user has stylist (collaborator) access to. */
+export interface StylistCloset {
+  closet_id: string;
+  closet_name: string;
+}
+
+/** The closet the current user owns - only owners can see their own passphrase. */
+export interface OwnCloset extends StylistCloset {
+  pass_phrase: string;
+}
+
+/** A locally-picked (not yet uploaded) photo for a new clothing item. Exactly one must be primary. */
+export interface NewClosetItemPhoto {
+  uri: string;
+  isPrimary: boolean;
+}
+
+/** Form data for the "add new item" flow. */
+export interface NewClosetItemInput {
+  closetId: string;
+  itemType: ClothingItemType;
+  name: string;
+  description: string;
+  fitNotes: string | null;
+  careInstructions: string | null;
+  brand: string | null;
+  /** At least one photo, with exactly one marked primary. */
+  photos: NewClosetItemPhoto[];
+}
+
 /** Unified contract both the preview (dummy data) and live (Supabase) providers implement. */
 export interface IDataService {
-  getClosetItems(): Promise<ClosetItem[]>;
+  getClosetItems(closetId?: string): Promise<ClosetItem[]>;
   getClosetItemById(itemId: string): Promise<ClosetItem | null>;
-  getOutfits(): Promise<Outfit[]>;
+  /** Creates a garment and uploads its photos. Throws if no photo is marked primary. */
+  createClosetItem(input: NewClosetItemInput): Promise<ClosetItem>;
+  getOutfits(closetId?: string): Promise<Outfit[]>;
   getOutfitById(outfitId: string): Promise<Outfit | null>;
+  /** Closets `userId` collaborates on (stylist access), not counting ones they own. */
+  getStylistClosets(userId: string): Promise<StylistCloset[]>;
+  /** The closet `userId` owns, or null if they haven't created one yet. */
+  getOwnCloset(userId: string): Promise<OwnCloset | null>;
+  /** Creates `userId`'s own closet with a user-chosen name; the passphrase is always server-generated. */
+  createOwnCloset(userId: string, closetName: string): Promise<OwnCloset>;
+  /** Replaces a closet's passphrase and returns the new value. Caller must own the closet. */
+  regeneratePassphrase(closetId: string): Promise<string>;
 }
 
 /** A titled group of closet items for one category, e.g. the "Tops" section on the closet screen. */
@@ -152,6 +207,25 @@ const CATEGORY_TITLES: Record<ClothingCategory, string> = {
   bag: 'Bags',
   accessory: 'Accessories',
 };
+
+/**
+ * Extracts a display message from a thrown value. Supabase throws
+ * PostgrestError, a plain object with a `.message` string that is NOT an
+ * `instanceof Error` - code that only checked `instanceof Error` silently
+ * dropped the real message and showed the generic fallback instead.
+ */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'message' in err &&
+    typeof (err as { message: unknown }).message === 'string'
+  ) {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
 
 /** Groups a flat item list into ordered, titled sections, dropping any empty category. */
 export function groupClosetItemsBySection(items: ClosetItem[]): ClosetSection[] {

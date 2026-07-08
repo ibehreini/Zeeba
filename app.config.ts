@@ -74,6 +74,12 @@ const config: ExpoConfig = {
     ],
     'expo-apple-authentication',
     [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow Zeeba to access your photos so you can add pictures of your clothing items.',
+      },
+    ],
+    [
       'expo-build-properties',
       {
         // GoogleSignIn's pod chain (AppCheckCore -> GoogleUtilities/RecaptchaInterop)

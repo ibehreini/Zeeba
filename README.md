@@ -1,7 +1,11 @@
 # Welcome to your Expo app 👋
 I left off on:
 
-left off on finishing db setup
+
+next Going to work on the 'create clothing item' flow. in the UI on the my closet tab there should be a 'add new' button at the top right of the screen. when a user presses this,  they are taken to a new screen 'Add new Item'. They should be able to browse the photo library to pick a photo as primary photo in the db, then fill in metadata, they should also be able to add additional photos to serve as secondary photos
+when the user saves it sends the add request to the db and either displays a success or error message.
+Then they should be able to see this item in the 'my closet' tab as well as the clothing item details page
+in the details page they should be able to see an 'edit' button at top right so they can edit the details and click save. the save will update the db row and either say success or error
 npx expo start will start server and run on phone
 
 then work on the crud functions - with outfit items save new outfit, delete outfit, edit outfit
@@ -71,3 +75,4 @@ MVP
 
 Tech debt:
 google react pacakge I am using will eventaully be phased out. Replace with open source free package expo recomments
+rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that to authenticated users

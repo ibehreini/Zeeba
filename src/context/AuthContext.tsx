@@ -29,8 +29,10 @@ if (Platform.OS !== 'web') {
 type AuthContextValue = {
   session: Session | null;
   initializing: boolean;
+  isGuest: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  continueAsGuest: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -39,6 +41,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
+  // In-memory only, by design: closing the app forgets guest status, so the
+  // user lands back on the sign-in screen next launch instead of staying in.
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -57,11 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       initializing,
+      isGuest,
       signInWithGoogle,
       signInWithApple,
-      signOut,
+      continueAsGuest: () => setIsGuest(true),
+      signOut: async () => {
+        setIsGuest(false);
+        await signOut();
+      },
     }),
-    [session, initializing],
+    [session, initializing, isGuest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

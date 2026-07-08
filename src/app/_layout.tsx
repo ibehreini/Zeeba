@@ -10,15 +10,17 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { session, initializing, isGuest } = useAuth();
   if (initializing) return null;
+
+  const signedIn = !!session || isGuest;
 
   return (
     <Stack>
-      <Stack.Protected guard={!!session}>
+      <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!session}>
+      <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Screen name="+not-found" />

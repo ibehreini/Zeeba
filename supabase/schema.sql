@@ -26,10 +26,19 @@ create extension if not exists pgcrypto; -- gen_random_uuid(), crypt() for seed 
 
 
 -- ----------------------------------------------------------------------------
--- 1. Storage bucket for clothing + outfit photos
+-- 1. Storage buckets
 -- ----------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('wardrobe-media', 'wardrobe-media', true)
+on conflict (id) do nothing;
+
+-- Dedicated bucket for the "add new item" flow's photo uploads. Public
+-- (world-readable) with no auth-scoped storage policies at all - unlike
+-- wardrobe-media, uploads aren't restricted to the `authenticated` role or
+-- gated by ownership, since the mobile client uploads straight from the
+-- create-item form using the same supabase client already in use elsewhere.
+insert into storage.buckets (id, name, public)
+values ('clothing_item_photos', 'clothing_item_photos', true)
 on conflict (id) do nothing;
 
 
@@ -186,6 +195,36 @@ as $$
     where c.id = target_closet_id and c.owner_id = auth.uid()
   );
 $$;
+
+-- Regenerates a closet's passphrase and returns the new value. SECURITY
+-- DEFINER so it can update a row the "Owners can update their closets" RLS
+-- policy would otherwise still allow anyway - the explicit owner check here
+-- is what actually gates it, since this function lives in `public` and is
+-- therefore callable by any authenticated (or anon) caller by default.
+create or replace function public.regenerate_closet_passphrase(target_closet_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_phrase text;
+begin
+  if not exists (
+    select 1 from public.closets where id = target_closet_id and owner_id = auth.uid()
+  ) then
+    raise exception 'Not authorized to regenerate this closet''s passphrase';
+  end if;
+
+  new_phrase := substr(md5(random()::text || clock_timestamp()::text), 1, 10);
+
+  update public.closets set pass_phrase = new_phrase where id = target_closet_id;
+
+  return new_phrase;
+end;
+$$;
+
+grant execute on function public.regenerate_closet_passphrase(uuid) to authenticated;
 
 
 -- ----------------------------------------------------------------------------
@@ -378,6 +417,15 @@ create policy "Owners can delete their own wardrobe media"
   on storage.objects for delete
   to authenticated
   using (bucket_id = 'wardrobe-media' and owner = auth.uid());
+
+-- ----------------------------------------------------------------------------
+-- 6b. Storage policy for the clothing_item_photos bucket - fully public, no
+-- auth check at all (any role, no ownership check) for every operation.
+-- ----------------------------------------------------------------------------
+create policy "Public access to clothing item photos bucket"
+  on storage.objects for all
+  using (bucket_id = 'clothing_item_photos')
+  with check (bucket_id = 'clothing_item_photos');
 
 
 -- ----------------------------------------------------------------------------

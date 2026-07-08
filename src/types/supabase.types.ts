@@ -352,6 +352,7 @@ export type Database = {
     Functions: {
       is_closet_member: { Args: { target_closet_id: string }; Returns: boolean }
       is_closet_owner: { Args: { target_closet_id: string }; Returns: boolean }
+      regenerate_closet_passphrase: { Args: { target_closet_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

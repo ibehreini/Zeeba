@@ -1,15 +1,17 @@
 import FilterPills from '@/components/FilterPills';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
-import type { ClosetItem, Outfit } from '@/services/dataService.types';
+import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   onOutfitPress?: (id: string) => void;
+  /** Restricts the grid to outfits from one closet; omit to show every closet the user can see. */
+  closetId?: string;
 };
 
-export default function OutfitsGrid({ onOutfitPress }: Props) {
+export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
   const { dataService } = useDataMode();
   const [outfits, setOutfits] = useState<Outfit[] | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
@@ -21,20 +23,20 @@ export default function OutfitsGrid({ onOutfitPress }: Props) {
     setOutfits(null);
     setError(null);
 
-    Promise.all([dataService.getOutfits(), dataService.getClosetItems()])
+    Promise.all([dataService.getOutfits(closetId), dataService.getClosetItems(closetId)])
       .then(([fetchedOutfits, fetchedClosetItems]) => {
         if (cancelled) return;
         setOutfits(fetchedOutfits);
         setClosetItems(fetchedClosetItems);
       })
       .catch(err => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load outfits.');
+        if (!cancelled) setError(getErrorMessage(err, 'Failed to load outfits.'));
       });
 
     return () => {
       cancelled = true;
     };
-  }, [dataService]);
+  }, [dataService, closetId]);
 
   const labelOptions = useMemo(
     () => Array.from(new Set((outfits ?? []).flatMap(outfit => outfit.labels))),

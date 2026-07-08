@@ -1,11 +1,11 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 
 export default function SignInScreen() {
-  const { signInWithGoogle, signInWithApple } = useAuth();
+  const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleSignIn = async (signIn: () => Promise<void>) => {
@@ -52,6 +52,18 @@ export default function SignInScreen() {
               onPress={() => handleSignIn(signInWithApple)}
             />
           )}
+          <View style={styles.previewRow}>
+            <Text style={styles.previewText}>Want to test it out first?</Text>
+            <Pressable
+              onPress={continueAsGuest}
+              style={styles.previewButton}
+              accessibilityRole="button"
+              accessibilityLabel="Preview mode"
+              accessibilityHint="Skips sign-in and shows sample data. Closing the app ends the preview and you'll need to sign in again."
+            >
+              <Text style={styles.previewButtonText}>Preview mode</Text>
+            </Pressable>
+          </View>
         </>
       )}
     </View>
@@ -76,5 +88,28 @@ const styles = StyleSheet.create({
   webMessage: {
     color: '#fff',
     fontSize: 16,
+  },
+  previewRow: {
+    marginTop: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  previewText: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  previewButton: {
+    width: 240,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  previewButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

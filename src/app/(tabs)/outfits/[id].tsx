@@ -1,6 +1,6 @@
 import OutfitDetailPage from '@/components/outfitDetailPage';
 import { useDataMode } from '@/context/DataModeContext';
-import type { ClosetItem, Outfit } from '@/services/dataService.types';
+import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -31,7 +31,7 @@ export default function OutfitDetailScreen() {
         setClosetItems(fetchedClosetItems);
       })
       .catch(err => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load outfit.');
+        if (!cancelled) setError(getErrorMessage(err, 'Failed to load outfit.'));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);

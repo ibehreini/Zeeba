@@ -1,6 +1,6 @@
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
-import type { ClosetItem, Outfit } from '@/services/dataService.types';
+import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Image } from 'expo-image'; // High-perf native component
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -43,7 +43,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
         setFeaturedOutfits(allOutfits.filter(outfit => outfit.item_ids.includes(itemId)));
       })
       .catch(err => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load item.');
+        if (!cancelled) setError(getErrorMessage(err, 'Failed to load item.'));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);

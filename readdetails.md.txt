@@ -1,0 +1,47 @@
+Auth information 
+
+
+There is the auth context  which is in src/context - and it is called in src/app in that simple sign in screen - auth context is called within the layout in src/app - wrapping all the tabs in a check for auth
+It won't work in web rn - Supabase has a built-in browser-ready solution called signInWithOAuth that works on the web right out of the box for free but would have to implement it in code
+
+React async storage -  - similar  to local storage but for mobile
+It persists: If the user closes the app, reboots their iPhone, or the battery dies, whatever you saved in Async Storage stays there.
+
+react context
+React Context is an in-memory state management tool built right into React.
+It’s global: It allows any component in your app to instantly see and use data without you having to pass props down through 50 layers of components (aka "prop drilling").
+It’s temporary: The moment the user closes the app or it crashes, React Context is completely wiped clean
+
+React Memo
+Think of React components like a chef preparing a custom dish. Normally, every single time the boss (the parent component) says "Hey, the kitchen state updated!", the chef throws away the old dish and completely rebuilds it from scratch—even if none of the ingredients for that specific dish actually changed.
+React.memo is a performance optimization tool that tells the chef: "Hey, if the ingredients (props) handed to you are exactly the same as last time, don't cook it again. Just hand over the dish you made a moment ago."
+In technical terms, it is a Higher-Order Component (HOC) that caches (memoizes) the rendered output of your component and skips re-rendering it if its props haven't changed
+",
+
+
+
+
+
+
+
+db information
+
+supabase /src/util
+establishes the gateway session to supabase - gives the url and key from the env variables and does a bunch of setting setup
+/src/services - actually  houses the crud functions of the app - business logic for db stuff like 'create outfit'
+
+types
+Whenever you change your database structure on the Supabase dashboard or via migrations, your local /types file becomes outdated. You need to pull down the new schema definitions to sync your local code with your remote database.
+with supabase cli
+something like this command npx supabase gen types typescript --project-id your-project-ref > src/types/database.types.ts
+
+
+within /service
+Why is there a .ts and a .types.ts? (The Separation)
+Instead of dumping everything into one massive file, the codebase separates Execution (the code that actually does things) from Definitions (the shapes of the data)
+.types.ts files These files do absolutely nothing when your app is running on a user's phone. They contain zero executable JavaScript. Their only job is to tell your code editor exactly what the data looks like
+-- RLS Policy: Allow access if you are the OWNER OR if you know the PASSPHRASE
+need both good queries and rls policy
+auth.uid() = owner_id 
+OR 
+(request.headers() ->> 'x-closet-passphrase' = passphrase)
