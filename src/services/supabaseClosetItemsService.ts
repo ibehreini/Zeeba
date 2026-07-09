@@ -73,3 +73,13 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
   if (!created) throw new Error('Failed to load the newly created item.');
   return created;
 }
+
+/**
+ * Deletes a clothing item row. Its photos, outfit_items links, and wear_logs
+ * rows all cascade-delete via the DB's `on delete cascade` foreign keys, so
+ * this is a single-row delete. Throws the Supabase error on failure.
+ */
+export async function deleteClosetItem(itemId: string): Promise<void> {
+  const { error } = await supabase.from('clothing_items').delete().eq('id', itemId);
+  if (error) throw error;
+}

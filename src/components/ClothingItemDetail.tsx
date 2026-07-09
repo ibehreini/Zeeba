@@ -1,5 +1,7 @@
+import DeleteButton from '@/components/DeleteButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
+import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Image } from 'expo-image'; // High-perf native component
 import { Stack } from 'expo-router';
@@ -31,6 +33,13 @@ export default function ClothingItemDetail({ itemId }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  const { confirmAndDelete, isDeleting } = useDeleteConfirm({
+    confirmTitle: 'Delete item',
+    confirmMessage: `Delete "${item?.name ?? 'this item'}"? This can't be undone.`,
+    errorTitle: "Couldn't delete item",
+    onDelete: () => dataService.deleteClosetItem(itemId),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +164,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
           ) : (
             <Text style={styles.emptyText}>Not featured in any outfits yet.</Text>
           )}
+
+          <DeleteButton label="Delete item" onPress={confirmAndDelete} isDeleting={isDeleting} />
         </View>
 
         <Modal

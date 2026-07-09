@@ -1,8 +1,16 @@
 import FilterPills from '@/components/FilterPills';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
-import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  getErrorMessage,
+  OUTFIT_LABELS,
+  type ClosetItem,
+  type Outfit,
+  type OutfitLabel,
+} from '@/services/dataService.types';
+import { consumeOutfitsDirty } from '@/state/outfitsRefresh';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -16,31 +24,46 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
   const [outfits, setOutfits] = useState<Outfit[] | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<OutfitLabel | null>(null);
+
+  const fetchOutfits = useCallback(
+    (onCancelledRef: { cancelled: boolean }) => {
+      setOutfits(null);
+      setError(null);
+
+      Promise.all([dataService.getOutfits(closetId), dataService.getClosetItems(closetId)])
+        .then(([fetchedOutfits, fetchedClosetItems]) => {
+          if (onCancelledRef.cancelled) return;
+          setOutfits(fetchedOutfits);
+          setClosetItems(fetchedClosetItems);
+        })
+        .catch(err => {
+          if (!onCancelledRef.cancelled) setError(getErrorMessage(err, 'Failed to load outfits.'));
+        });
+    },
+    [dataService, closetId],
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    setOutfits(null);
-    setError(null);
-
-    Promise.all([dataService.getOutfits(closetId), dataService.getClosetItems(closetId)])
-      .then(([fetchedOutfits, fetchedClosetItems]) => {
-        if (cancelled) return;
-        setOutfits(fetchedOutfits);
-        setClosetItems(fetchedClosetItems);
-      })
-      .catch(err => {
-        if (!cancelled) setError(getErrorMessage(err, 'Failed to load outfits.'));
-      });
-
+    const ref = { cancelled: false };
+    fetchOutfits(ref);
     return () => {
-      cancelled = true;
+      ref.cancelled = true;
     };
-  }, [dataService, closetId]);
+  }, [fetchOutfits]);
 
-  const labelOptions = useMemo(
-    () => Array.from(new Set((outfits ?? []).flatMap(outfit => outfit.labels))),
-    [outfits],
+  // Refetches when a create/delete elsewhere marked the list stale, so
+  // returning to this tab shows the change without needing a full app
+  // restart - but skips the refetch when focus regains for an unrelated
+  // reason (e.g. just viewing an outfit's detail page and going back).
+  useFocusEffect(
+    useCallback(() => {
+      const ref = { cancelled: false };
+      if (consumeOutfitsDirty()) fetchOutfits(ref);
+      return () => {
+        ref.cancelled = true;
+      };
+    }, [fetchOutfits]),
   );
 
   const visibleOutfits = selectedLabel
@@ -53,7 +76,7 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
         My outfits
       </Text>
 
-      <FilterPills options={labelOptions} selected={selectedLabel} onSelect={setSelectedLabel} />
+      <FilterPills options={OUTFIT_LABELS} selected={selectedLabel} onSelect={setSelectedLabel} />
 
       {error ? (
         <Text style={styles.emptyText}>{error}</Text>

@@ -5,10 +5,14 @@ import type {
   ClosetItem,
   IDataService,
   NewClosetItemInput,
+  NewOutfitInput,
   Outfit,
   OwnCloset,
   StylistCloset,
 } from './dataService.types';
+
+/** Same stock image supabaseRowMappers falls back to when a row has no photo yet. */
+const PLACEHOLDER_IMAGE = require('../../assets/images/clothes/outfit_preview.jpg');
 
 const NETWORK_DELAY_MS = 400;
 const PREVIEW_PASS_PHRASE = 'preview-phrase';
@@ -27,6 +31,17 @@ function delay<T>(value: T): Promise<T> {
 // the session instead - lost on app restart, which is fine for a guest.
 const previewCreatedItems: ClosetItem[] = [];
 
+// Same idea as previewCreatedItems, but for outfits created via the
+// "create outfit" form during a guest session.
+const previewCreatedOutfits: Outfit[] = [];
+
+// Bundled dummy items/outfits are static imports, not real rows, so
+// "deleting" one during a guest session just hides its id here instead of
+// mutating Closet_Data/MyOutfits_Data - same session-only lifetime as
+// previewCreatedItems/previewCreatedOutfits above.
+const previewDeletedItemIds = new Set<string>();
+const previewDeletedOutfitIds = new Set<string>();
+
 function toClosetItems(): ClosetItem[] {
   const now = new Date().toISOString();
   const bundledItems = Closet_Data.map(item => ({
@@ -44,12 +59,12 @@ function toClosetItems(): ClosetItem[] {
     secondary_photos: [],
     created_at: now,
   }));
-  return [...bundledItems, ...previewCreatedItems];
+  return [...bundledItems, ...previewCreatedItems].filter(item => !previewDeletedItemIds.has(item.item_id));
 }
 
 function toOutfits(): Outfit[] {
   const now = new Date().toISOString();
-  return MyOutfits_Data.map(outfit => ({
+  const bundledOutfits = MyOutfits_Data.map(outfit => ({
     outfit_id: outfit.outfit_id,
     closet_id: 'preview-closet',
     name: outfit.name,
@@ -60,6 +75,9 @@ function toOutfits(): Outfit[] {
     outfit_img_preview: { img: outfit.outfit_img_preview.img },
     created_at: now,
   }));
+  return [...bundledOutfits, ...previewCreatedOutfits].filter(
+    outfit => !previewDeletedOutfitIds.has(outfit.outfit_id),
+  );
 }
 
 class PreviewDataService implements IDataService {
@@ -99,6 +117,11 @@ class PreviewDataService implements IDataService {
     return delay(created);
   }
 
+  async deleteClosetItem(itemId: string): Promise<void> {
+    previewDeletedItemIds.add(itemId);
+    return delay(undefined);
+  }
+
   async getOutfits(_closetId?: string): Promise<Outfit[]> {
     return delay(toOutfits());
   }
@@ -106,6 +129,27 @@ class PreviewDataService implements IDataService {
   async getOutfitById(outfitId: string): Promise<Outfit | null> {
     const outfit = toOutfits().find(candidate => candidate.outfit_id === outfitId) ?? null;
     return delay(outfit);
+  }
+
+  async createOutfit(input: NewOutfitInput): Promise<Outfit> {
+    const created: Outfit = {
+      outfit_id: `preview-outfit-${Date.now()}`,
+      closet_id: input.closetId,
+      name: input.name,
+      description: input.description,
+      labels: [input.label],
+      item_ids: input.itemIds,
+      compliment_count: 0,
+      outfit_img_preview: { img: PLACEHOLDER_IMAGE },
+      created_at: new Date().toISOString(),
+    };
+    previewCreatedOutfits.push(created);
+    return delay(created);
+  }
+
+  async deleteOutfit(outfitId: string): Promise<void> {
+    previewDeletedOutfitIds.add(outfitId);
+    return delay(undefined);
   }
 
   async getStylistClosets(_userId: string): Promise<StylistCloset[]> {

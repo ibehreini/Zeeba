@@ -5,9 +5,11 @@ import ClothingItem from './ClothingItem';
 type Props = {
   items: ClosetItem[];
   onItemPress: (id: string) => void;
+  /** When provided, renders each card as selectable (used by the outfit item picker). Omit for read-only grids. */
+  isItemSelected?: (itemId: string) => boolean;
 };
 
-export default function ClosetRow({ items, onItemPress }: Props) {
+export default function ClosetRow({ items, onItemPress, isItemSelected }: Props) {
   return (
     <View style={styles.row}>
       {items.map(item => (
@@ -16,6 +18,7 @@ export default function ClosetRow({ items, onItemPress }: Props) {
             source={item.img}
             accessibilityLabel={item.name}
             onPress={() => onItemPress(item.item_id)}
+            selected={isItemSelected?.(item.item_id)}
           />
         </View>
       ))}

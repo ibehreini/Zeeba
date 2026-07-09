@@ -1,5 +1,5 @@
 import { supabase } from '@/utils/supabase';
-import type { Outfit } from './dataService.types';
+import type { NewOutfitInput, Outfit } from './dataService.types';
 import { mapOutfitRow, OUTFIT_SELECT, type OutfitQueryRow } from './supabaseRowMappers';
 
 /** All outfits, optionally scoped to one closet. Throws the Supabase error on failure. */
@@ -22,4 +22,51 @@ export async function getOutfitById(outfitId: string): Promise<Outfit | null> {
     .maybeSingle();
   if (error) throw error;
   return data ? mapOutfitRow(data) : null;
+}
+
+/**
+ * Creates an outfit row, then links each picked closet item via the
+ * outfit_items join table. If linking the items fails, the outfit row is
+ * rolled back so a failed submission never leaves an empty, orphaned outfit
+ * behind - same rollback approach as createClosetItem's photo upload.
+ */
+export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
+  const { data: outfitRow, error: outfitError } = await supabase
+    .from('outfits')
+    .insert({
+      closet_id: input.closetId,
+      created_by_user_id: input.userId,
+      name: input.name,
+      description: input.description,
+      labels: [input.label],
+    })
+    .select('id')
+    .single();
+  if (outfitError) throw outfitError;
+
+  const outfitId = outfitRow.id;
+
+  if (input.itemIds.length > 0) {
+    const { error: itemsError } = await supabase
+      .from('outfit_items')
+      .insert(input.itemIds.map(itemId => ({ outfit_id: outfitId, clothing_item_id: itemId })));
+    if (itemsError) {
+      await supabase.from('outfits').delete().eq('id', outfitId);
+      throw itemsError;
+    }
+  }
+
+  const created = await getOutfitById(outfitId);
+  if (!created) throw new Error('Failed to load the newly created outfit.');
+  return created;
+}
+
+/**
+ * Deletes an outfit row. Its outfit_items links, outfit_photos, and
+ * wear_logs rows all cascade-delete via the DB's `on delete cascade` foreign
+ * keys, so this is a single-row delete. Throws the Supabase error on failure.
+ */
+export async function deleteOutfit(outfitId: string): Promise<void> {
+  const { error } = await supabase.from('outfits').delete().eq('id', outfitId);
+  if (error) throw error;
 }

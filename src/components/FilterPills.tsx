@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 type Props<T extends string> = {
-  options: T[];
+  options: readonly T[];
   selected: T | null;
   onSelect: (value: T | null) => void;
   allLabel?: string;

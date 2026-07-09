@@ -1,5 +1,9 @@
+import DeleteButton from '@/components/DeleteButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import { useDataMode } from '@/context/DataModeContext';
+import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
+import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type OutfitDetailItem = {
@@ -15,8 +19,19 @@ type Props = {
 };
 
 export default function OutfitDetailPage({ outfit, closetItems }: Props) {
+  const { dataService } = useDataMode();
   const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
   const pieces = outfit.itemIds.map(itemId => itemsById.get(itemId)).filter((item): item is ClosetItem => Boolean(item));
+
+  const { confirmAndDelete, isDeleting } = useDeleteConfirm({
+    confirmTitle: 'Delete outfit',
+    confirmMessage: `Delete "${outfit.name ?? 'this outfit'}"? This can't be undone.`,
+    errorTitle: "Couldn't delete outfit",
+    onDelete: async () => {
+      await dataService.deleteOutfit(outfit.id);
+      markOutfitsDirty();
+    },
+  });
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -57,6 +72,8 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
         ) : (
           <Text style={styles.emptyText}>No clothing items for this outfit yet.</Text>
         )}
+
+        <DeleteButton label="Delete outfit" onPress={confirmAndDelete} isDeleting={isDeleting} />
       </View>
     </ScrollView>
   );

@@ -1,7 +1,12 @@
 import type { IDataService } from './dataService.types';
 import { createOwnCloset, getOwnCloset, getStylistClosets, regeneratePassphrase } from './supabaseClosetsService';
-import { createClosetItem, getClosetItemById, getClosetItems } from './supabaseClosetItemsService';
-import { getOutfitById, getOutfits } from './supabaseOutfitsService';
+import {
+  createClosetItem,
+  deleteClosetItem,
+  getClosetItemById,
+  getClosetItems,
+} from './supabaseClosetItemsService';
+import { createOutfit, deleteOutfit, getOutfitById, getOutfits } from './supabaseOutfitsService';
 
 /**
  * Live `IDataService` backed by Supabase. Just wires together the
@@ -14,8 +19,11 @@ export const supabaseService: IDataService = {
   getClosetItems,
   getClosetItemById,
   createClosetItem,
+  deleteClosetItem,
   getOutfits,
   getOutfitById,
+  createOutfit,
+  deleteOutfit,
   getStylistClosets,
   getOwnCloset,
   createOwnCloset,

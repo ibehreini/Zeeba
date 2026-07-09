@@ -133,6 +133,40 @@ export interface Outfit {
   created_at: string;
 }
 
+/**
+ * Hardcoded vibe/occasion labels for the "create outfit" form (single-select
+ * for v1). Kept as a plain const list, same pattern as CLOTHING_ITEM_TYPES,
+ * so adding/renaming a label later is a one-line change.
+ */
+export const OUTFIT_LABELS = [
+  'Girly/Romantic',
+  'Work',
+  'Casual',
+  'Date Night',
+  'Athleisure',
+  'Formal Event',
+  'Street Style',
+  'Minimalist Chic',
+  'Artsy',
+  'Boho',
+] as const;
+
+export type OutfitLabel = (typeof OUTFIT_LABELS)[number];
+
+/**
+ * Form data for the "create new outfit" flow. Name, description, label, and
+ * at least one item are all required; item picking rules (one top + one
+ * bottom, or one dress, etc.) are enforced by the form, not this type.
+ */
+export interface NewOutfitInput {
+  closetId: string;
+  userId: string;
+  name: string;
+  description: string;
+  label: OutfitLabel;
+  itemIds: string[];
+}
+
 /** A closet the current user has stylist (collaborator) access to. */
 export interface StylistCloset {
   closet_id: string;
@@ -169,8 +203,14 @@ export interface IDataService {
   getClosetItemById(itemId: string): Promise<ClosetItem | null>;
   /** Creates a garment and uploads its photos. Throws if no photo is marked primary. */
   createClosetItem(input: NewClosetItemInput): Promise<ClosetItem>;
+  /** Deletes a garment. Its clothing_item_photos/outfit_items/wear_logs rows cascade-delete in the DB. */
+  deleteClosetItem(itemId: string): Promise<void>;
   getOutfits(closetId?: string): Promise<Outfit[]>;
   getOutfitById(outfitId: string): Promise<Outfit | null>;
+  /** Creates an outfit from picked closet items. */
+  createOutfit(input: NewOutfitInput): Promise<Outfit>;
+  /** Deletes an outfit. The outfit_items/outfit_photos/wear_logs rows for it cascade-delete in the DB. */
+  deleteOutfit(outfitId: string): Promise<void>;
   /** Closets `userId` collaborates on (stylist access), not counting ones they own. */
   getStylistClosets(userId: string): Promise<StylistCloset[]>;
   /** The closet `userId` owns, or null if they haven't created one yet. */
@@ -229,9 +269,14 @@ export function getErrorMessage(err: unknown, fallback: string): string {
 
 /** Groups a flat item list into ordered, titled sections, dropping any empty category. */
 export function groupClosetItemsBySection(items: ClosetItem[]): ClosetSection[] {
+  return groupClosetItemsByAllCategories(items).filter(section => section.data.length > 0);
+}
+
+/** Same as groupClosetItemsBySection but keeps every category, even ones with no items - used by pickers that need a stable tab per category. */
+export function groupClosetItemsByAllCategories(items: ClosetItem[]): ClosetSection[] {
   return CATEGORY_ORDER.map(category => ({
     title: CATEGORY_TITLES[category],
     category,
     data: items.filter(item => item.category === category),
-  })).filter(section => section.data.length > 0);
+  }));
 }

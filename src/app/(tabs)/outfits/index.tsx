@@ -1,7 +1,7 @@
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
-import { useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
   const router = useRouter();
@@ -14,36 +14,52 @@ export default function Index() {
     });
   };
 
+  const headerRight = () => (
+    <Pressable
+      onPress={() => router.push('/outfits/new')}
+      style={styles.addButton}
+      accessibilityRole="button"
+      accessibilityLabel="Create new outfit"
+      hitSlop={8}
+    >
+      <Text style={styles.addButtonText}>Create new Outfit</Text>
+    </Pressable>
+  );
+
+  let content;
   if (isLoading) {
-    return (
+    content = (
       <View style={styles.centered}>
         <ActivityIndicator />
       </View>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
       </View>
     );
-  }
-
-  if (!activeClosetId) {
-    return (
+  } else if (!activeClosetId) {
+    content = (
       <View style={styles.centered}>
         <Text style={styles.errorText}>
           {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
         </Text>
       </View>
     );
+  } else {
+    content = (
+      <View style={styles.container}>
+        <OutfitsGrid closetId={activeClosetId} onOutfitPress={handleNavigation} />
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <OutfitsGrid closetId={activeClosetId} onOutfitPress={handleNavigation} />
-    </View>
+    <>
+      <Stack.Screen options={{ headerRight }} />
+      {content}
+    </>
   );
 }
 
@@ -62,5 +78,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 24,
+  },
+  addButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
 });
