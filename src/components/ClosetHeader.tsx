@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -7,7 +6,7 @@ type Props = {
 
 export default function ClosetHeader({ title }: Props) {
   return (
-    <View  style={styles.container}>
+    <View style={styles.container}>
       <Text accessibilityRole="header" style={styles.headerText}>{title}</Text>
       <View style={styles.underline} />
     </View>

@@ -1,5 +1,4 @@
 import type { ClosetItem } from '@/services/dataService.types';
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import ClothingItem from './ClothingItem';
 
@@ -11,7 +10,7 @@ type Props = {
 export default function ClosetRow({ items, onItemPress }: Props) {
   return (
     <View style={styles.row}>
-      {items.map((item) => (
+      {items.map(item => (
         <View key={item.item_id} style={styles.itemWrapper}>
           <ClothingItem
             source={item.img}
@@ -20,7 +19,6 @@ export default function ClosetRow({ items, onItemPress }: Props) {
           />
         </View>
       ))}
-      {items.length === 1 && <View style={styles.spacer} />}
     </View>
   );
 }
@@ -28,18 +26,15 @@ export default function ClosetRow({ items, onItemPress }: Props) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap', // ✨ Key change: allows items to drop to the next line
-    justifyContent: 'flex-start', // 'flex-start' often works better with wrap than space-between
+    // Wraps into a 2-column grid; flex-start (not space-between) keeps a
+    // trailing odd item flush left instead of stretching to fill the row.
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     paddingHorizontal: 10,
     marginBottom: 8,
   },
   itemWrapper: {
-    // Force items to take up a percentage of the width (e.g., 2-column grid minus padding)
-    width: '48%', 
+    width: '48%',
     margin: '1%',
-  },
-  spacer: {
-    flex: 1,
-    margin: 5,
   },
 });

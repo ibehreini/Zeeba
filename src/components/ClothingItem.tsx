@@ -1,8 +1,9 @@
-import { Image } from 'expo-image'; // High-perf native component
+import type { ImageSource } from '@/services/dataService.types';
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet } from 'react-native';
 
 type Props = {
-  source: string | number; // Can be a require() or a URI
+  source: ImageSource;
   accessibilityLabel: string;
   onPress: () => void;
 };
@@ -12,17 +13,14 @@ export default function ClothingItem({ source, accessibilityLabel, onPress }: Pr
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${accessibilityLabel}`}
-      style={({ pressed }) => [
-        styles.container,
-        { opacity: pressed ? 0.8 : 1 }
-      ]}
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [styles.container, { opacity: pressed ? 0.8 : 1 }]}
     >
       <Image
         source={source}
         style={styles.image}
         contentFit="contain" // Keeps the entire item visible without clipping
-        transition={200}   // Smooth native fade-in in SDK 55
+        transition={200}
       />
     </Pressable>
   );

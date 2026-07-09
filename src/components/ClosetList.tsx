@@ -1,5 +1,4 @@
 import type { ClosetSection } from '@/services/dataService.types';
-import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import ClosetHeader from './ClosetHeader';
 import ClosetRow from './ClosetRow';

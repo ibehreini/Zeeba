@@ -2,8 +2,8 @@ import NativeSelect from '@/components/NativeSelect';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import {
+  CLOTHING_ITEM_TYPE_LABELS,
   CLOTHING_ITEM_TYPES,
-  FIT_NOTES_OPTIONS,
   getErrorMessage,
   type ClothingItemType,
   type NewClosetItemPhoto,
@@ -173,62 +173,43 @@ export default function AddClothingItemForm() {
           value={itemType}
           onChange={value => setItemType(value)}
           placeholder="Select a type"
+          formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
           required
         />
       </Field>
 
-      <Field label="Name" required>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Black Silk Tank"
-          style={styles.textInput}
-          accessibilityLabel="Name, required"
-        />
-      </Field>
+      <LabeledTextInput
+        label="Name"
+        required
+        value={name}
+        onChangeText={setName}
+        placeholder="e.g. Black Silk Tank"
+      />
 
-      <Field label="Description" required>
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe the item"
-          multiline
-          numberOfLines={4}
-          style={[styles.textInput, styles.multilineInput]}
-          accessibilityLabel="Description, required"
-        />
-      </Field>
+      <LabeledTextInput
+        label="Description"
+        required
+        multiline
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Describe the item"
+      />
 
-      <Field label="Fit notes">
-        <NativeSelect
-          label="Fit notes"
-          options={FIT_NOTES_OPTIONS}
-          value={fitNotes}
-          onChange={setFitNotes}
-          placeholder="Select fit notes"
-          allowClear
-        />
-      </Field>
+      <LabeledTextInput
+        label="Fit notes"
+        value={fitNotes ?? ''}
+        onChangeText={text => setFitNotes(text || null)}
+        placeholder="e.g. Runs small"
+      />
 
-      <Field label="Care instructions">
-        <TextInput
-          value={careInstructions}
-          onChangeText={setCareInstructions}
-          placeholder="e.g. Dry clean only"
-          style={styles.textInput}
-          accessibilityLabel="Care instructions"
-        />
-      </Field>
+      <LabeledTextInput
+        label="Care instructions"
+        value={careInstructions}
+        onChangeText={setCareInstructions}
+        placeholder="e.g. Dry clean only"
+      />
 
-      <Field label="Brand">
-        <TextInput
-          value={brand}
-          onChangeText={setBrand}
-          placeholder="e.g. Everlane"
-          style={styles.textInput}
-          accessibilityLabel="Brand"
-        />
-      </Field>
+      <LabeledTextInput label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Everlane" />
 
       <Pressable
         onPress={handleSubmit}
@@ -263,6 +244,31 @@ function Field({ label, required, children }: FieldProps) {
       </Text>
       {children}
     </View>
+  );
+}
+
+type LabeledTextInputProps = {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  multiline?: boolean;
+};
+
+function LabeledTextInput({ label, value, onChangeText, placeholder, required, multiline }: LabeledTextInputProps) {
+  return (
+    <Field label={label} required={required}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        multiline={multiline}
+        numberOfLines={multiline ? 4 : undefined}
+        style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
+        accessibilityLabel={required ? `${label}, required` : label}
+      />
+    </Field>
   );
 }
 

@@ -28,6 +28,18 @@ export const CLOTHING_ITEM_TYPES: readonly ClothingItemType[] = [
   'accessory',
 ];
 
+/** Display label for each item type in the create-item form's type select. */
+export const CLOTHING_ITEM_TYPE_LABELS: Record<ClothingItemType, string> = {
+  shirt: 'Top (tank, short, sweater, etc)',
+  pants: 'Bottoms (pants, shorts, or skirt)',
+  dress_romper: 'Dress/Romper',
+  shoes: 'Shoes',
+  jacket: 'Jacket',
+  purse: 'Purse',
+  jewelry: 'Jewelry',
+  accessory: 'Accessory',
+};
+
 /** Narrows a raw db string into `ClothingItemType`, throwing on drift from the check constraint. */
 export function toClothingItemType(value: string): ClothingItemType {
   if ((CLOTHING_ITEM_TYPES as readonly string[]).includes(value)) {
@@ -71,20 +83,6 @@ export function mapCategoryToDefaultItemType(category: ClothingCategory): Clothi
   return CATEGORY_TO_DEFAULT_ITEM_TYPE[category];
 }
 
-/**
- * fit_notes is freeform text in the db (see schema.sql), but the create-item
- * form presents it as a select of the same common phrases already used in
- * the seed data, rather than a free text box.
- */
-export const FIT_NOTES_OPTIONS: readonly string[] = [
-  'True to size',
-  'Runs small',
-  'Runs large',
-  'Fits loose/oversized',
-  'Fits boxy',
-  'Runs tight',
-];
-
 /** A require()'d local asset (number) in preview mode, or a remote URL (string) once live. */
 export type ImageSource = string | number;
 
@@ -113,6 +111,8 @@ export interface ClosetItem {
   care_instructions: string | null;
   purchase_url: string | null;
   img: ImageSource;
+  /** Non-primary photos for this item (e.g. different lighting, fabric close-ups). May be empty. */
+  secondary_photos: ImageSource[];
   created_at: string;
 }
 

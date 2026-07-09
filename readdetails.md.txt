@@ -18,12 +18,6 @@ React.memo is a performance optimization tool that tells the chef: "Hey, if the 
 In technical terms, it is a Higher-Order Component (HOC) that caches (memoizes) the rendered output of your component and skips re-rendering it if its props haven't changed
 ",
 
-
-
-
-
-
-
 db information
 
 supabase /src/util
@@ -45,3 +39,4 @@ need both good queries and rls policy
 auth.uid() = owner_id 
 OR 
 (request.headers() ->> 'x-closet-passphrase' = passphrase)
+

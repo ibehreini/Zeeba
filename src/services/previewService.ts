@@ -41,6 +41,7 @@ function toClosetItems(): ClosetItem[] {
     care_instructions: null,
     purchase_url: null,
     img: item.img,
+    secondary_photos: [],
     created_at: now,
   }));
   return [...bundledItems, ...previewCreatedItems];
@@ -91,6 +92,7 @@ class PreviewDataService implements IDataService {
       care_instructions: input.careInstructions,
       purchase_url: null,
       img: primaryPhoto.uri,
+      secondary_photos: [],
       created_at: new Date().toISOString(),
     };
     previewCreatedItems.push(created);

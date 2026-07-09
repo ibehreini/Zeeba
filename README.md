@@ -76,3 +76,6 @@ MVP
 Tech debt:
 google react pacakge I am using will eventaully be phased out. Replace with open source free package expo recomments
 rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that to authenticated users
+my closet has an extra heading at the bottom of the page on item details view and in general closets page
+closet seems to refresh when you open item details page then go back to the main closet page - scrolls all the way to the top which is annoying - but since there are heading smaybe not huge right now
+Secondary photo not able to click 'choose' , limit it to 3 choices for extra photos per clothing item

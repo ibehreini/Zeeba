@@ -2,6 +2,7 @@ import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Image } from 'expo-image'; // High-perf native component
+import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -9,14 +10,18 @@ type Props = {
   itemId: string;
 };
 
-// Placeholder "worn in the wild" shots - reuses the same smiley-face stock
-// image already used elsewhere as a generic placeholder. Swap these for
-// real photos of the item once we have them.
-const WORN_IN_THE_WILD_PLACEHOLDERS = [
-  require('../../assets/images/clothes/outfit_preview.jpg'),
-  require('../../assets/images/clothes/outfit_preview.jpg'),
-  require('../../assets/images/clothes/outfit_preview.jpg'),
-];
+// Up to this many secondary photos are shown below the primary image.
+const MAX_SECONDARY_PHOTOS = 3;
+
+/** Rows shown in the "Item Details" section, in display order. */
+function getDetailFields(item: ClosetItem): { label: string; value: string | null }[] {
+  return [
+    { label: 'Description', value: item.description },
+    { label: 'Brand', value: item.brand },
+    { label: 'Fit notes', value: item.fit_notes },
+    { label: 'Care instructions', value: item.care_instructions },
+  ];
+}
 
 export default function ClothingItemDetail({ itemId }: Props) {
   const { dataService } = useDataMode();
@@ -54,109 +59,138 @@ export default function ClothingItemDetail({ itemId }: Props) {
     };
   }, [itemId, dataService]);
 
+  let content: React.ReactNode;
+
   if (isLoading) {
-    return (
+    content = (
       <View style={styles.container}>
         <ActivityIndicator />
       </View>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <View style={styles.container}>
         <Text style={styles.text}>{error}</Text>
       </View>
     );
-  }
-
-  if (!item) {
-    return (
+  } else if (!item) {
+    content = (
       <View style={styles.container}>
         <Text style={styles.text}>Item not found!</Text>
       </View>
     );
+  } else {
+    const secondaryPhotos = item.secondary_photos.slice(0, MAX_SECONDARY_PHOTOS);
+    const detailFields = getDetailFields(item);
+
+    content = (
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={item.img}
+            style={styles.image}
+            contentFit="cover" // Modern prop replacing resizeMode
+            transition={200}   // Smooth native fade-in in SDK 55
+            accessibilityIgnoresInvertColors
+          />
+        </View>
+        <View style={styles.contentContainer}>
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            More photos
+          </Text>
+          {secondaryPhotos.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollRow}>
+              {secondaryPhotos.map((source, index) => (
+                <Pressable
+                  key={index}
+                  style={styles.photoThumb}
+                  onPress={() => setPreviewIndex(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Photo ${index + 1} of ${secondaryPhotos.length}`}
+                >
+                  <Image source={source} style={styles.photoThumbImage} contentFit="cover" />
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyText}>
+              Add some photos of the garment in different lighting or a close up of the fabric here
+            </Text>
+          )}
+
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            Item Details
+          </Text>
+          <View style={styles.detailsList}>
+            {detailFields.map(({ label, value }) => (
+              <View
+                key={label}
+                style={styles.detailRow}
+                accessible
+                accessibilityLabel={`${label}: ${value ?? 'No info yet'}`}
+              >
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={value ? styles.text : styles.emptyText}>{value ?? 'No info yet'}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            Featured in outfits
+          </Text>
+          {featuredOutfits.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollRow}>
+              {featuredOutfits.map(outfit => (
+                <View
+                  key={outfit.outfit_id}
+                  style={styles.outfitThumb}
+                  accessible
+                  accessibilityRole="image"
+                  accessibilityLabel={outfit.name}
+                >
+                  <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} style={styles.outfitFlatLay} />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyText}>Not featured in any outfits yet.</Text>
+          )}
+        </View>
+
+        <Modal
+          visible={previewIndex !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewIndex(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            {previewIndex !== null && (
+              <Image
+                source={secondaryPhotos[previewIndex]}
+                style={styles.modalImage}
+                contentFit="contain"
+                accessibilityLabel={`Photo ${previewIndex + 1} of ${secondaryPhotos.length}`}
+              />
+            )}
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setPreviewIndex(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Close image preview"
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </Pressable>
+          </View>
+        </Modal>
+      </ScrollView>
+    );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.imageContainer}>
-        <Image
-          source={item.img}
-          style={styles.image}
-          contentFit="cover" // Modern prop replacing resizeMode
-          transition={200}   // Smooth native fade-in in SDK 55
-          accessibilityIgnoresInvertColors
-        />
-      </View>
-      <View style={styles.contentContainer}>
-        <Text accessibilityRole="header" style={styles.titleText}>{item.name}</Text>
-        <Text style={styles.text}>{item.description}</Text>
-
-        <Text accessibilityRole="header" style={styles.sectionLabel}>
-          Worn in the wild
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.wildRow}>
-          {WORN_IN_THE_WILD_PLACEHOLDERS.map((source, index) => (
-            <Pressable
-              key={index}
-              style={styles.wildThumb}
-              onPress={() => setPreviewIndex(index)}
-              accessibilityRole="button"
-              accessibilityLabel={`Worn in the wild photo ${index + 1} of ${WORN_IN_THE_WILD_PLACEHOLDERS.length}`}
-            >
-              <Image source={source} style={styles.wildThumbImage} contentFit="cover" />
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <Text accessibilityRole="header" style={styles.sectionLabel}>
-          Featured in outfits
-        </Text>
-        {featuredOutfits.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.wildRow}>
-            {featuredOutfits.map(outfit => (
-              <View
-                key={outfit.outfit_id}
-                style={styles.outfitThumb}
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel={outfit.name}
-              >
-                <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} style={styles.outfitFlatLay} />
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <Text style={styles.emptyText}>Not featured in any outfits yet.</Text>
-        )}
-      </View>
-
-      <Modal
-        visible={previewIndex !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewIndex(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          {previewIndex !== null && (
-            <Image
-              source={WORN_IN_THE_WILD_PLACEHOLDERS[previewIndex]}
-              style={styles.modalImage}
-              contentFit="contain"
-            />
-          )}
-          <Pressable
-            style={styles.closeButton}
-            onPress={() => setPreviewIndex(null)}
-            accessibilityRole="button"
-            accessibilityLabel="Close image preview"
-          >
-            <Text style={styles.closeButtonText}>Close</Text>
-          </Pressable>
-        </View>
-      </Modal>
-    </ScrollView>
+    <>
+      <Stack.Screen options={{ title: item?.name ?? 'Item details' }} />
+      {content}
+    </>
   );
 }
 
@@ -190,12 +224,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     alignItems: 'flex-start', // Keeps text left-aligned like Amazon
   },
-  titleText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f1111',
-    marginBottom: 8,
-  },
   sectionLabel: {
     fontSize: 17,
     fontWeight: '700',
@@ -203,10 +231,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 12,
   },
-  wildRow: {
+  horizontalScrollRow: {
     width: '100%',
   },
-  wildThumb: {
+  photoThumb: {
     width: 96,
     height: 96,
     borderRadius: 10,
@@ -214,9 +242,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6f6f6',
     marginRight: 12,
   },
-  wildThumbImage: {
+  photoThumbImage: {
     width: '100%',
     height: '100%',
+  },
+  detailsList: {
+    width: '100%',
+  },
+  detailRow: {
+    width: '100%',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e5e5',
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 2,
   },
   outfitThumb: {
     width: 96,
