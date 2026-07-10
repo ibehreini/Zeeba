@@ -4,7 +4,8 @@ import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link } from 'expo-router';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type OutfitDetailItem = {
   id: string;
@@ -55,18 +56,19 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
         {pieces.length > 0 ? (
           <View style={styles.pieceGrid}>
             {pieces.map(item => (
-              <View
-                key={item.item_id}
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel={item.name}
-                style={styles.pieceBox}
-              >
-                <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
-                <Text style={styles.pieceLabel} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </View>
+              <Link key={item.item_id} href={`/item/${item.item_id}`} asChild>
+                <Pressable
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={`View item: ${item.name}`}
+                  style={styles.pieceBox}
+                >
+                  <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
+                  <Text style={styles.pieceLabel} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                </Pressable>
+              </Link>
             ))}
           </View>
         ) : (

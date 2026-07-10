@@ -111,7 +111,7 @@ export default function AddClothingItemForm() {
           text: 'OK',
           onPress: () =>
             router.replace({
-              pathname: '/closet/[id]',
+              pathname: '/item/[id]',
               params: { id: created.item_id },
             }),
         },

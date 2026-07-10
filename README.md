@@ -1,29 +1,29 @@
 # Welcome to your Expo app 👋
-I left off on:
+I left off on: - delete working now as well as create outfit
 
+make the wedding guest preview image skip
 
-next Going to work on the 'create clothing item' flow. in the UI on the my closet tab there should be a 'add new' button at the top right of the screen. when a user presses this,  they are taken to a new screen 'Add new Item'. They should be able to browse the photo library to pick a photo as primary photo in the db, then fill in metadata, they should also be able to add additional photos to serve as secondary photos
-when the user saves it sends the add request to the db and either displays a success or error message.
-Then they should be able to see this item in the 'my closet' tab as well as the clothing item details page
+then add another heading 'worn in the wild' where a user can add photos of them actually wearing the outfit
+
+refactor code
+bug with adding the secondary photos , also add photos to worn in wild and outfit and clothing extra photos
+
+next: count for how many times you wore an item
+and how many times you wore an outfit - may need a new db table
+maybe event log
+
+when the user saves it sends the add request to the db and either 
 in the details page they should be able to see an 'edit' button at top right so they can edit the details and click save. the save will update the db row and either say success or error
-npx expo start will start server and run on phone
-
-then work on the crud functions - with outfit items save new outfit, delete outfit, edit outfit
-lastly do the image upload from camera roll
-
 
 To to: 
 make new tags? who can make? admin only?
-clothing item can have fit - boxy, hitsz above knees, etc
-clothing item can have care instructions ex - dry clean only add once then its always there
+
+then its always there
 auth, profile info
 when you click i wore this today - drum iranian sound easter egg
-CRUD for db in clothing and outfits
-
 next: can request a fit - suggest peices you want to wera?
 next: closet code to access your particular closet
 next: items detail view should also have a section "your item in the wild" with ability to upload pics of you weraing that item so people know how it looks on the body
-Next: Upload an item flow [with user handling the good uploading]
 next: count for how many times you wore an item
 next: profile or closet details like 'style' 'goals' 'colors you love' 'inspo'
 next: user accounts? authentication?

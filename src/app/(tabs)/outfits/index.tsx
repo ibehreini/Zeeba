@@ -9,7 +9,7 @@ export default function Index() {
 
   const handleNavigation = (id: string) => {
     router.push({
-      pathname: '/outfits/[id]',
+      pathname: '/outfit/[id]',
       params: { id },
     });
   };

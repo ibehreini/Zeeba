@@ -1,8 +1,9 @@
+import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitDetailPage from '@/components/outfitDetailPage';
 import { useDataMode } from '@/context/DataModeContext';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 export default function OutfitDetailScreen() {
@@ -42,40 +43,45 @@ export default function OutfitDetailScreen() {
     };
   }, [outfitId, dataService]);
 
+  let content: React.ReactNode;
+
   if (isLoading) {
-    return (
+    content = (
       <View style={styles.centered}>
         <ActivityIndicator />
       </View>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <View style={styles.centered}>
         <Text style={styles.notFoundText}>{error}</Text>
       </View>
     );
-  }
-
-  if (!outfit) {
-    return (
+  } else if (!outfit) {
+    content = (
       <View style={styles.centered}>
         <Text style={styles.notFoundText}>Outfit not found.</Text>
       </View>
     );
+  } else {
+    content = (
+      <OutfitDetailPage
+        outfit={{
+          id: outfit.outfit_id,
+          name: outfit.name,
+          description: outfit.description,
+          itemIds: outfit.item_ids,
+        }}
+        closetItems={closetItems}
+      />
+    );
   }
 
   return (
-    <OutfitDetailPage
-      outfit={{
-        id: outfit.outfit_id,
-        name: outfit.name,
-        description: outfit.description,
-        itemIds: outfit.item_ids,
-      }}
-      closetItems={closetItems}
-    />
+    <>
+      <Stack.Screen options={{ title: outfit?.name ?? 'Outfit', headerLeft: HeaderBackButton }} />
+      {content}
+    </>
   );
 }
 

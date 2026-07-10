@@ -184,7 +184,7 @@ export default function CreateOutfitForm() {
           text: 'OK',
           onPress: () =>
             router.replace({
-              pathname: '/outfits/[id]',
+              pathname: '/outfit/[id]',
               params: { id: created.outfit_id },
             }),
         },

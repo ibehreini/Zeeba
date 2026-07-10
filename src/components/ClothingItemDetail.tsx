@@ -1,10 +1,11 @@
 import DeleteButton from '@/components/DeleteButton';
+import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Image } from 'expo-image'; // High-perf native component
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -36,7 +37,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete item',
-    confirmMessage: `Delete "${item?.name ?? 'this item'}"? This can't be undone.`,
+    confirmMessage: `Delete "${item?.name ?? 'this item'}"? This will remove the item from every outfit it is currently a part of, but the outfits will otherwise remain.  this can't be undone.`,
     errorTitle: "Couldn't delete item",
     onDelete: () => dataService.deleteClosetItem(itemId),
   });
@@ -150,15 +151,16 @@ export default function ClothingItemDetail({ itemId }: Props) {
           {featuredOutfits.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollRow}>
               {featuredOutfits.map(outfit => (
-                <View
-                  key={outfit.outfit_id}
-                  style={styles.outfitThumb}
-                  accessible
-                  accessibilityRole="image"
-                  accessibilityLabel={outfit.name}
-                >
-                  <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} style={styles.outfitFlatLay} />
-                </View>
+                <Link key={outfit.outfit_id} href={`/outfit/${outfit.outfit_id}`} asChild>
+                  <Pressable
+                    style={styles.outfitThumb}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={`View outfit: ${outfit.name}`}
+                  >
+                    <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} style={styles.outfitFlatLay} />
+                  </Pressable>
+                </Link>
               ))}
             </ScrollView>
           ) : (
@@ -199,7 +201,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   return (
     <>
-      <Stack.Screen options={{ title: item?.name ?? 'Item details' }} />
+      <Stack.Screen options={{ title: item?.name ?? 'Item details', headerLeft: HeaderBackButton }} />
       {content}
     </>
   );

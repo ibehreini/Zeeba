@@ -46,7 +46,7 @@ export default function Index() {
 
   const handleNavigation = (id: string) => {
     router.push({
-      pathname: '/closet/[id]',
+      pathname: '/item/[id]',
       params: { id },
     });
   };
