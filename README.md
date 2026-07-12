@@ -1,11 +1,11 @@
 # Welcome to your Expo app 👋
-I left off on: 
-for stylist, should list all the closets they are collaboraters on. Also select the one they want - and see it, banner different color bc they are stylist.
-
+To Do
+activity log table needs to be created in supabase
+stylist, should list all the closets they are collaboraters on. Also select the one they want - and see it, 
+banner different color bc they are stylist.
+edit functionality on clothes and outfits
 passphrase i dont think is enough to be stylist ? email and passphrase?
-edit flow for item and outfit
-maybe event log who made what outfit or edited last
-
+Display user email/name on home page? make name? check supabase table
 
 refactor code
 

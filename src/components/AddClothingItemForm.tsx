@@ -77,11 +77,13 @@ export default function AddClothingItemForm() {
       Alert.alert('Item added', `"${created.name}" was added to your closet.`, [
         {
           text: 'OK',
-          onPress: () =>
-            router.replace({
+          onPress: () => {
+            router.back();
+            router.push({
               pathname: '/item/[id]',
               params: { id: created.item_id },
-            }),
+            });
+          },
         },
       ]);
     } catch (err) {

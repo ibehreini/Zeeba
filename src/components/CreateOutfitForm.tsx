@@ -182,11 +182,13 @@ export default function CreateOutfitForm() {
       Alert.alert('Outfit created', `"${created.name}" was added to your closet.`, [
         {
           text: 'OK',
-          onPress: () =>
-            router.replace({
+          onPress: () => {
+            router.back();
+            router.push({
               pathname: '/outfit/[id]',
               params: { id: created.outfit_id },
-            }),
+            });
+          },
         },
       ]);
     } catch (err) {
