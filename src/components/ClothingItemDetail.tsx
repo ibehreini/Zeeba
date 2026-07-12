@@ -3,11 +3,13 @@ import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
-import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
+import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
+import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
 import { Link, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   itemId: string;
@@ -31,9 +33,12 @@ export default function ClothingItemDetail({ itemId }: Props) {
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [featuredOutfits, setFeaturedOutfits] = useState<Outfit[]>([]);
+  const [photos, setPhotos] = useState<ClosetItemPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete item',
@@ -54,6 +59,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
       .then(([fetchedItem, allItems, allOutfits]) => {
         if (cancelled) return;
         setItem(fetchedItem);
+        setPhotos(fetchedItem?.secondary_photos ?? []);
         setClosetItems(allItems);
         setFeaturedOutfits(allOutfits.filter(outfit => outfit.item_ids.includes(itemId)));
       })
@@ -68,6 +74,38 @@ export default function ClothingItemDetail({ itemId }: Props) {
       cancelled = true;
     };
   }, [itemId, dataService]);
+
+  const handleAddPhoto = async () => {
+    const [uri] = await pickLibraryImages(false);
+    if (!uri) return;
+
+    setIsAddingPhoto(true);
+    try {
+      const photo = await dataService.addClosetItemPhoto(itemId, uri);
+      setPhotos(prev => [...prev, photo]);
+    } catch (err) {
+      Alert.alert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsAddingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (previewIndex === null) return;
+    const photo = photos[previewIndex];
+    if (!photo) return;
+
+    setIsDeletingPhoto(true);
+    try {
+      await dataService.deleteClosetItemPhoto(photo);
+      setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
+      setPreviewIndex(null);
+    } catch (err) {
+      Alert.alert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsDeletingPhoto(false);
+    }
+  };
 
   let content: React.ReactNode;
 
@@ -90,7 +128,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
       </View>
     );
   } else {
-    const secondaryPhotos = item.secondary_photos.slice(0, MAX_SECONDARY_PHOTOS);
+    const secondaryPhotos = photos.slice(0, MAX_SECONDARY_PHOTOS);
     const detailFields = getDetailFields(item);
 
     content = (
@@ -108,25 +146,37 @@ export default function ClothingItemDetail({ itemId }: Props) {
           <Text accessibilityRole="header" style={styles.sectionLabel}>
             More photos
           </Text>
-          {secondaryPhotos.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollRow}>
-              {secondaryPhotos.map((source, index) => (
-                <Pressable
-                  key={index}
-                  style={styles.photoThumb}
-                  onPress={() => setPreviewIndex(index)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Photo ${index + 1} of ${secondaryPhotos.length}`}
-                >
-                  <Image source={source} style={styles.photoThumbImage} contentFit="cover" />
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
+          {secondaryPhotos.length === 0 ? (
             <Text style={styles.emptyText}>
               Add some photos of the garment in different lighting or a close up of the fabric here
             </Text>
-          )}
+          ) : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScrollRow}>
+            {secondaryPhotos.map((photo, index) => (
+              <Pressable
+                key={photo.id}
+                style={styles.photoThumb}
+                onPress={() => setPreviewIndex(index)}
+                accessibilityRole="button"
+                accessibilityLabel={`Photo ${index + 1} of ${secondaryPhotos.length}`}
+              >
+                <Image source={photo.image_url} style={styles.photoThumbImage} contentFit="cover" />
+              </Pressable>
+            ))}
+
+            {secondaryPhotos.length < MAX_SECONDARY_PHOTOS ? (
+              <Pressable
+                onPress={handleAddPhoto}
+                disabled={isAddingPhoto}
+                style={[styles.photoThumb, styles.addPhotoThumb]}
+                accessibilityRole="button"
+                accessibilityLabel="Add a photo"
+                accessibilityState={{ disabled: isAddingPhoto }}
+              >
+                <Text style={styles.addPhotoThumbText}>{isAddingPhoto ? '…' : '+'}</Text>
+              </Pressable>
+            ) : null}
+          </ScrollView>
 
           <Text accessibilityRole="header" style={styles.sectionLabel}>
             Item Details
@@ -179,20 +229,34 @@ export default function ClothingItemDetail({ itemId }: Props) {
           <View style={styles.modalBackdrop}>
             {previewIndex !== null && (
               <Image
-                source={secondaryPhotos[previewIndex]}
+                source={secondaryPhotos[previewIndex].image_url}
                 style={styles.modalImage}
                 contentFit="contain"
                 accessibilityLabel={`Photo ${previewIndex + 1} of ${secondaryPhotos.length}`}
               />
             )}
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => setPreviewIndex(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Close image preview"
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </Pressable>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.deleteImageButton}
+                onPress={handleDeletePhoto}
+                disabled={isDeletingPhoto}
+                accessibilityRole="button"
+                accessibilityLabel="Delete photo"
+                accessibilityState={{ disabled: isDeletingPhoto }}
+              >
+                <Ionicons name="trash-outline" size={22} color="#fff" />
+              </Pressable>
+
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => setPreviewIndex(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close image preview"
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </Pressable>
+            </View>
           </View>
         </Modal>
       </ScrollView>
@@ -259,6 +323,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  addPhotoThumb: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    backgroundColor: '#fafafa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPhotoThumbText: {
+    fontSize: 28,
+    color: '#999',
+  },
   detailsList: {
     width: '100%',
   },
@@ -295,8 +371,21 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '70%',
   },
-  closeButton: {
+  modalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
     marginTop: 24,
+  },
+  deleteImageButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

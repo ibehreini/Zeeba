@@ -112,14 +112,28 @@ export interface ClosetItem {
   purchase_url: string | null;
   img: ImageSource;
   /** Non-primary photos for this item (e.g. different lighting, fabric close-ups). May be empty. */
-  secondary_photos: ImageSource[];
+  secondary_photos: ClosetItemPhoto[];
+  created_at: string;
+}
+
+/** A non-primary photo attached to a closet item, sourced from clothing_item_photos. */
+export interface ClosetItemPhoto {
+  id: string;
+  image_url: ImageSource;
+  created_at: string;
+}
+
+/** A "worn in the wild" photo attached to an outfit, sourced from outfit_photos. */
+export interface OutfitPhoto {
+  id: string;
+  image_url: ImageSource;
   created_at: string;
 }
 
 /**
  * App-facing shape for an outfit. Sourced from outfits + outfit_items (join
- * table -> item_ids) + outfit_photos (-> preview image) in live mode, or
- * MyOutfits_Data in preview mode.
+ * table -> item_ids) + outfit_photos (-> preview image + full photo list) in
+ * live mode, or MyOutfits_Data in preview mode.
  */
 export interface Outfit {
   outfit_id: string;
@@ -130,6 +144,8 @@ export interface Outfit {
   item_ids: string[];
   compliment_count: number;
   outfit_img_preview: { img: ImageSource };
+  /** "Worn in the wild" photos, oldest first. Capped at 3 by the UI, not the DB. */
+  photos: OutfitPhoto[];
   created_at: string;
 }
 
@@ -205,12 +221,20 @@ export interface IDataService {
   createClosetItem(input: NewClosetItemInput): Promise<ClosetItem>;
   /** Deletes a garment. Its clothing_item_photos/outfit_items/wear_logs rows cascade-delete in the DB. */
   deleteClosetItem(itemId: string): Promise<void>;
+  /** Uploads a non-primary photo for an existing closet item and returns its new row. */
+  addClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto>;
+  /** Deletes one non-primary closet item photo (row + storage object). */
+  deleteClosetItemPhoto(photo: ClosetItemPhoto): Promise<void>;
   getOutfits(closetId?: string): Promise<Outfit[]>;
   getOutfitById(outfitId: string): Promise<Outfit | null>;
   /** Creates an outfit from picked closet items. */
   createOutfit(input: NewOutfitInput): Promise<Outfit>;
   /** Deletes an outfit. The outfit_items/outfit_photos/wear_logs rows for it cascade-delete in the DB. */
   deleteOutfit(outfitId: string): Promise<void>;
+  /** Uploads a "worn in the wild" photo for an outfit and returns its new row. */
+  addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto>;
+  /** Deletes one outfit photo (row + storage object). */
+  deleteOutfitPhoto(photo: OutfitPhoto): Promise<void>;
   /** Closets `userId` collaborates on (stylist access), not counting ones they own. */
   getStylistClosets(userId: string): Promise<StylistCloset[]>;
   /** The closet `userId` owns, or null if they haven't created one yet. */

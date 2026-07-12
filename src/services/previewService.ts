@@ -3,10 +3,12 @@ import { MyOutfits_Data } from '@/constants/MyOutfitsData';
 import { mapCategoryToDefaultItemType, mapItemTypeToCategory } from './dataService.types';
 import type {
   ClosetItem,
+  ClosetItemPhoto,
   IDataService,
   NewClosetItemInput,
   NewOutfitInput,
   Outfit,
+  OutfitPhoto,
   OwnCloset,
   StylistCloset,
 } from './dataService.types';
@@ -42,6 +44,14 @@ const previewCreatedOutfits: Outfit[] = [];
 const previewDeletedItemIds = new Set<string>();
 const previewDeletedOutfitIds = new Set<string>();
 
+// "Worn in the wild" photos added during a guest session, keyed by outfit
+// id - same session-only lifetime as everything else above.
+const previewOutfitPhotos = new Map<string, OutfitPhoto[]>();
+
+// Extra closet item photos added during a guest session, keyed by item id -
+// same session-only lifetime as everything else above.
+const previewClosetItemPhotos = new Map<string, ClosetItemPhoto[]>();
+
 function toClosetItems(): ClosetItem[] {
   const now = new Date().toISOString();
   const bundledItems = Closet_Data.map(item => ({
@@ -59,7 +69,9 @@ function toClosetItems(): ClosetItem[] {
     secondary_photos: [],
     created_at: now,
   }));
-  return [...bundledItems, ...previewCreatedItems].filter(item => !previewDeletedItemIds.has(item.item_id));
+  return [...bundledItems, ...previewCreatedItems]
+    .filter(item => !previewDeletedItemIds.has(item.item_id))
+    .map(item => ({ ...item, secondary_photos: previewClosetItemPhotos.get(item.item_id) ?? item.secondary_photos }));
 }
 
 function toOutfits(): Outfit[] {
@@ -73,11 +85,12 @@ function toOutfits(): Outfit[] {
     item_ids: outfit.item_ids,
     compliment_count: 0,
     outfit_img_preview: { img: outfit.outfit_img_preview.img },
+    photos: [],
     created_at: now,
   }));
-  return [...bundledOutfits, ...previewCreatedOutfits].filter(
-    outfit => !previewDeletedOutfitIds.has(outfit.outfit_id),
-  );
+  return [...bundledOutfits, ...previewCreatedOutfits]
+    .filter(outfit => !previewDeletedOutfitIds.has(outfit.outfit_id))
+    .map(outfit => ({ ...outfit, photos: previewOutfitPhotos.get(outfit.outfit_id) ?? outfit.photos }));
 }
 
 class PreviewDataService implements IDataService {
@@ -122,6 +135,29 @@ class PreviewDataService implements IDataService {
     return delay(undefined);
   }
 
+  async addClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto> {
+    const photo: ClosetItemPhoto = {
+      id: `preview-item-photo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      image_url: uri,
+      created_at: new Date().toISOString(),
+    };
+    previewClosetItemPhotos.set(itemId, [...(previewClosetItemPhotos.get(itemId) ?? []), photo]);
+    return delay(photo);
+  }
+
+  async deleteClosetItemPhoto(photo: ClosetItemPhoto): Promise<void> {
+    for (const [itemId, photos] of previewClosetItemPhotos) {
+      if (photos.some(candidate => candidate.id === photo.id)) {
+        previewClosetItemPhotos.set(
+          itemId,
+          photos.filter(candidate => candidate.id !== photo.id),
+        );
+        break;
+      }
+    }
+    return delay(undefined);
+  }
+
   async getOutfits(_closetId?: string): Promise<Outfit[]> {
     return delay(toOutfits());
   }
@@ -141,6 +177,7 @@ class PreviewDataService implements IDataService {
       item_ids: input.itemIds,
       compliment_count: 0,
       outfit_img_preview: { img: PLACEHOLDER_IMAGE },
+      photos: [],
       created_at: new Date().toISOString(),
     };
     previewCreatedOutfits.push(created);
@@ -149,6 +186,29 @@ class PreviewDataService implements IDataService {
 
   async deleteOutfit(outfitId: string): Promise<void> {
     previewDeletedOutfitIds.add(outfitId);
+    return delay(undefined);
+  }
+
+  async addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto> {
+    const photo: OutfitPhoto = {
+      id: `preview-outfit-photo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      image_url: uri,
+      created_at: new Date().toISOString(),
+    };
+    previewOutfitPhotos.set(outfitId, [...(previewOutfitPhotos.get(outfitId) ?? []), photo]);
+    return delay(photo);
+  }
+
+  async deleteOutfitPhoto(photo: OutfitPhoto): Promise<void> {
+    for (const [outfitId, photos] of previewOutfitPhotos) {
+      if (photos.some(candidate => candidate.id === photo.id)) {
+        previewOutfitPhotos.set(
+          outfitId,
+          photos.filter(candidate => candidate.id !== photo.id),
+        );
+        break;
+      }
+    }
     return delay(undefined);
   }
 

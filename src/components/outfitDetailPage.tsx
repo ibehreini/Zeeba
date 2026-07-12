@@ -2,16 +2,24 @@ import DeleteButton from '@/components/DeleteButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
-import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
+import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
+import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+// "Worn in the wild" photos are capped at this many per outfit; the Add tile
+// hides itself once this many exist.
+const MAX_OUTFIT_PHOTOS = 3;
 
 type OutfitDetailItem = {
   id: string;
   name: string | null;
   description?: string | null;
   itemIds: readonly string[];
+  photos: readonly OutfitPhoto[];
 };
 
 type Props = {
@@ -24,6 +32,11 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
   const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
   const pieces = outfit.itemIds.map(itemId => itemsById.get(itemId)).filter((item): item is ClosetItem => Boolean(item));
 
+  const [photos, setPhotos] = useState<OutfitPhoto[]>([...outfit.photos]);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<OutfitPhoto | null>(null);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete outfit',
     confirmMessage: `Delete "${outfit.name ?? 'this outfit'}"? This can't be undone.`,
@@ -34,19 +47,48 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
     },
   });
 
+  const handleAddPhoto = async () => {
+    const [uri] = await pickLibraryImages(false);
+    if (!uri) return;
+
+    setIsAddingPhoto(true);
+    try {
+      const photo = await dataService.addOutfitPhoto(outfit.id, uri);
+      setPhotos(prev => [...prev, photo]);
+    } catch (err) {
+      Alert.alert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsAddingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!viewingPhoto) return;
+    const photo = viewingPhoto;
+
+    setIsDeletingPhoto(true);
+    try {
+      await dataService.deleteOutfitPhoto(photo);
+      setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
+      setViewingPhoto(null);
+    } catch (err) {
+      Alert.alert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsDeletingPhoto(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={`${outfit.name ?? 'Outfit'} preview`}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
         style={styles.flatLayWrapper}
       >
         <OutfitFlatLay itemIds={outfit.itemIds} closetItems={closetItems} />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>{outfit.name ?? 'Untitled outfit'}</Text>
         {outfit.description ? <Text style={styles.description}>{outfit.description}</Text> : null}
 
         <Text accessibilityRole="header" style={styles.sectionLabel}>
@@ -75,8 +117,78 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
           <Text style={styles.emptyText}>No clothing items for this outfit yet.</Text>
         )}
 
+        <Text accessibilityRole="header" style={styles.sectionLabel}>
+          Worn in the Wild
+        </Text>
+
+        <View style={styles.pieceGrid}>
+          {photos.map((photo, index) => (
+            <Pressable
+              key={photo.id}
+              onPress={() => setViewingPhoto(photo)}
+              accessibilityRole="button"
+              accessibilityLabel={`Worn in the wild photo ${index + 1} of ${photos.length}`}
+              style={styles.pieceBox}
+            >
+              <Image source={toRNImageSource(photo.image_url)} style={styles.pieceImage} resizeMode="cover" />
+            </Pressable>
+          ))}
+
+          {photos.length < MAX_OUTFIT_PHOTOS ? (
+            <Pressable
+              onPress={handleAddPhoto}
+              disabled={isAddingPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Add a worn-in-the-wild photo"
+              accessibilityState={{ disabled: isAddingPhoto }}
+              style={[styles.pieceBox, styles.addPhotoBox]}
+            >
+              <Text style={styles.addPhotoBoxText}>{isAddingPhoto ? '…' : '+'}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         <DeleteButton label="Delete outfit" onPress={confirmAndDelete} isDeleting={isDeleting} />
       </View>
+
+      <Modal
+        visible={viewingPhoto !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewingPhoto(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          {viewingPhoto && (
+            <Image
+              source={toRNImageSource(viewingPhoto.image_url)}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          )}
+
+          <View style={styles.modalActions}>
+            <Pressable
+              style={styles.deleteImageButton}
+              onPress={handleDeletePhoto}
+              disabled={isDeletingPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="delete image"
+              accessibilityState={{ disabled: isDeletingPhoto }}
+            >
+              <Ionicons name="trash-outline" size={22} color="#fff" />
+            </Pressable>
+
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setViewingPhoto(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Close image preview"
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -97,12 +209,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     paddingVertical: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f1111',
-    marginBottom: 4,
   },
   description: {
     fontSize: 16,
@@ -141,5 +247,55 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#666',
     fontSize: 15,
+  },
+  addPhotoBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    backgroundColor: '#fafafa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPhotoBoxText: {
+    fontSize: 28,
+    color: '#999',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: '90%',
+    height: '70%',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 24,
+  },
+  deleteImageButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f1111',
   },
 });

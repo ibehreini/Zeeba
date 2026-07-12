@@ -41,6 +41,12 @@ insert into storage.buckets (id, name, public)
 values ('clothing_item_photos', 'clothing_item_photos', true)
 on conflict (id) do nothing;
 
+-- Dedicated bucket for the outfit detail page's "Worn in the Wild" photo
+-- uploads. Same public, no-auth-scoped-policy shape as clothing_item_photos.
+insert into storage.buckets (id, name, public)
+values ('outfit_photos', 'outfit_photos', true)
+on conflict (id) do nothing;
+
 
 -- ----------------------------------------------------------------------------
 -- 2. Tables
@@ -426,6 +432,15 @@ create policy "Public access to clothing item photos bucket"
   on storage.objects for all
   using (bucket_id = 'clothing_item_photos')
   with check (bucket_id = 'clothing_item_photos');
+
+-- ----------------------------------------------------------------------------
+-- 6c. Storage policy for the outfit_photos bucket - same fully public shape
+-- as clothing_item_photos above.
+-- ----------------------------------------------------------------------------
+create policy "Public access to outfit photos bucket"
+  on storage.objects for all
+  using (bucket_id = 'outfit_photos')
+  with check (bucket_id = 'outfit_photos');
 
 
 -- ----------------------------------------------------------------------------

@@ -1,9 +1,8 @@
 # Welcome to your Expo app 👋
-I left off on: - delete working now as well as create outfit
+I left off on: role level security issue with adding worn in the wild photo - check supabase db for tables and buckets
 
-make the wedding guest preview image skip
+add rls on buckets in supabase
 
-then add another heading 'worn in the wild' where a user can add photos of them actually wearing the outfit
 
 refactor code
 bug with adding the secondary photos , also add photos to worn in wild and outfit and clothing extra photos
@@ -75,7 +74,9 @@ MVP
 
 Tech debt:
 google react pacakge I am using will eventaully be phased out. Replace with open source free package expo recomments
-rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that to authenticated users
+rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that  - for outfit and clothing bucketsto authenticated users
 my closet has an extra heading at the bottom of the page on item details view and in general closets page
 closet seems to refresh when you open item details page then go back to the main closet page - scrolls all the way to the top which is annoying - but since there are heading smaybe not huge right now
-Secondary photo not able to click 'choose' , limit it to 3 choices for extra photos per clothing item
+Secondary photo not able to click 'choose' ,
+
+compress images and limit file size in the bucket too and file type

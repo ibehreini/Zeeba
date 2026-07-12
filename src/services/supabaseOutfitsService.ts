@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
-import type { NewOutfitInput, Outfit } from './dataService.types';
+import type { NewOutfitInput, Outfit, OutfitPhoto } from './dataService.types';
+import { deleteOutfitPhotoObject, uploadOutfitPhoto } from './supabasePhotoStorage';
 import { mapOutfitRow, OUTFIT_SELECT, type OutfitQueryRow } from './supabaseRowMappers';
 
 /** All outfits, optionally scoped to one closet. Throws the Supabase error on failure. */
@@ -69,4 +70,14 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
 export async function deleteOutfit(outfitId: string): Promise<void> {
   const { error } = await supabase.from('outfits').delete().eq('id', outfitId);
   if (error) throw error;
+}
+
+/** Uploads a "worn in the wild" photo for an outfit. Throws the Supabase error on failure. */
+export async function addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto> {
+  return uploadOutfitPhoto(outfitId, uri);
+}
+
+/** Deletes one outfit photo (row + storage object). Throws the Supabase error on failure. */
+export async function deleteOutfitPhoto(photo: OutfitPhoto): Promise<void> {
+  return deleteOutfitPhotoObject(photo);
 }

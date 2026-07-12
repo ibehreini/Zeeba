@@ -1,6 +1,11 @@
 import { supabase } from '@/utils/supabase';
-import type { ClosetItem, NewClosetItemInput } from './dataService.types';
-import { removeClosetItemPhotoObjects, uploadClosetItemPhoto } from './supabasePhotoStorage';
+import type { ClosetItem, ClosetItemPhoto, NewClosetItemInput } from './dataService.types';
+import {
+  deleteClosetItemPhotoObject,
+  removeClosetItemPhotoObjects,
+  uploadClosetItemPhoto,
+  uploadSecondaryClosetItemPhoto,
+} from './supabasePhotoStorage';
 import { CLOSET_ITEM_SELECT, mapClosetItemRow, type ClosetItemQueryRow } from './supabaseRowMappers';
 
 /** All clothing items, optionally scoped to one closet. Throws the Supabase error on failure. */
@@ -82,4 +87,14 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
 export async function deleteClosetItem(itemId: string): Promise<void> {
   const { error } = await supabase.from('clothing_items').delete().eq('id', itemId);
   if (error) throw error;
+}
+
+/** Uploads a non-primary photo for an existing closet item. Throws the Supabase error on failure. */
+export async function addClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto> {
+  return uploadSecondaryClosetItemPhoto(itemId, uri);
+}
+
+/** Deletes one non-primary closet item photo (row + storage object). Throws the Supabase error on failure. */
+export async function deleteClosetItemPhoto(photo: ClosetItemPhoto): Promise<void> {
+  return deleteClosetItemPhotoObject(photo);
 }

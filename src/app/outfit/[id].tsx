@@ -71,6 +71,7 @@ export default function OutfitDetailScreen() {
           name: outfit.name,
           description: outfit.description,
           itemIds: outfit.item_ids,
+          photos: outfit.photos,
         }}
         closetItems={closetItems}
       />

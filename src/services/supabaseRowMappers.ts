@@ -7,23 +7,23 @@ import { mapItemTypeToCategory, toClothingItemType, type ClosetItem, type Outfit
  */
 export const PLACEHOLDER_IMAGE = require('../../assets/images/clothes/outfit_preview.jpg');
 
-type ClothingItemPhotoRow = Pick<Tables<'clothing_item_photos'>, 'image_url' | 'is_primary'>;
+type ClothingItemPhotoRow = Pick<Tables<'clothing_item_photos'>, 'id' | 'image_url' | 'is_primary' | 'created_at'>;
 export type ClosetItemQueryRow = Tables<'clothing_items'> & {
   clothing_item_photos: ClothingItemPhotoRow[];
 };
 
 type OutfitItemRow = Pick<Tables<'outfit_items'>, 'clothing_item_id'>;
-type OutfitPhotoRow = Pick<Tables<'outfit_photos'>, 'image_url' | 'created_at'>;
+type OutfitPhotoRow = Pick<Tables<'outfit_photos'>, 'id' | 'image_url' | 'created_at'>;
 export type OutfitQueryRow = Tables<'outfits'> & {
   outfit_items: OutfitItemRow[];
   outfit_photos: OutfitPhotoRow[];
 };
 
 /** `.select()` fragment for a clothing item plus enough photo data to resolve its primary image. */
-export const CLOSET_ITEM_SELECT = '*, clothing_item_photos(image_url, is_primary)';
+export const CLOSET_ITEM_SELECT = '*, clothing_item_photos(id, image_url, is_primary, created_at)';
 
-/** `.select()` fragment for an outfit plus enough join data to resolve its item ids and preview image. */
-export const OUTFIT_SELECT = '*, outfit_items(clothing_item_id), outfit_photos(image_url, created_at)';
+/** `.select()` fragment for an outfit plus enough join data to resolve its item ids, preview image, and full photo list. */
+export const OUTFIT_SELECT = '*, outfit_items(clothing_item_id), outfit_photos(id, image_url, created_at)';
 
 /** Maps a `clothing_items` row (+ joined photos) to the app-facing `ClosetItem` shape. */
 export function mapClosetItemRow(row: ClosetItemQueryRow): ClosetItem {
@@ -45,7 +45,7 @@ export function mapClosetItemRow(row: ClosetItemQueryRow): ClosetItem {
     img: primaryPhoto?.image_url ?? PLACEHOLDER_IMAGE,
     secondary_photos: row.clothing_item_photos
       .filter(photo => photo !== primaryPhoto)
-      .map(photo => photo.image_url),
+      .map(photo => ({ id: photo.id, image_url: photo.image_url, created_at: photo.created_at })),
     created_at: row.created_at,
   };
 }
@@ -56,9 +56,9 @@ export function mapClosetItemRow(row: ClosetItemQueryRow): ClosetItem {
  * thumbnail stays stable as newer photos are added.
  */
 export function mapOutfitRow(row: OutfitQueryRow): Outfit {
-  const earliestPhoto = [...row.outfit_photos].sort((a, b) =>
+  const sortedPhotos = [...row.outfit_photos].sort((a, b) =>
     a.created_at.localeCompare(b.created_at),
-  )[0];
+  );
 
   return {
     outfit_id: row.id,
@@ -68,7 +68,8 @@ export function mapOutfitRow(row: OutfitQueryRow): Outfit {
     labels: row.labels,
     item_ids: row.outfit_items.map(outfitItem => outfitItem.clothing_item_id),
     compliment_count: row.compliment_count,
-    outfit_img_preview: { img: earliestPhoto?.image_url ?? PLACEHOLDER_IMAGE },
+    outfit_img_preview: { img: sortedPhotos[0]?.image_url ?? PLACEHOLDER_IMAGE },
+    photos: sortedPhotos,
     created_at: row.created_at,
   };
 }
