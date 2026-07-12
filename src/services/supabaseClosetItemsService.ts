@@ -55,6 +55,7 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
       fit_notes: input.fitNotes,
       care_instructions: input.careInstructions,
       brand: input.brand,
+      purchase_url: input.purchaseUrl,
     })
     .select('id')
     .single();

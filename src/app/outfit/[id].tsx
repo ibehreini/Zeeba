@@ -68,6 +68,7 @@ export default function OutfitDetailScreen() {
       <OutfitDetailPage
         outfit={{
           id: outfit.outfit_id,
+          closetId: outfit.closet_id,
           name: outfit.name,
           description: outfit.description,
           itemIds: outfit.item_ids,

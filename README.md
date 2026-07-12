@@ -1,15 +1,14 @@
 # Welcome to your Expo app 👋
-I left off on: role level security issue with adding worn in the wild photo - check supabase db for tables and buckets
+I left off on: 
+for stylist, should list all the closets they are collaboraters on. Also select the one they want - and see it, banner different color bc they are stylist.
 
-add rls on buckets in supabase
+passphrase i dont think is enough to be stylist ? email and passphrase?
+edit flow for item and outfit
+maybe event log who made what outfit or edited last
 
 
 refactor code
-bug with adding the secondary photos , also add photos to worn in wild and outfit and clothing extra photos
 
-next: count for how many times you wore an item
-and how many times you wore an outfit - may need a new db table
-maybe event log
 
 when the user saves it sends the add request to the db and either 
 in the details page they should be able to see an 'edit' button at top right so they can edit the details and click save. the save will update the db row and either say success or error
@@ -77,6 +76,5 @@ google react pacakge I am using will eventaully be phased out. Replace with open
 rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that  - for outfit and clothing bucketsto authenticated users
 my closet has an extra heading at the bottom of the page on item details view and in general closets page
 closet seems to refresh when you open item details page then go back to the main closet page - scrolls all the way to the top which is annoying - but since there are heading smaybe not huge right now
-Secondary photo not able to click 'choose' ,
-
 compress images and limit file size in the bucket too and file type
+the clothing items themselves get their wear count from the downstream outfits linked to that clothing item. so what happens if you delete or edit an outfit? maybe a case for not editing an outfit like the items themselves but just making a new one

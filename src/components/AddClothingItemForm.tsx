@@ -29,7 +29,6 @@ export default function AddClothingItemForm() {
   const { activeClosetId } = useCloset();
 
   const [primaryPhotoUri, setPrimaryPhotoUri] = useState<string | null>(null);
-  const [secondaryPhotoUris, setSecondaryPhotoUris] = useState<string[]>([]);
 
   const [itemType, setItemType] = useState<ClothingItemType | null>(null);
   const [name, setName] = useState('');
@@ -37,21 +36,13 @@ export default function AddClothingItemForm() {
   const [fitNotes, setFitNotes] = useState<string | null>(null);
   const [careInstructions, setCareInstructions] = useState('');
   const [brand, setBrand] = useState('');
+  const [purchaseUrl, setPurchaseUrl] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
 
   const handlePickPrimaryPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
     if (uri) setPrimaryPhotoUri(uri);
-  };
-
-  const handleAddSecondaryPhotos = async () => {
-    const uris = await pickLibraryImages(true);
-    if (uris.length > 0) setSecondaryPhotoUris(prev => [...prev, ...uris]);
-  };
-
-  const handleRemoveSecondaryPhoto = (uri: string) => {
-    setSecondaryPhotoUris(prev => prev.filter(existing => existing !== uri));
   };
 
   const canSubmit =
@@ -69,10 +60,7 @@ export default function AddClothingItemForm() {
 
     setSubmitting(true);
     try {
-      const photos: NewClosetItemPhoto[] = [
-        { uri: primaryPhotoUri, isPrimary: true },
-        ...secondaryPhotoUris.map(uri => ({ uri, isPrimary: false })),
-      ];
+      const photos: NewClosetItemPhoto[] = [{ uri: primaryPhotoUri, isPrimary: true }];
 
       const created = await dataService.createClosetItem({
         closetId: activeClosetId,
@@ -82,6 +70,7 @@ export default function AddClothingItemForm() {
         fitNotes,
         careInstructions: careInstructions.trim() || null,
         brand: brand.trim() || null,
+        purchaseUrl: purchaseUrl.trim() || null,
         photos,
       });
 
@@ -117,32 +106,6 @@ export default function AddClothingItemForm() {
             <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
           )}
         </Pressable>
-      </Field>
-
-      <Field label="Additional photos">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.secondaryRow}>
-          {secondaryPhotoUris.map(uri => (
-            <View key={uri} style={styles.secondaryThumbWrapper}>
-              <Image source={{ uri }} style={styles.secondaryThumb} />
-              <Pressable
-                onPress={() => handleRemoveSecondaryPhoto(uri)}
-                style={styles.removeThumbButton}
-                accessibilityRole="button"
-                accessibilityLabel="Remove photo"
-              >
-                <Text style={styles.removeThumbButtonText}>×</Text>
-              </Pressable>
-            </View>
-          ))}
-          <Pressable
-            onPress={handleAddSecondaryPhotos}
-            style={styles.addSecondaryButton}
-            accessibilityRole="button"
-            accessibilityLabel="Add additional photos"
-          >
-            <Text style={styles.addSecondaryButtonText}>+</Text>
-          </Pressable>
-        </ScrollView>
       </Field>
 
       <Field label="Type" required>
@@ -190,6 +153,15 @@ export default function AddClothingItemForm() {
 
       <LabeledTextInput label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Everlane" />
 
+      <LabeledTextInput
+        label="Purchase URL"
+        value={purchaseUrl}
+        onChangeText={setPurchaseUrl}
+        placeholder="https://..."
+        keyboardType="url"
+        autoCapitalize="none"
+      />
+
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
@@ -233,9 +205,20 @@ type LabeledTextInputProps = {
   placeholder?: string;
   required?: boolean;
   multiline?: boolean;
+  keyboardType?: 'default' | 'url';
+  autoCapitalize?: 'none' | 'sentences';
 };
 
-function LabeledTextInput({ label, value, onChangeText, placeholder, required, multiline }: LabeledTextInputProps) {
+function LabeledTextInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  required,
+  multiline,
+  keyboardType,
+  autoCapitalize,
+}: LabeledTextInputProps) {
   return (
     <Field label={label} required={required}>
       <TextInput
@@ -244,6 +227,8 @@ function LabeledTextInput({ label, value, onChangeText, placeholder, required, m
         placeholder={placeholder}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
         accessibilityLabel={required ? `${label}, required` : label}
       />
@@ -302,51 +287,6 @@ const styles = StyleSheet.create({
   primaryPhotoPlaceholder: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#999',
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-  },
-  secondaryThumbWrapper: {
-    width: 88,
-    height: 88,
-    marginRight: 12,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  secondaryThumb: {
-    width: '100%',
-    height: '100%',
-  },
-  removeThumbButton: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeThumbButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  addSecondaryButton: {
-    width: 88,
-    height: 88,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-    backgroundColor: '#fafafa',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addSecondaryButtonText: {
-    fontSize: 28,
     color: '#999',
   },
   submitButton: {

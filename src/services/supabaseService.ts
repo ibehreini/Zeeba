@@ -16,6 +16,12 @@ import {
   getOutfitById,
   getOutfits,
 } from './supabaseOutfitsService';
+import {
+  deleteWearLog,
+  getOutfitWearStatus,
+  getWearCountForOutfits,
+  logOutfitWornToday,
+} from './supabaseWearLogsService';
 
 /**
  * Live `IDataService` backed by Supabase. Just wires together the
@@ -37,6 +43,10 @@ export const supabaseService: IDataService = {
   deleteOutfit,
   addOutfitPhoto,
   deleteOutfitPhoto,
+  getOutfitWearStatus,
+  logOutfitWornToday,
+  deleteWearLog,
+  getWearCountForOutfits,
   getStylistClosets,
   getOwnCloset,
   createOwnCloset,

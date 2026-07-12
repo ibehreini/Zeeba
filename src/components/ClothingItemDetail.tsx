@@ -9,7 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
 import { Link, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   itemId: string;
@@ -19,12 +19,13 @@ type Props = {
 const MAX_SECONDARY_PHOTOS = 3;
 
 /** Rows shown in the "Item Details" section, in display order. */
-function getDetailFields(item: ClosetItem): { label: string; value: string | null }[] {
+function getDetailFields(item: ClosetItem): { label: string; value: string | null; isLink?: boolean }[] {
   return [
     { label: 'Description', value: item.description },
     { label: 'Brand', value: item.brand },
     { label: 'Fit notes', value: item.fit_notes },
     { label: 'Care instructions', value: item.care_instructions },
+    { label: 'Purchase URL', value: item.purchase_url, isLink: true },
   ];
 }
 
@@ -33,6 +34,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [featuredOutfits, setFeaturedOutfits] = useState<Outfit[]>([]);
+  const [wearCount, setWearCount] = useState(0);
   const [photos, setPhotos] = useState<ClosetItemPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,23 @@ export default function ClothingItemDetail({ itemId }: Props) {
         setItem(fetchedItem);
         setPhotos(fetchedItem?.secondary_photos ?? []);
         setClosetItems(allItems);
-        setFeaturedOutfits(allOutfits.filter(outfit => outfit.item_ids.includes(itemId)));
+
+        const featured = allOutfits.filter(outfit => outfit.item_ids.includes(itemId));
+        setFeaturedOutfits(featured);
+
+        // Not awaited with the rest of the page's load - the item's wear
+        // count is a secondary detail, not something worth blocking on.
+        if (fetchedItem) {
+          dataService
+            .getWearCountForOutfits(
+              fetchedItem.closet_id,
+              featured.map(outfit => outfit.outfit_id),
+            )
+            .then(count => {
+              if (!cancelled) setWearCount(count);
+            })
+            .catch(() => {});
+        }
       })
       .catch(err => {
         if (!cancelled) setError(getErrorMessage(err, 'Failed to load item.'));
@@ -143,6 +161,10 @@ export default function ClothingItemDetail({ itemId }: Props) {
           />
         </View>
         <View style={styles.contentContainer}>
+          <Text style={styles.wearCountText}>
+            You have worn this item {wearCount} {wearCount === 1 ? 'time' : 'times'}
+          </Text>
+
           <Text accessibilityRole="header" style={styles.sectionLabel}>
             More photos
           </Text>
@@ -182,15 +204,23 @@ export default function ClothingItemDetail({ itemId }: Props) {
             Item Details
           </Text>
           <View style={styles.detailsList}>
-            {detailFields.map(({ label, value }) => (
+            {detailFields.map(({ label, value, isLink }) => (
               <View
                 key={label}
                 style={styles.detailRow}
-                accessible
+                accessible={!isLink || !value}
                 accessibilityLabel={`${label}: ${value ?? 'No info yet'}`}
               >
                 <Text style={styles.detailLabel}>{label}</Text>
-                <Text style={value ? styles.text : styles.emptyText}>{value ?? 'No info yet'}</Text>
+                {isLink && value ? (
+                  <Pressable onPress={() => Linking.openURL(value)} accessibilityRole="link" accessibilityLabel={`Open ${label}`}>
+                    <Text style={[styles.text, styles.linkText]} numberOfLines={1}>
+                      {value}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text style={value ? styles.text : styles.emptyText}>{value ?? 'No info yet'}</Text>
+                )}
               </View>
             ))}
           </View>
@@ -294,6 +324,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: '#333',
+  },
+  wearCountText: {
+    fontSize: 15,
+    color: '#555',
+  },
+  linkText: {
+    color: '#0066cc',
+    textDecorationLine: 'underline',
   },
   contentContainer: {
     width: '100%',

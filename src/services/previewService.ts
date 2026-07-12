@@ -1,6 +1,6 @@
 import { Closet_Data } from '@/constants/closetData';
 import { MyOutfits_Data } from '@/constants/MyOutfitsData';
-import { mapCategoryToDefaultItemType, mapItemTypeToCategory } from './dataService.types';
+import { mapCategoryToDefaultItemType, mapItemTypeToCategory, todayDateString } from './dataService.types';
 import type {
   ClosetItem,
   ClosetItemPhoto,
@@ -9,6 +9,7 @@ import type {
   NewOutfitInput,
   Outfit,
   OutfitPhoto,
+  OutfitWearStatus,
   OwnCloset,
   StylistCloset,
 } from './dataService.types';
@@ -51,6 +52,10 @@ const previewOutfitPhotos = new Map<string, OutfitPhoto[]>();
 // Extra closet item photos added during a guest session, keyed by item id -
 // same session-only lifetime as everything else above.
 const previewClosetItemPhotos = new Map<string, ClosetItemPhoto[]>();
+
+// "Worn today" logs added during a guest session, keyed by outfit id - same
+// session-only lifetime as everything else above.
+const previewWearLogs = new Map<string, { id: string; date: string }[]>();
 
 function toClosetItems(): ClosetItem[] {
   const now = new Date().toISOString();
@@ -121,7 +126,7 @@ class PreviewDataService implements IDataService {
       brand: input.brand,
       fit_notes: input.fitNotes,
       care_instructions: input.careInstructions,
-      purchase_url: null,
+      purchase_url: input.purchaseUrl,
       img: primaryPhoto.uri,
       secondary_photos: [],
       created_at: new Date().toISOString(),
@@ -210,6 +215,41 @@ class PreviewDataService implements IDataService {
       }
     }
     return delay(undefined);
+  }
+
+  async getOutfitWearStatus(_closetId: string, outfitId: string, _userId: string): Promise<OutfitWearStatus> {
+    const logs = previewWearLogs.get(outfitId) ?? [];
+    const todayLog = logs.find(log => log.date === todayDateString());
+    return delay({ wearCount: logs.length, todayWearLogId: todayLog?.id ?? null });
+  }
+
+  async logOutfitWornToday(_closetId: string, outfitId: string, _userId: string): Promise<string> {
+    const id = `preview-wear-log-${Date.now()}`;
+    const logs = previewWearLogs.get(outfitId) ?? [];
+    previewWearLogs.set(outfitId, [...logs, { id, date: todayDateString() }]);
+    return delay(id);
+  }
+
+  async deleteWearLog(wearLogId: string): Promise<void> {
+    for (const [outfitId, logs] of previewWearLogs) {
+      if (logs.some(log => log.id === wearLogId)) {
+        previewWearLogs.set(
+          outfitId,
+          logs.filter(log => log.id !== wearLogId),
+        );
+        break;
+      }
+    }
+    return delay(undefined);
+  }
+
+  async getWearCountForOutfits(_closetId: string, outfitIds: string[]): Promise<number> {
+    const outfitIdSet = new Set(outfitIds);
+    let total = 0;
+    for (const [outfitId, logs] of previewWearLogs) {
+      if (outfitIdSet.has(outfitId)) total += logs.length;
+    }
+    return delay(total);
   }
 
   async getStylistClosets(_userId: string): Promise<StylistCloset[]> {

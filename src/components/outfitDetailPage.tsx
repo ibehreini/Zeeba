@@ -1,5 +1,6 @@
 import DeleteButton from '@/components/DeleteButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
@@ -7,8 +8,8 @@ import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // "Worn in the wild" photos are capped at this many per outfit; the Add tile
 // hides itself once this many exist.
@@ -16,6 +17,7 @@ const MAX_OUTFIT_PHOTOS = 3;
 
 type OutfitDetailItem = {
   id: string;
+  closetId: string;
   name: string | null;
   description?: string | null;
   itemIds: readonly string[];
@@ -28,7 +30,12 @@ type Props = {
 };
 
 export default function OutfitDetailPage({ outfit, closetItems }: Props) {
-  const { dataService } = useDataMode();
+  const { mode, dataService } = useDataMode();
+  const { session } = useAuth();
+  // Preview (guest) sessions have no real user id, but the preview data
+  // service ignores it entirely - any placeholder value works there.
+  const userId = mode === 'preview' ? 'preview-user' : session?.user.id;
+
   const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
   const pieces = outfit.itemIds.map(itemId => itemsById.get(itemId)).filter((item): item is ClosetItem => Boolean(item));
 
@@ -36,6 +43,52 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<OutfitPhoto | null>(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+
+  const [wearCount, setWearCount] = useState(0);
+  const [todayWearLogId, setTodayWearLogId] = useState<string | null>(null);
+  const [isClosetOwner, setIsClosetOwner] = useState(false);
+  const [isTogglingWorn, setIsTogglingWorn] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+    Promise.all([dataService.getOutfitWearStatus(outfit.closetId, outfit.id, userId), dataService.getOwnCloset(userId)])
+      .then(([status, ownCloset]) => {
+        if (cancelled) return;
+        setWearCount(status.wearCount);
+        setTodayWearLogId(status.todayWearLogId);
+        setIsClosetOwner(ownCloset?.closet_id === outfit.closetId);
+      })
+      .catch(err => {
+        if (!cancelled) Alert.alert("Couldn't load wear history", getErrorMessage(err, 'Something went wrong.'));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataService, outfit.closetId, outfit.id, userId]);
+
+  const handleToggleWornToday = async () => {
+    if (!userId) return;
+
+    setIsTogglingWorn(true);
+    try {
+      if (todayWearLogId) {
+        await dataService.deleteWearLog(todayWearLogId);
+        setTodayWearLogId(null);
+        setWearCount(prev => Math.max(0, prev - 1));
+      } else {
+        const newLogId = await dataService.logOutfitWornToday(outfit.closetId, outfit.id, userId);
+        setTodayWearLogId(newLogId);
+        setWearCount(prev => prev + 1);
+      }
+    } catch (err) {
+      Alert.alert("Couldn't update", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsTogglingWorn(false);
+    }
+  };
 
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete outfit',
@@ -90,6 +143,34 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
 
       <View style={styles.content}>
         {outfit.description ? <Text style={styles.description}>{outfit.description}</Text> : null}
+
+        <Text style={styles.wearCountText}>
+          This outfit has been worn {wearCount} {wearCount === 1 ? 'time' : 'times'}
+        </Text>
+
+        {isClosetOwner ? (
+          <Pressable
+            onPress={handleToggleWornToday}
+            disabled={isTogglingWorn}
+            accessibilityRole="button"
+            accessibilityLabel={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
+            accessibilityState={{ disabled: isTogglingWorn }}
+            style={({ pressed }) => [
+              styles.wornTodayButton,
+              todayWearLogId && styles.wornTodayButtonActive,
+              pressed && styles.wornTodayButtonPressed,
+              isTogglingWorn && styles.wornTodayButtonDisabled,
+            ]}
+          >
+            {isTogglingWorn ? (
+              <ActivityIndicator color={todayWearLogId ? '#1a1a1a' : '#fff'} />
+            ) : (
+              <Text style={[styles.wornTodayButtonText, todayWearLogId && styles.wornTodayButtonTextActive]}>
+                {todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
 
         <Text accessibilityRole="header" style={styles.sectionLabel}>
           Pieces in this outfit
@@ -222,6 +303,39 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginTop: 8,
     marginBottom: 12,
+  },
+  wearCountText: {
+    fontSize: 15,
+    color: '#555',
+    marginBottom: 12,
+  },
+  wornTodayButton: {
+    minHeight: 50,
+    width: '100%',
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  wornTodayButtonActive: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+  },
+  wornTodayButtonPressed: {
+    opacity: 0.7,
+  },
+  wornTodayButtonDisabled: {
+    opacity: 0.5,
+  },
+  wornTodayButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  wornTodayButtonTextActive: {
+    color: '#1a1a1a',
   },
   pieceGrid: {
     flexDirection: 'row',

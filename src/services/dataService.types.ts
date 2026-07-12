@@ -130,6 +130,18 @@ export interface OutfitPhoto {
   created_at: string;
 }
 
+/** How many times an outfit has been logged as worn, and whether the current user already logged it today. */
+export interface OutfitWearStatus {
+  wearCount: number;
+  /** id of today's wear_logs row logged by the current user, or null if they haven't logged it today. */
+  todayWearLogId: string | null;
+}
+
+/** Today's date as wear_logs.worn_on_date expects it (a plain date, no time component). */
+export function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
  * App-facing shape for an outfit. Sourced from outfits + outfit_items (join
  * table -> item_ids) + outfit_photos (-> preview image + full photo list) in
@@ -209,6 +221,7 @@ export interface NewClosetItemInput {
   fitNotes: string | null;
   careInstructions: string | null;
   brand: string | null;
+  purchaseUrl: string | null;
   /** At least one photo, with exactly one marked primary. */
   photos: NewClosetItemPhoto[];
 }
@@ -235,6 +248,18 @@ export interface IDataService {
   addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto>;
   /** Deletes one outfit photo (row + storage object). */
   deleteOutfitPhoto(photo: OutfitPhoto): Promise<void>;
+  /** Wear count for an outfit, plus whether the current user already logged it worn today. */
+  getOutfitWearStatus(closetId: string, outfitId: string, userId: string): Promise<OutfitWearStatus>;
+  /** Logs an outfit as worn today by `userId`. Returns the new wear_logs row id. */
+  logOutfitWornToday(closetId: string, outfitId: string, userId: string): Promise<string>;
+  /** Deletes a wear_logs row (e.g. undoing today's log). */
+  deleteWearLog(wearLogId: string): Promise<void>;
+  /**
+   * Total wear count across a set of outfits (e.g. every outfit a clothing
+   * item is featured in), used to show that item's own "worn X times" count
+   * without a dedicated per-item log. Returns 0 for an empty `outfitIds`.
+   */
+  getWearCountForOutfits(closetId: string, outfitIds: string[]): Promise<number>;
   /** Closets `userId` collaborates on (stylist access), not counting ones they own. */
   getStylistClosets(userId: string): Promise<StylistCloset[]>;
   /** The closet `userId` owns, or null if they haven't created one yet. */
