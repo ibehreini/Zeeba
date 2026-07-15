@@ -1,3 +1,4 @@
+import { compressImageForUpload } from '@/utils/compressImage';
 import { supabase } from '@/utils/supabase';
 import type { ClosetItemPhoto, NewClosetItemPhoto, OutfitPhoto } from './dataService.types';
 
@@ -21,17 +22,20 @@ function contentTypeFromExtension(extension: string): string {
 /**
  * Uploads one locally-picked photo into `bucket`, under a `folderId/`
  * prefix, and returns both its storage path (for rollback/removal) and its
- * public URL (for the DB row). Throws the underlying Supabase error on
- * upload failure.
+ * public URL (for the DB row). The photo is compressed (downscaled,
+ * re-encoded as JPEG - this is also what normalizes iPhone HEIC captures)
+ * before upload. Throws the underlying Supabase error on upload failure.
  */
 async function uploadPhotoToBucket(
   bucket: string,
   folderId: string,
   uri: string,
 ): Promise<{ path: string; publicUrl: string }> {
-  const response = await fetch(uri);
+  const compressedUri = await compressImageForUpload(uri);
+
+  const response = await fetch(compressedUri);
   const arrayBuffer = await response.arrayBuffer();
-  const extension = extensionFromUri(uri);
+  const extension = extensionFromUri(compressedUri);
   const path = `${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
@@ -96,6 +100,30 @@ export async function uploadSecondaryClosetItemPhoto(itemId: string, uri: string
   }
 
   return data;
+}
+
+/**
+ * Uploads a replacement primary photo for a closet item, then removes
+ * whichever photo(s) were previously marked primary (row + storage object).
+ * The new photo is uploaded first so a failed upload leaves the existing
+ * primary photo untouched.
+ */
+export async function replacePrimaryClosetItemPhoto(itemId: string, uri: string): Promise<void> {
+  const { data: existingPrimaryPhotos, error: fetchError } = await supabase
+    .from('clothing_item_photos')
+    .select('id, image_url')
+    .eq('clothing_item_id', itemId)
+    .eq('is_primary', true);
+  if (fetchError) throw fetchError;
+
+  await uploadClosetItemPhoto(itemId, { uri, isPrimary: true });
+
+  for (const photo of existingPrimaryPhotos ?? []) {
+    await supabase.from('clothing_item_photos').delete().eq('id', photo.id);
+    const path =
+      typeof photo.image_url === 'string' ? storagePathFromPublicUrl(CLOTHING_ITEM_PHOTO_BUCKET, photo.image_url) : null;
+    if (path) await supabase.storage.from(CLOTHING_ITEM_PHOTO_BUCKET).remove([path]);
+  }
 }
 
 /**

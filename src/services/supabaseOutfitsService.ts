@@ -1,5 +1,5 @@
 import { supabase } from '@/utils/supabase';
-import type { NewOutfitInput, Outfit, OutfitPhoto } from './dataService.types';
+import type { NewOutfitInput, Outfit, OutfitPhoto, UpdateOutfitInput } from './dataService.types';
 import { deleteOutfitPhotoObject, uploadOutfitPhoto } from './supabasePhotoStorage';
 import { mapOutfitRow, OUTFIT_SELECT, type OutfitQueryRow } from './supabaseRowMappers';
 
@@ -60,6 +60,19 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
   const created = await getOutfitById(outfitId);
   if (!created) throw new Error('Failed to load the newly created outfit.');
   return created;
+}
+
+/** Updates an outfit's name and description. Throws the Supabase error on failure. */
+export async function updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit> {
+  const { error } = await supabase
+    .from('outfits')
+    .update({ name: input.name, description: input.description })
+    .eq('id', outfitId);
+  if (error) throw error;
+
+  const updated = await getOutfitById(outfitId);
+  if (!updated) throw new Error('Failed to load the updated outfit.');
+  return updated;
 }
 
 /**

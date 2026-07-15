@@ -12,6 +12,8 @@ import type {
   OutfitWearStatus,
   OwnCloset,
   StylistCloset,
+  UpdateClosetItemInput,
+  UpdateOutfitInput,
 } from './dataService.types';
 
 /** Same stock image supabaseRowMappers falls back to when a row has no photo yet. */
@@ -53,6 +55,12 @@ const previewOutfitPhotos = new Map<string, OutfitPhoto[]>();
 // same session-only lifetime as everything else above.
 const previewClosetItemPhotos = new Map<string, ClosetItemPhoto[]>();
 
+// Edits made to bundled or session-created items/outfits during a guest
+// session, keyed by item/outfit id - same session-only lifetime as
+// everything else above.
+const previewItemOverrides = new Map<string, Partial<ClosetItem>>();
+const previewOutfitOverrides = new Map<string, Partial<Outfit>>();
+
 // "Worn today" logs added during a guest session, keyed by outfit id - same
 // session-only lifetime as everything else above.
 const previewWearLogs = new Map<string, { id: string; date: string }[]>();
@@ -76,7 +84,11 @@ function toClosetItems(): ClosetItem[] {
   }));
   return [...bundledItems, ...previewCreatedItems]
     .filter(item => !previewDeletedItemIds.has(item.item_id))
-    .map(item => ({ ...item, secondary_photos: previewClosetItemPhotos.get(item.item_id) ?? item.secondary_photos }));
+    .map(item => ({
+      ...item,
+      secondary_photos: previewClosetItemPhotos.get(item.item_id) ?? item.secondary_photos,
+      ...previewItemOverrides.get(item.item_id),
+    }));
 }
 
 function toOutfits(): Outfit[] {
@@ -95,7 +107,11 @@ function toOutfits(): Outfit[] {
   }));
   return [...bundledOutfits, ...previewCreatedOutfits]
     .filter(outfit => !previewDeletedOutfitIds.has(outfit.outfit_id))
-    .map(outfit => ({ ...outfit, photos: previewOutfitPhotos.get(outfit.outfit_id) ?? outfit.photos }));
+    .map(outfit => ({
+      ...outfit,
+      photos: previewOutfitPhotos.get(outfit.outfit_id) ?? outfit.photos,
+      ...previewOutfitOverrides.get(outfit.outfit_id),
+    }));
 }
 
 class PreviewDataService implements IDataService {
@@ -133,6 +149,26 @@ class PreviewDataService implements IDataService {
     };
     previewCreatedItems.push(created);
     return delay(created);
+  }
+
+  async updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem> {
+    const existing = toClosetItems().find(candidate => candidate.item_id === itemId);
+    if (!existing) throw new Error('Item not found.');
+
+    previewItemOverrides.set(itemId, {
+      ...previewItemOverrides.get(itemId),
+      name: input.name,
+      description: input.description,
+      fit_notes: input.fitNotes,
+      care_instructions: input.careInstructions,
+      brand: input.brand,
+      purchase_url: input.purchaseUrl,
+      ...(input.newPrimaryPhotoUri ? { img: input.newPrimaryPhotoUri } : {}),
+    });
+
+    const updated = toClosetItems().find(candidate => candidate.item_id === itemId);
+    if (!updated) throw new Error('Item not found.');
+    return delay(updated);
   }
 
   async deleteClosetItem(itemId: string): Promise<void> {
@@ -187,6 +223,21 @@ class PreviewDataService implements IDataService {
     };
     previewCreatedOutfits.push(created);
     return delay(created);
+  }
+
+  async updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit> {
+    const existing = toOutfits().find(candidate => candidate.outfit_id === outfitId);
+    if (!existing) throw new Error('Outfit not found.');
+
+    previewOutfitOverrides.set(outfitId, {
+      ...previewOutfitOverrides.get(outfitId),
+      name: input.name,
+      description: input.description,
+    });
+
+    const updated = toOutfits().find(candidate => candidate.outfit_id === outfitId);
+    if (!updated) throw new Error('Outfit not found.');
+    return delay(updated);
   }
 
   async deleteOutfit(outfitId: string): Promise<void> {

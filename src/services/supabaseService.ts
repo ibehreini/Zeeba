@@ -7,6 +7,7 @@ import {
   deleteClosetItemPhoto,
   getClosetItemById,
   getClosetItems,
+  updateClosetItem,
 } from './supabaseClosetItemsService';
 import {
   addOutfitPhoto,
@@ -15,6 +16,7 @@ import {
   deleteOutfitPhoto,
   getOutfitById,
   getOutfits,
+  updateOutfit,
 } from './supabaseOutfitsService';
 import {
   deleteWearLog,
@@ -34,12 +36,14 @@ export const supabaseService: IDataService = {
   getClosetItems,
   getClosetItemById,
   createClosetItem,
+  updateClosetItem,
   deleteClosetItem,
   addClosetItemPhoto,
   deleteClosetItemPhoto,
   getOutfits,
   getOutfitById,
   createOutfit,
+  updateOutfit,
   deleteOutfit,
   addOutfitPhoto,
   deleteOutfitPhoto,

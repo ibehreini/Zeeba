@@ -1,4 +1,5 @@
 import DeleteButton from '@/components/DeleteButton';
+import EditButton from '@/components/EditButton';
 import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
@@ -7,7 +8,7 @@ import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } f
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -30,6 +31,7 @@ function getDetailFields(item: ClosetItem): { label: string; value: string | nul
 }
 
 export default function ClothingItemDetail({ itemId }: Props) {
+  const router = useRouter();
   const { dataService } = useDataMode();
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
@@ -247,6 +249,10 @@ export default function ClothingItemDetail({ itemId }: Props) {
             <Text style={styles.emptyText}>Not featured in any outfits yet.</Text>
           )}
 
+          <EditButton
+            label="Edit item"
+            onPress={() => router.push({ pathname: '/item/edit/[id]', params: { id: itemId } })}
+          />
           <DeleteButton label="Delete item" onPress={confirmAndDelete} isDeleting={isDeleting} />
         </View>
 

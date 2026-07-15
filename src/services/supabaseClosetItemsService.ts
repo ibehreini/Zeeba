@@ -1,8 +1,9 @@
 import { supabase } from '@/utils/supabase';
-import type { ClosetItem, ClosetItemPhoto, NewClosetItemInput } from './dataService.types';
+import type { ClosetItem, ClosetItemPhoto, NewClosetItemInput, UpdateClosetItemInput } from './dataService.types';
 import {
   deleteClosetItemPhotoObject,
   removeClosetItemPhotoObjects,
+  replacePrimaryClosetItemPhoto,
   uploadClosetItemPhoto,
   uploadSecondaryClosetItemPhoto,
 } from './supabasePhotoStorage';
@@ -78,6 +79,33 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
   const created = await getClosetItemById(itemId);
   if (!created) throw new Error('Failed to load the newly created item.');
   return created;
+}
+
+/**
+ * Updates a clothing item's editable fields, optionally replacing its
+ * primary photo. Throws the Supabase error on failure.
+ */
+export async function updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem> {
+  const { error: updateError } = await supabase
+    .from('clothing_items')
+    .update({
+      name: input.name,
+      description: input.description,
+      fit_notes: input.fitNotes,
+      care_instructions: input.careInstructions,
+      brand: input.brand,
+      purchase_url: input.purchaseUrl,
+    })
+    .eq('id', itemId);
+  if (updateError) throw updateError;
+
+  if (input.newPrimaryPhotoUri) {
+    await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri);
+  }
+
+  const updated = await getClosetItemById(itemId);
+  if (!updated) throw new Error('Failed to load the updated item.');
+  return updated;
 }
 
 /**

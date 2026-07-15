@@ -1,4 +1,5 @@
 import DeleteButton from '@/components/DeleteButton';
+import EditButton from '@/components/EditButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
@@ -7,7 +8,7 @@ import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } f
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export default function OutfitDetailPage({ outfit, closetItems }: Props) {
+  const router = useRouter();
   const { mode, dataService } = useDataMode();
   const { session } = useAuth();
   // Preview (guest) sessions have no real user id, but the preview data
@@ -229,6 +231,10 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
           ) : null}
         </View>
 
+        <EditButton
+          label="Edit outfit"
+          onPress={() => router.push({ pathname: '/outfit/edit/[id]', params: { id: outfit.id } })}
+        />
         <DeleteButton label="Delete outfit" onPress={confirmAndDelete} isDeleting={isDeleting} />
       </View>
 

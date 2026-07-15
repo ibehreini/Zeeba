@@ -226,12 +226,31 @@ export interface NewClosetItemInput {
   photos: NewClosetItemPhoto[];
 }
 
+/** Form data for the "edit item" flow. `newPrimaryPhotoUri` is only set when the user picked a replacement photo. */
+export interface UpdateClosetItemInput {
+  name: string;
+  description: string;
+  fitNotes: string | null;
+  careInstructions: string | null;
+  brand: string | null;
+  purchaseUrl: string | null;
+  newPrimaryPhotoUri: string | null;
+}
+
+/** Form data for the "edit outfit" flow. */
+export interface UpdateOutfitInput {
+  name: string;
+  description: string;
+}
+
 /** Unified contract both the preview (dummy data) and live (Supabase) providers implement. */
 export interface IDataService {
   getClosetItems(closetId?: string): Promise<ClosetItem[]>;
   getClosetItemById(itemId: string): Promise<ClosetItem | null>;
   /** Creates a garment and uploads its photos. Throws if no photo is marked primary. */
   createClosetItem(input: NewClosetItemInput): Promise<ClosetItem>;
+  /** Updates a garment's editable fields, optionally replacing its primary photo. */
+  updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem>;
   /** Deletes a garment. Its clothing_item_photos/outfit_items/wear_logs rows cascade-delete in the DB. */
   deleteClosetItem(itemId: string): Promise<void>;
   /** Uploads a non-primary photo for an existing closet item and returns its new row. */
@@ -242,6 +261,8 @@ export interface IDataService {
   getOutfitById(outfitId: string): Promise<Outfit | null>;
   /** Creates an outfit from picked closet items. */
   createOutfit(input: NewOutfitInput): Promise<Outfit>;
+  /** Updates an outfit's name and description. */
+  updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit>;
   /** Deletes an outfit. The outfit_items/outfit_photos/wear_logs rows for it cascade-delete in the DB. */
   deleteOutfit(outfitId: string): Promise<void>;
   /** Uploads a "worn in the wild" photo for an outfit and returns its new row. */

@@ -1,11 +1,11 @@
 # Welcome to your Expo app 👋
-To Do
-activity log table needs to be created in supabase
+To Doactivity log table needs to be created in supabase
+in closet table - combination of closet name and passphrase must be unique
 stylist, should list all the closets they are collaboraters on. Also select the one they want - and see it, 
 banner different color bc they are stylist.
-edit functionality on clothes and outfits
 passphrase i dont think is enough to be stylist ? email and passphrase?
 Display user email/name on home page? make name? check supabase table
+compliment count is on outfit already in db, show it and add the button for it
 
 refactor code
 
