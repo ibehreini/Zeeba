@@ -2,6 +2,7 @@ import { Closet_Data } from '@/constants/closetData';
 import { MyOutfits_Data } from '@/constants/MyOutfitsData';
 import { mapCategoryToDefaultItemType, mapItemTypeToCategory, todayDateString } from './dataService.types';
 import type {
+  ActivityLogEntry,
   ClosetItem,
   ClosetItemPhoto,
   IDataService,
@@ -319,6 +320,21 @@ class PreviewDataService implements IDataService {
 
   async regeneratePassphrase(_closetId: string): Promise<string> {
     return delay(PREVIEW_PASS_PHRASE);
+  }
+
+  // Preview mode has one hardcoded closet, so this just checks the guess
+  // against its own passphrase rather than searching a real closets table.
+  async joinClosetByPassphrase(passphrase: string): Promise<StylistCloset> {
+    if (passphrase !== PREVIEW_PASS_PHRASE) {
+      throw new Error('Invalid passphrase');
+    }
+    return delay({ closet_id: PREVIEW_CLOSET.closet_id, closet_name: PREVIEW_CLOSET.closet_name });
+  }
+
+  // Preview mode has no real activity_logs table behind it, so guest sessions
+  // just see an empty feed rather than synthesizing fake history.
+  async getActivityLog(_closetId: string, _limit?: number): Promise<ActivityLogEntry[]> {
+    return delay([]);
   }
 }
 

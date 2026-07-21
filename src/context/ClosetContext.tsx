@@ -12,6 +12,7 @@ type ClosetContextValue = {
   activeClosetId: string | null;
   activeClosetName: string | null;
   stylistClosets: StylistCloset[] | null;
+  selectStylistCloset: (closetId: string) => void;
   isLoading: boolean;
   error: string | null;
   /** True once the user's own-closet lookup has finished and come back empty - show the creation form. */
@@ -20,6 +21,8 @@ type ClosetContextValue = {
   ownClosetPassphrase: string | null;
   createOwnCloset: (closetName: string) => Promise<void>;
   regeneratePassphrase: () => Promise<void>;
+  /** Joins a closet by passphrase (stylist flow) and makes it the active stylist closet. Returns its name, or throws on an invalid passphrase. */
+  joinCloset: (passphrase: string) => Promise<string>;
 };
 
 const ClosetContext = createContext<ClosetContextValue | null>(null);
@@ -43,6 +46,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
 
   const [stylistClosets, setStylistClosets] = useState<StylistCloset[] | null>(null);
   const [stylistError, setStylistError] = useState<string | null>(null);
+  const [selectedStylistClosetId, setSelectedStylistClosetId] = useState<string | null>(null);
 
   useEffect(() => {
     if (closetMode !== 'my-closet' || waitingForSession) return;
@@ -76,6 +80,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setStylistClosets(null);
     setStylistError(null);
+    setSelectedStylistClosetId(null);
 
     dataService
       .getStylistClosets(userId)
@@ -91,10 +96,11 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     };
   }, [closetMode, dataService, userId, waitingForSession]);
 
-  // No closet-picker UI exists yet for stylists with more than one closet -
-  // default to the first until that's built.
+  // Defaults to the first stylist closet until one is explicitly selected.
   const activeCloset =
-    closetMode === 'my-closet' ? myCloset : (stylistClosets?.[0] ?? null);
+    closetMode === 'my-closet'
+      ? myCloset
+      : (stylistClosets?.find(closet => closet.closet_id === selectedStylistClosetId) ?? stylistClosets?.[0] ?? null);
 
   const needsOwnClosetSetup = closetMode === 'my-closet' && myClosetChecked && !myCloset && !myClosetError;
 
@@ -113,6 +119,18 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     setMyCloset({ ...myCloset, pass_phrase: newPhrase });
   };
 
+  const joinCloset = async (passphrase: string): Promise<string> => {
+    const trimmed = passphrase.trim();
+    if (!trimmed) throw new Error('Enter a passphrase.');
+    const joined = await dataService.joinClosetByPassphrase(trimmed);
+    setStylistClosets(prev => {
+      const existing = prev ?? [];
+      return existing.some(closet => closet.closet_id === joined.closet_id) ? existing : [...existing, joined];
+    });
+    setSelectedStylistClosetId(joined.closet_id);
+    return joined.closet_name;
+  };
+
   const value = useMemo<ClosetContextValue>(
     () => ({
       closetMode,
@@ -120,6 +138,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       activeClosetId: activeCloset?.closet_id ?? null,
       activeClosetName: activeCloset?.closet_name ?? null,
       stylistClosets,
+      selectStylistCloset: setSelectedStylistClosetId,
       isLoading:
         closetMode === 'my-closet' ? !myClosetChecked && !myClosetError : !stylistClosets && !stylistError,
       error: closetMode === 'my-closet' ? myClosetError : stylistError,
@@ -127,6 +146,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       ownClosetPassphrase: myCloset?.pass_phrase ?? null,
       createOwnCloset,
       regeneratePassphrase,
+      joinCloset,
     }),
     [
       closetMode,

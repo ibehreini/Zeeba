@@ -195,6 +195,31 @@ export interface NewOutfitInput {
   itemIds: string[];
 }
 
+/** activity_logs.item_type is a checked text column - mirrors the check constraint as a literal type, since the UI looks up a display label per type. */
+export type ActivityItemType = 'outfit' | 'clothing_item';
+
+/** Narrows a raw db string into `ActivityItemType`, throwing on drift from the check constraint. */
+export function toActivityItemType(value: string): ActivityItemType {
+  if (value === 'outfit' || value === 'clothing_item') return value;
+  throw new Error(`Unknown activity_logs.item_type from database: "${value}"`);
+}
+
+/**
+ * App-facing shape for one activity_logs row. item_name and actor_name are
+ * snapshotted by the DB at write time, so they stay readable even after the
+ * referenced outfit/clothing item (or the acting user) is later deleted.
+ * action_type ('created'/'edited'/'deleted') is shown as-is, so it's kept as
+ * a plain string rather than its own narrowed type.
+ */
+export interface ActivityLogEntry {
+  id: string;
+  item_type: ActivityItemType;
+  item_name: string;
+  actor_name: string | null;
+  action_type: string;
+  created_at: string;
+}
+
 /** A closet the current user has stylist (collaborator) access to. */
 export interface StylistCloset {
   closet_id: string;
@@ -289,6 +314,10 @@ export interface IDataService {
   createOwnCloset(userId: string, closetName: string): Promise<OwnCloset>;
   /** Replaces a closet's passphrase and returns the new value. Caller must own the closet. */
   regeneratePassphrase(closetId: string): Promise<string>;
+  /** Joins the caller to the closet matching `passphrase` as a stylist/collaborator. Throws if the passphrase is invalid or belongs to a closet the caller already owns. */
+  joinClosetByPassphrase(passphrase: string): Promise<StylistCloset>;
+  /** Most recent create/edit/delete activity for a closet, newest first, capped at `limit`. */
+  getActivityLog(closetId: string, limit?: number): Promise<ActivityLogEntry[]>;
 }
 
 /** A titled group of closet items for one category, e.g. the "Tops" section on the closet screen. */

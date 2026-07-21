@@ -12,9 +12,13 @@ export default function Index() {
   const {
     closetMode,
     activeClosetId,
+    activeClosetName,
     isLoading: closetLoading,
     error: closetError,
   } = useCloset();
+
+  const closetLabel = activeClosetName ?? 'Closet';
+  const title = closetMode === 'stylist' ? `Styling for ${closetLabel}` : closetLabel;
 
   const [sections, setSections] = useState<ClosetSection[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +106,7 @@ export default function Index() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight }} />
+      <Stack.Screen options={{ headerRight, title }} />
       {content}
     </>
   );

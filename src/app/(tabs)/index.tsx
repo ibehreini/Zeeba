@@ -1,25 +1,38 @@
 import { useState } from 'react';
-import { ActivityIndicator, Button, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Button, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 
 export default function Index() {
   const { mode } = useDataMode();
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const {
     closetMode,
     setClosetMode,
+    activeClosetId,
     activeClosetName,
+    stylistClosets,
+    selectStylistCloset,
     needsOwnClosetSetup,
     ownClosetPassphrase,
     createOwnCloset,
-    regeneratePassphrase,
+    joinCloset,
   } = useCloset();
+
+  const displayName = session?.user.user_metadata?.full_name ?? session?.user.email;
 
   return (
     <View style={styles.container}>
       <Text style={styles.text}>{mode === 'preview' ? 'Welcome guest!' : 'Home screen'}</Text>
+
+      {session && (
+        <Text style={styles.welcomeText}>
+          Welcome, {displayName}
+          {session.user.email && session.user.email !== displayName ? ` (${session.user.email})` : ''}
+        </Text>
+      )}
 
       <View style={styles.toggleRow}>
         <Pressable
@@ -40,14 +53,31 @@ export default function Index() {
         </Pressable>
       </View>
 
+      {closetMode === 'stylist' && <JoinClosetForm onJoin={joinCloset} />}
+
+      {closetMode === 'stylist' && stylistClosets && stylistClosets.length > 0 && (
+        <View style={styles.card} accessibilityRole="radiogroup" accessibilityLabel="Collaborator closets">
+          {stylistClosets.map(closet => {
+            const isActive = closet.closet_id === activeClosetId;
+            return (
+              <Pressable
+                key={closet.closet_id}
+                style={styles.closetRow}
+                onPress={() => selectStylistCloset(closet.closet_id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isActive, checked: isActive }}
+              >
+                <Text style={styles.closetRowText}>{closet.closet_name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
       {closetMode === 'my-closet' && needsOwnClosetSetup && <NewClosetForm onCreate={createOwnCloset} />}
 
       {closetMode === 'my-closet' && activeClosetName && ownClosetPassphrase && (
-        <ClosetPassphraseCard
-          closetName={activeClosetName}
-          passphrase={ownClosetPassphrase}
-          onRegenerate={regeneratePassphrase}
-        />
+        <ClosetPassphraseCard closetName={activeClosetName} passphrase={ownClosetPassphrase} />
       )}
 
       <Button title="Sign out" onPress={signOut} />
@@ -93,39 +123,70 @@ function NewClosetForm({ onCreate }: { onCreate: (closetName: string) => Promise
   );
 }
 
-function ClosetPassphraseCard({
-  closetName,
-  passphrase,
-  onRegenerate,
-}: {
-  closetName: string;
-  passphrase: string;
-  onRegenerate: () => Promise<void>;
-}) {
-  const [regenerating, setRegenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function JoinClosetForm({ onJoin }: { onJoin: (passphrase: string) => Promise<string> }) {
+  const [passphrase, setPassphrase] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const handleRegenerate = async () => {
-    setRegenerating(true);
-    setError(null);
+  const handleJoin = async () => {
+    setSubmitting(true);
     try {
-      await onRegenerate();
+      const closetName = await onJoin(passphrase);
+      setResult({ success: true, message: `You've joined "${closetName}".` });
+      setPassphrase('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to regenerate passphrase.');
+      setResult({ success: false, message: err instanceof Error ? err.message : 'Failed to join closet.' });
     } finally {
-      setRegenerating(false);
+      setSubmitting(false);
     }
   };
 
   return (
     <View style={styles.card}>
+      <Text style={styles.cardTitle}>Join a closet</Text>
+      <TextInput
+        style={styles.input}
+        value={passphrase}
+        onChangeText={setPassphrase}
+        placeholder="Enter passphrase"
+        editable={!submitting}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      {submitting ? <ActivityIndicator /> : <Button title="Join" onPress={handleJoin} disabled={!passphrase.trim()} />}
+
+      <Modal visible={result !== null} transparent animationType="fade" onRequestClose={() => setResult(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{result?.success ? 'Success' : 'Error'}</Text>
+            <Text style={styles.modalMessage}>{result?.message}</Text>
+            <Button title="OK" onPress={() => setResult(null)} />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function ClosetPassphraseCard({ closetName, passphrase }: { closetName: string; passphrase: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(passphrase);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <View style={styles.card}>
       <Text style={styles.cardTitle}>{closetName}</Text>
-      <Text style={styles.passphraseText}>Passphrase: {passphrase}</Text>
+      <View style={styles.passphraseRow}>
+        <Text style={styles.passphraseText}>Passphrase: {passphrase}</Text>
+        <Pressable onPress={handleCopy} accessibilityRole="button">
+          <Text style={styles.copyText}>{copied ? 'Copied!' : 'Copy'}</Text>
+        </Pressable>
+      </View>
       <Text style={styles.hintText}>Share this with a stylist so they can access your closet.</Text>
-      {error && <Text style={styles.errorText}>{error}</Text>}
-      <Pressable onPress={handleRegenerate} disabled={regenerating} accessibilityRole="button">
-        <Text style={styles.regenerateText}>{regenerating ? 'Regenerating…' : 'Regenerate passphrase'}</Text>
-      </Pressable>
     </View>
   );
 }
@@ -138,6 +199,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   text: {
+    color: '#000',
+  },
+  welcomeText: {
+    color: '#000',
+    fontWeight: '500',
+  },
+  closetRow: {
+    paddingVertical: 8,
+  },
+  closetRowText: {
+    fontSize: 15,
     color: '#000',
   },
   toggleRow: {
@@ -183,21 +255,51 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     color: '#000',
   },
+  passphraseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   passphraseText: {
     fontSize: 15,
     color: '#000',
     fontWeight: '500',
   },
+  copyText: {
+    color: '#1a73e8',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   hintText: {
     fontSize: 13,
     color: '#666',
   },
-  regenerateText: {
-    color: '#1a73e8',
-    fontWeight: '600',
-  },
   errorText: {
     color: '#c00',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalCard: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    gap: 12,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#000',
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#000',
+    textAlign: 'center',
   },
 });

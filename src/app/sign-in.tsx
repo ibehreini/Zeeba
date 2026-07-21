@@ -1,11 +1,10 @@
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 
 export default function SignInScreen() {
-  const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth();
+  const { signInWithGoogle, continueAsGuest } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleSignIn = async (signIn: () => Promise<void>) => {
@@ -43,15 +42,6 @@ export default function SignInScreen() {
             style={styles.button}
             onPress={() => handleSignIn(signInWithGoogle)}
           />
-          {Platform.OS === 'ios' && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-              cornerRadius={5}
-              style={styles.button}
-              onPress={() => handleSignIn(signInWithApple)}
-            />
-          )}
           <View style={styles.previewRow}>
             <Text style={styles.previewText}>Want to test it out first?</Text>
             <Pressable

@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action_type: string
+          actor_name: string | null
+          closet_id: string
+          created_at: string
+          id: string
+          item_id: string
+          item_name: string
+          item_type: string
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_name?: string | null
+          closet_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          item_name: string
+          item_type: string
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_name?: string | null
+          closet_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_name?: string
+          item_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_closet_id_fkey"
+            columns: ["closet_id"]
+            isOneToOne: false
+            referencedRelation: "closets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       closet_collaborators: {
         Row: {
           closet_id: string
@@ -352,6 +403,7 @@ export type Database = {
     Functions: {
       is_closet_member: { Args: { target_closet_id: string }; Returns: boolean }
       is_closet_owner: { Args: { target_closet_id: string }; Returns: boolean }
+      join_closet_by_passphrase: { Args: { target_pass_phrase: string }; Returns: string }
       regenerate_closet_passphrase: { Args: { target_closet_id: string }; Returns: string }
     }
     Enums: {

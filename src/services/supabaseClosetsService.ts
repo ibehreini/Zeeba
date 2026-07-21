@@ -67,3 +67,24 @@ export async function regeneratePassphrase(closetId: string): Promise<string> {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Joins the caller (as a stylist/collaborator) to the closet matching
+ * `passphrase`. A non-member can't SELECT the closets table or INSERT into
+ * closet_collaborators directly under RLS, so the lookup + insert happen
+ * server-side in the `join_closet_by_passphrase` RPC instead, which returns
+ * just the new closet_id. The name is fetched as a normal follow-up SELECT -
+ * that's RLS-legal now, since the RPC just made the caller a member. Throws
+ * if the passphrase doesn't match any closet, or belongs to a closet the
+ * caller already owns.
+ */
+export async function joinClosetByPassphrase(passphrase: string): Promise<StylistCloset> {
+  const { data: closetId, error: joinError } = await supabase.rpc('join_closet_by_passphrase', {
+    target_pass_phrase: passphrase,
+  });
+  if (joinError) throw joinError;
+
+  const { data, error } = await supabase.from('closets').select('id, closet_name').eq('id', closetId).single();
+  if (error) throw error;
+  return { closet_id: data.id, closet_name: data.closet_name };
+}

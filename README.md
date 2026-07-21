@@ -1,17 +1,13 @@
 # Welcome to your Expo app 👋
-To Doactivity log table needs to be created in supabase
-in closet table - combination of closet name and passphrase must be unique
-stylist, should list all the closets they are collaboraters on. Also select the one they want - and see it, 
-banner different color bc they are stylist.
-passphrase i dont think is enough to be stylist ? email and passphrase?
-Display user email/name on home page? make name? check supabase table
+To Do - app
+limit on closet description and name and care instructions
+local policy on db and production one on creating new user row on sign in - ensure trigger isnt duplicate
+fix policies on buckets for global read / write - error messages on cannot upload - silently falls baqck to uploading uncompressed images which we dont want
 compliment count is on outfit already in db, show it and add the button for it
 
 refactor code
 
 
-when the user saves it sends the add request to the db and either 
-in the details page they should be able to see an 'edit' button at top right so they can edit the details and click save. the save will update the db row and either say success or error
 
 To to: 
 make new tags? who can make? admin only?
@@ -20,11 +16,10 @@ then its always there
 auth, profile info
 when you click i wore this today - drum iranian sound easter egg
 next: can request a fit - suggest peices you want to wera?
-next: closet code to access your particular closet
-next: items detail view should also have a section "your item in the wild" with ability to upload pics of you weraing that item so people know how it looks on the body
-next: count for how many times you wore an item
+idea: NFC tag integration. scan a tag and open the app with that item
+idea: accessory packs for outfit variation - ex if wearing pink vs white purse what shoes to change
+idea: audio recording so stylists can add an audio recording instead of typing why outfit works
 next: profile or closet details like 'style' 'goals' 'colors you love' 'inspo'
-next: user accounts? authentication?
 next: ability to upload items from stores online shopping?
 audio files for descriptions - the stylist can add
 if you delete a clothing item, what happens to the outfit?
@@ -76,5 +71,3 @@ google react pacakge I am using will eventaully be phased out. Replace with open
 rls on supabase for all tables but especially on storage bucket its currently public to view and edit all of it. so eventually change that  - for outfit and clothing bucketsto authenticated users
 my closet has an extra heading at the bottom of the page on item details view and in general closets page
 closet seems to refresh when you open item details page then go back to the main closet page - scrolls all the way to the top which is annoying - but since there are heading smaybe not huge right now
-compress images and limit file size in the bucket too and file type
-the clothing items themselves get their wear count from the downstream outfits linked to that clothing item. so what happens if you delete or edit an outfit? maybe a case for not editing an outfit like the items themselves but just making a new one

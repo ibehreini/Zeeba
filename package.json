@@ -8,7 +8,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "env:docker": "node scripts/use-env.js docker",
+    "env:remote": "node scripts/use-env.js remote"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -20,6 +22,7 @@
     "expo": "~55.0.15",
     "expo-apple-authentication": "~55.0.14",
     "expo-build-properties": "~55.0.15",
+    "expo-clipboard": "~55.0.15",
     "expo-constants": "~55.0.14",
     "expo-dev-client": "~55.0.35",
     "expo-device": "~55.0.15",

@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ClosetProvider } from '@/context/ClosetContext';
+import HeaderBanner from '@/components/HeaderBanner';
 
 
 export default function TabLayout() {
@@ -10,6 +11,7 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: '#ffd33d',
+          header: ({ options }) => <HeaderBanner title={options.title} />,
         }}
       >
         <Tabs.Screen
@@ -25,6 +27,7 @@ export default function TabLayout() {
           name="closet"
           options={{
             title: 'My Closet',
+            headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'shirt' : 'shirt-outline'} color={color} size={24} />
             ),
@@ -34,6 +37,7 @@ export default function TabLayout() {
           name="outfits"
           options={{
             title: 'Outfits',
+            headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'grid' : 'grid-outline'} color={color} size={24} />
             ),

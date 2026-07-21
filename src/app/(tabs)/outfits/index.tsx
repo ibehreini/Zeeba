@@ -5,7 +5,10 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 export default function Index() {
   const router = useRouter();
-  const { closetMode, activeClosetId, isLoading, error } = useCloset();
+  const { closetMode, activeClosetId, activeClosetName, isLoading, error } = useCloset();
+
+  const closetLabel = activeClosetName ?? 'Closet';
+  const title = closetMode === 'stylist' ? `Styling for ${closetLabel} outfits` : `${closetLabel} outfits`;
 
   const handleNavigation = (id: string) => {
     router.push({
@@ -57,7 +60,7 @@ export default function Index() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight }} />
+      <Stack.Screen options={{ headerRight, title }} />
       {content}
     </>
   );
