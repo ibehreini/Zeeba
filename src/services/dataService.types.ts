@@ -294,6 +294,8 @@ export interface IDataService {
   addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto>;
   /** Deletes one outfit photo (row + storage object). */
   deleteOutfitPhoto(photo: OutfitPhoto): Promise<void>;
+  /** Increments an outfit's compliment count and returns the new value. */
+  logCompliment(outfitId: string): Promise<number>;
   /** Wear count for an outfit, plus whether the current user already logged it worn today. */
   getOutfitWearStatus(closetId: string, outfitId: string, userId: string): Promise<OutfitWearStatus>;
   /** Logs an outfit as worn today by `userId`. Returns the new wear_logs row id. */

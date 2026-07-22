@@ -85,6 +85,21 @@ export async function deleteOutfit(outfitId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Increments an outfit's compliment_count and returns the new value. The
+ * increment happens atomically in the `increment_outfit_compliment_count`
+ * RPC rather than a client-side read-then-write, so two people tapping "Log
+ * compliment" around the same time can't lose an update. Throws the
+ * Supabase error on failure.
+ */
+export async function logCompliment(outfitId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('increment_outfit_compliment_count', {
+    target_outfit_id: outfitId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 /** Uploads a "worn in the wild" photo for an outfit. Throws the Supabase error on failure. */
 export async function addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto> {
   return uploadOutfitPhoto(outfitId, uri);

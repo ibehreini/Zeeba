@@ -269,6 +269,18 @@ class PreviewDataService implements IDataService {
     return delay(undefined);
   }
 
+  async logCompliment(outfitId: string): Promise<number> {
+    const existing = toOutfits().find(candidate => candidate.outfit_id === outfitId);
+    if (!existing) throw new Error('Outfit not found.');
+
+    const newCount = existing.compliment_count + 1;
+    previewOutfitOverrides.set(outfitId, {
+      ...previewOutfitOverrides.get(outfitId),
+      compliment_count: newCount,
+    });
+    return delay(newCount);
+  }
+
   async getOutfitWearStatus(_closetId: string, outfitId: string, _userId: string): Promise<OutfitWearStatus> {
     const logs = previewWearLogs.get(outfitId) ?? [];
     const todayLog = logs.find(log => log.date === todayDateString());

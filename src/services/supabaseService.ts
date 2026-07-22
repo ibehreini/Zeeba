@@ -23,6 +23,7 @@ import {
   deleteOutfitPhoto,
   getOutfitById,
   getOutfits,
+  logCompliment,
   updateOutfit,
 } from './supabaseOutfitsService';
 import {
@@ -54,6 +55,7 @@ export const supabaseService: IDataService = {
   deleteOutfit,
   addOutfitPhoto,
   deleteOutfitPhoto,
+  logCompliment,
   getOutfitWearStatus,
   logOutfitWornToday,
   deleteWearLog,

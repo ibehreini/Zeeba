@@ -1,7 +1,12 @@
 # Welcome to your Expo app 👋
-To Do - app
+To Do - app- left off on pushed local db changes to remote and switched back to remote script. working fine and stylist is able to edit and everything! amazing!
+remove delete the media bucket in supabase
+ checking how to make new instance of db and google auth that will work with testflight - prod or uat or soemthing. feature because its limit description and text fields as well. and check all the triggers and rls policies on everything
+
+
 limit on closet description and name and care instructions
-local policy on db and production one on creating new user row on sign in - ensure trigger isnt duplicate
+local policy on db and production one on creating new user row on sign in - ensure trigger isnt duplicate - check all the policies and make sure they match
+make prod db
 fix policies on buckets for global read / write - error messages on cannot upload - silently falls baqck to uploading uncompressed images which we dont want
 compliment count is on outfit already in db, show it and add the button for it
 
@@ -11,7 +16,6 @@ refactor code
 
 To to: 
 make new tags? who can make? admin only?
-
 then its always there
 auth, profile info
 when you click i wore this today - drum iranian sound easter egg

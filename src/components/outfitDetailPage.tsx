@@ -23,6 +23,7 @@ type OutfitDetailItem = {
   description?: string | null;
   itemIds: readonly string[];
   photos: readonly OutfitPhoto[];
+  complimentCount: number;
 };
 
 type Props = {
@@ -50,6 +51,9 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
   const [todayWearLogId, setTodayWearLogId] = useState<string | null>(null);
   const [isClosetOwner, setIsClosetOwner] = useState(false);
   const [isTogglingWorn, setIsTogglingWorn] = useState(false);
+
+  const [complimentCount, setComplimentCount] = useState(outfit.complimentCount);
+  const [isLoggingCompliment, setIsLoggingCompliment] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -89,6 +93,18 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
       Alert.alert("Couldn't update", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsTogglingWorn(false);
+    }
+  };
+
+  const handleLogCompliment = async () => {
+    setIsLoggingCompliment(true);
+    try {
+      const newCount = await dataService.logCompliment(outfit.id);
+      setComplimentCount(newCount);
+    } catch (err) {
+      Alert.alert("Couldn't log compliment", getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setIsLoggingCompliment(false);
     }
   };
 
@@ -173,6 +189,29 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
             )}
           </Pressable>
         ) : null}
+
+        <Text style={styles.complimentCountText}>
+          This outfit has received {complimentCount} {complimentCount === 1 ? 'compliment' : 'compliments'}
+        </Text>
+
+        <Pressable
+          onPress={handleLogCompliment}
+          disabled={isLoggingCompliment}
+          accessibilityRole="button"
+          accessibilityLabel="Log compliment"
+          accessibilityState={{ disabled: isLoggingCompliment }}
+          style={({ pressed }) => [
+            styles.logComplimentButton,
+            pressed && styles.logComplimentButtonPressed,
+            isLoggingCompliment && styles.logComplimentButtonDisabled,
+          ]}
+        >
+          {isLoggingCompliment ? (
+            <ActivityIndicator color="#1a1a1a" />
+          ) : (
+            <Text style={styles.logComplimentButtonText}>Log compliment</Text>
+          )}
+        </Pressable>
 
         <Text accessibilityRole="header" style={styles.sectionLabel}>
           Pieces in this outfit
@@ -341,6 +380,32 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   wornTodayButtonTextActive: {
+    color: '#1a1a1a',
+  },
+  complimentCountText: {
+    fontSize: 15,
+    color: '#555',
+    marginBottom: 12,
+  },
+  logComplimentButton: {
+    minHeight: 50,
+    width: '100%',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logComplimentButtonPressed: {
+    opacity: 0.7,
+  },
+  logComplimentButtonDisabled: {
+    opacity: 0.5,
+  },
+  logComplimentButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#1a1a1a',
   },
   pieceGrid: {

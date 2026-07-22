@@ -401,6 +401,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_outfit_compliment_count: { Args: { target_outfit_id: string }; Returns: number }
       is_closet_member: { Args: { target_closet_id: string }; Returns: boolean }
       is_closet_owner: { Args: { target_closet_id: string }; Returns: boolean }
       join_closet_by_passphrase: { Args: { target_pass_phrase: string }; Returns: string }
