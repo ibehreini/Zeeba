@@ -22,10 +22,15 @@ function readEnvLocal(key: string): string | undefined {
 // into a URL scheme (e.g. `1234-abc.apps.googleusercontent.com` ->
 // `com.googleusercontent.apps.1234-abc`). Deriving it here keeps the iOS
 // client ID's single source of truth in .env.local instead of duplicating it.
+// .env.local is gitignored, so CI/hosting builds (EAS, Cloudflare) fall back to
+// this literal - the plugin hard-errors on a missing scheme, and the value is
+// not a secret since it ships inside the app binary anyway.
+const FALLBACK_IOS_URL_SCHEME =
+  'com.googleusercontent.apps.1087732820060-6o5j02ahldh3i6nsi38l1marbraihcqb';
 const iosClientId = readEnvLocal('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
 const iosUrlScheme = iosClientId
   ? `com.googleusercontent.apps.${iosClientId.replace('.apps.googleusercontent.com', '')}`
-  : undefined;
+  : FALLBACK_IOS_URL_SCHEME;
 
 const config: ExpoConfig = {
   name: 'zeeba',
@@ -70,7 +75,7 @@ const config: ExpoConfig = {
     ],
     [
       '@react-native-google-signin/google-signin',
-      iosUrlScheme ? { iosUrlScheme } : {},
+      { iosUrlScheme },
     ],
     'expo-apple-authentication',
     [
