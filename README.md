@@ -1,5 +1,12 @@
 # Welcome to your Expo app 👋
-to do: ensure web expereince is working  and accessible.  - still an issue when on web tab over to my closet or about then back to home its reading weird
+to do:
+deployed to
+https://zeeba-5kv.pages.dev/
+
+now make sure that pwa is working for android
+ran the claude and it says it is working. test it out
+
+make sure that people editing the same clothing item or outfit wont cause an issue
 do playwright tests on network latency and concurent edits from stylist and closet owner
  for android - cloudflare push and then have them use the app  - then use PWA setup so it appears on home screen as an appon home creen so it doesnt look like a website
 

@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Button, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useIsFocused } from 'expo-router';
+import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 
 export default function Index() {
   // react-navigation's web tab view only hides inactive tabs visually
@@ -29,6 +31,7 @@ export default function Index() {
   } = useCloset();
 
   const displayName = session?.user.user_metadata?.full_name ?? session?.user.email;
+  const [joinVisible, setJoinVisible] = useState(false);
 
   return (
     <View style={styles.container} aria-hidden={!isFocused}>
@@ -60,24 +63,40 @@ export default function Index() {
         </Pressable>
       </View>
 
-      {closetMode === 'stylist' && <JoinClosetForm onJoin={joinCloset} />}
+      {closetMode === 'stylist' && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle} role="heading">
+            Closets you are a part of as a stylist
+          </Text>
 
-      {closetMode === 'stylist' && stylistClosets && stylistClosets.length > 0 && (
-        <View style={styles.card} role="radiogroup" aria-label="Collaborator closets">
-          {stylistClosets.map(closet => {
-            const isActive = closet.closet_id === activeClosetId;
-            return (
-              <Pressable
-                key={closet.closet_id}
-                style={styles.closetRow}
-                onPress={() => selectStylistCloset(closet.closet_id)}
-                role="radio"
-                aria-checked={isActive}
-              >
-                <Text style={styles.closetRowText}>{closet.closet_name}</Text>
-              </Pressable>
-            );
-          })}
+          {!stylistClosets ? (
+            <ActivityIndicator aria-label="Loading your closets" />
+          ) : stylistClosets.length === 0 ? (
+            <Text style={styles.hintText}>You aren&apos;t part of any closets as a stylist yet.</Text>
+          ) : (
+            <View role="radiogroup" aria-label="Active closets">
+              {stylistClosets.map(closet => {
+                const isActive = closet.closet_id === activeClosetId;
+                return (
+                  <Pressable
+                    key={closet.closet_id}
+                    style={styles.closetRow}
+                    onPress={() => selectStylistCloset(closet.closet_id)}
+                    role="radio"
+                    aria-checked={isActive}
+                    aria-label={closet.closet_name}
+                  >
+                    <View style={styles.radioOuter}>{isActive && <View style={styles.radioInner} />}</View>
+                    <Text style={styles.closetRowText}>{closet.closet_name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          <Button title="Join closet" onPress={() => setJoinVisible(true)} />
+
+          <JoinClosetModal visible={joinVisible} onClose={() => setJoinVisible(false)} onJoin={joinCloset} />
         </View>
       )}
 
@@ -130,48 +149,80 @@ function NewClosetForm({ onCreate }: { onCreate: (closetName: string) => Promise
   );
 }
 
-function JoinClosetForm({ onJoin }: { onJoin: (passphrase: string) => Promise<string> }) {
+type JoinClosetModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  onJoin: (passphrase: string) => Promise<string>;
+};
+
+/**
+ * Focus is trapped inside the dialog on both platforms: on web
+ * react-native-web's <Modal> renders an `aria-modal` dialog with tab-focus
+ * brackets and restores focus to the trigger on close, and on iOS
+ * `accessibilityViewIsModal` stops VoiceOver from reaching the screen behind.
+ */
+function JoinClosetModal({ visible, onClose, onJoin }: JoinClosetModalProps) {
+  const { showToast } = useToast();
   const [passphrase, setPassphrase] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useWebModalBackHandler(visible, onClose);
+
+  const handleClose = () => {
+    setPassphrase('');
+    setError(null);
+    onClose();
+  };
 
   const handleJoin = async () => {
     setSubmitting(true);
+    setError(null);
     try {
       const closetName = await onJoin(passphrase);
-      setResult({ success: true, message: `You've joined "${closetName}".` });
-      setPassphrase('');
+      handleClose();
+      showToast(`You've joined "${closetName}".`);
     } catch (err) {
-      setResult({ success: false, message: err instanceof Error ? err.message : 'Failed to join closet.' });
+      setError(err instanceof Error ? err.message : 'Failed to join closet.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Join a closet</Text>
-      <TextInput
-        style={styles.input}
-        value={passphrase}
-        onChangeText={setPassphrase}
-        placeholder="Enter passphrase"
-        editable={!submitting}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {submitting ? <ActivityIndicator /> : <Button title="Join" onPress={handleJoin} disabled={!passphrase.trim()} />}
-
-      <Modal visible={result !== null} transparent animationType="fade" onRequestClose={() => setResult(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{result?.success ? 'Success' : 'Error'}</Text>
-            <Text style={styles.modalMessage}>{result?.message}</Text>
-            <Button title="OK" onPress={() => setResult(null)} />
-          </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard} role="dialog" aria-label="Join a closet" accessibilityViewIsModal>
+          <Text style={styles.modalTitle} role="heading">
+            Join a closet
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={passphrase}
+            onChangeText={setPassphrase}
+            placeholder="Enter closet code"
+            aria-label="Closet code"
+            editable={!submitting}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+          />
+          {error && (
+            <Text style={styles.errorText} role="alert">
+              {error}
+            </Text>
+          )}
+          {submitting ? (
+            <ActivityIndicator aria-label="Joining closet" />
+          ) : (
+            <View style={styles.modalActions}>
+              <Button title="Cancel" onPress={handleClose} />
+              <Button title="Join" onPress={handleJoin} disabled={!passphrase.trim()} />
+            </View>
+          )}
         </View>
-      </Modal>
-    </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -213,11 +264,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   closetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     paddingVertical: 8,
   },
   closetRowText: {
     fontSize: 15,
     color: '#000',
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#25292e',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#25292e',
   },
   toggleRow: {
     flexDirection: 'row',
@@ -297,16 +366,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     gap: 12,
-    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: '#000',
   },
-  modalMessage: {
-    fontSize: 15,
-    color: '#000',
-    textAlign: 'center',
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
 });
