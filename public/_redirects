@@ -9,8 +9,15 @@
 # dynamic route becomes a file with the brackets in its name -
 # dist/item/[id].html. Nothing maps /item/<uuid> onto it, so without these
 # rewrites every item and outfit link 404s.
+#
+# The destinations are deliberately extensionless. Cloudflare strips `.html`
+# and 308s to the bare path (/about.html -> /about), and it does that *after*
+# these rules run - so a destination of `/item/[id].html` turns the rewrite
+# into a redirect to /item/[id], which matches /item/* again and loops until
+# the browser gives up. Pointing at /item/[id] serves dist/item/[id].html
+# directly, the URL keeps the real uuid, and the router reads it as the param.
 
-/item/edit/*    /item/edit/[id].html      200
-/item/*         /item/[id].html           200
-/outfit/edit/*  /outfit/edit/[id].html    200
-/outfit/*       /outfit/[id].html         200
+/item/edit/*    /item/edit/[id]      200
+/item/*         /item/[id]           200
+/outfit/edit/*  /outfit/edit/[id]    200
+/outfit/*       /outfit/[id]         200

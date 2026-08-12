@@ -44,6 +44,18 @@ const config: ExpoConfig = {
     icon: './assets/expo.icon',
     bundleIdentifier: 'com.idabeeme.zeeba',
     usesAppleSignIn: true,
+    // Universal links have two halves and both must name the same host: the
+    // site serves public/.well-known/apple-app-site-association (as JSON - see
+    // public/_headers), and the app claims that host here. Without this entry
+    // iOS never fetches the association file, so every zeeba link opens Safari
+    // instead of the app. `webcredentials` matches the same block in the AASA
+    // file and is what lets iOS offer saved passwords for the domain.
+    // Update both this list and the AASA appIDs when the custom domain lands -
+    // an extra applinks entry is harmless, so the pages.dev host can stay.
+    associatedDomains: [
+      'applinks:zeeba-5kv.pages.dev',
+      'webcredentials:zeeba-5kv.pages.dev',
+    ],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },

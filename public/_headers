@@ -39,3 +39,23 @@
 # so they must be revalidated or a new deploy stays invisible to return visitors.
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
+
+# A cached service worker is a service worker you cannot replace: the browser
+# compares the bytes it fetches against the installed copy, so a stale hit means
+# the old worker (and the old caches it controls) stays in charge. Browsers cap
+# this file's freshness at 24h regardless; no-cache makes a fix land on the very
+# next navigation instead.
+/sw.js
+  Cache-Control: no-cache
+
+# The manifest is read at install time and on subsequent launches, so an hour of
+# staleness is fine - but it must not be immutable, or a renamed app or changed
+# icon set would never reach anyone who already visited.
+/manifest.json
+  Cache-Control: public, max-age=3600
+
+# PWA icons are referenced by fixed filenames (the manifest and iOS both need
+# stable URLs), so unlike /assets/* they are not content-hashed and cannot be
+# immutable. A day is long enough to stay off the critical path.
+/icons/*
+  Cache-Control: public, max-age=86400
