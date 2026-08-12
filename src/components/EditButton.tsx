@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 type Props = {
   label: string;
@@ -7,14 +8,20 @@ type Props = {
 
 /** Secondary (non-destructive) action button placed above DeleteButton on a detail page. */
 export default function EditButton({ label, onPress }: Props) {
+  const { theme } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+      style={({ pressed }) => [
+        styles.button,
+        { borderColor: theme.textPrimary },
+        pressed && styles.buttonPressed,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Text style={styles.text}>{label}</Text>
+      <Text style={[styles.text, { color: theme.textPrimary }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -26,7 +33,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -36,6 +42,5 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a1a1a',
   },
 });

@@ -7,7 +7,7 @@ export default function EditItem() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Edit item', headerLeft: HeaderBackButton }} />
+      <Stack.Screen options={{ title: 'Edit item', headerLeft: () => <HeaderBackButton /> }} />
       <EditClothingItemForm itemId={id} />
     </>
   );

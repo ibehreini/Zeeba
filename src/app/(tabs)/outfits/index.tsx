@@ -1,5 +1,6 @@
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +10,7 @@ export default function Index() {
   // this screen after navigating away unless we aria-hide it ourselves.
   const isFocused = useIsFocused();
   const router = useRouter();
+  const { theme } = useTheme();
   const { closetMode, activeClosetId, activeClosetName, isLoading, error } = useCloset();
 
   const closetLabel = activeClosetName ?? 'Closet';
@@ -29,7 +31,7 @@ export default function Index() {
       accessibilityLabel="Create new outfit"
       hitSlop={8}
     >
-      <Text style={styles.addButtonText}>Create new Outfit</Text>
+      <Text style={[styles.addButtonText, { color: theme.textPrimary }]}>Create new Outfit</Text>
     </Pressable>
   );
 
@@ -43,13 +45,13 @@ export default function Index() {
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>
+        <Text style={[styles.errorText, { color: theme.danger }]}>
           {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
         </Text>
       </View>
@@ -86,7 +88,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#c00',
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -98,6 +99,5 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
   },
 });

@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 
 export default function Index() {
@@ -16,7 +17,8 @@ export default function Index() {
   // actually pulls this screen's content out of the accessibility tree.
   const isFocused = useIsFocused();
   const { mode } = useDataMode();
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
+  const { theme } = useTheme();
   const {
     closetMode,
     setClosetMode,
@@ -35,44 +37,72 @@ export default function Index() {
 
   return (
     <View style={styles.container} aria-hidden={!isFocused}>
-      <Text style={styles.text}>{mode === 'preview' ? 'Welcome guest!' : 'Home screen'}</Text>
+      <Text style={{ color: theme.textPrimary }}>
+        {mode === 'preview' ? 'Welcome guest!' : 'Home screen'}
+      </Text>
 
       {session && (
-        <Text style={styles.welcomeText}>
+        <Text style={[styles.welcomeText, { color: theme.textPrimary }]}>
           Welcome, {displayName}
           {session.user.email && session.user.email !== displayName ? ` (${session.user.email})` : ''}
         </Text>
       )}
 
-      <View style={styles.toggleRow} role="radiogroup" aria-label="Closet view">
+      <View
+        style={[styles.toggleRow, { borderColor: theme.border }]}
+        role="radiogroup"
+        aria-label="Closet view"
+      >
         <Pressable
-          style={[styles.toggleButton, closetMode === 'stylist' && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            { backgroundColor: closetMode === 'stylist' ? theme.accent : theme.surface },
+          ]}
           onPress={() => setClosetMode('stylist')}
           role="radio"
           aria-checked={closetMode === 'stylist'}
         >
-          <Text style={[styles.toggleText, closetMode === 'stylist' && styles.toggleTextActive]}>Stylist</Text>
+          <Text
+            style={[
+              styles.toggleText,
+              { color: closetMode === 'stylist' ? theme.onAccent : theme.textPrimary },
+            ]}
+          >
+            Stylist
+          </Text>
         </Pressable>
         <Pressable
-          style={[styles.toggleButton, closetMode === 'my-closet' && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            { backgroundColor: closetMode === 'my-closet' ? theme.accent : theme.surface },
+          ]}
           onPress={() => setClosetMode('my-closet')}
           role="radio"
           aria-checked={closetMode === 'my-closet'}
         >
-          <Text style={[styles.toggleText, closetMode === 'my-closet' && styles.toggleTextActive]}>My Closet</Text>
+          <Text
+            style={[
+              styles.toggleText,
+              { color: closetMode === 'my-closet' ? theme.onAccent : theme.textPrimary },
+            ]}
+          >
+            My Closet
+          </Text>
         </Pressable>
       </View>
 
       {closetMode === 'stylist' && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle} role="heading">
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.textPrimary }]} role="heading">
             Closets you are a part of as a stylist
           </Text>
 
           {!stylistClosets ? (
             <ActivityIndicator aria-label="Loading your closets" />
           ) : stylistClosets.length === 0 ? (
-            <Text style={styles.hintText}>You aren&apos;t part of any closets as a stylist yet.</Text>
+            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+              You aren&apos;t part of any closets as a stylist yet.
+            </Text>
           ) : (
             <View role="radiogroup" aria-label="Active closets">
               {stylistClosets.map(closet => {
@@ -86,8 +116,12 @@ export default function Index() {
                     aria-checked={isActive}
                     aria-label={closet.closet_name}
                   >
-                    <View style={styles.radioOuter}>{isActive && <View style={styles.radioInner} />}</View>
-                    <Text style={styles.closetRowText}>{closet.closet_name}</Text>
+                    <View style={[styles.radioOuter, { borderColor: theme.accent }]}>
+                      {isActive && <View style={[styles.radioInner, { backgroundColor: theme.accent }]} />}
+                    </View>
+                    <Text style={[styles.closetRowText, { color: theme.textPrimary }]}>
+                      {closet.closet_name}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -105,13 +139,12 @@ export default function Index() {
       {closetMode === 'my-closet' && activeClosetName && ownClosetPassphrase && (
         <ClosetPassphraseCard closetName={activeClosetName} passphrase={ownClosetPassphrase} />
       )}
-
-      <Button title="Sign out" onPress={signOut} />
     </View>
   );
 }
 
 function NewClosetForm({ onCreate }: { onCreate: (closetName: string) => Promise<void> }) {
+  const { theme } = useTheme();
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,17 +162,18 @@ function NewClosetForm({ onCreate }: { onCreate: (closetName: string) => Promise
   };
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Name your closet</Text>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>Name your closet</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
+        placeholderTextColor={theme.textSecondary}
         value={name}
         onChangeText={setName}
         placeholder="e.g. Ida's Closet"
         editable={!submitting}
         autoCapitalize="words"
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>}
       {submitting ? (
         <ActivityIndicator />
       ) : (
@@ -163,17 +197,20 @@ type JoinClosetModalProps = {
  */
 function JoinClosetModal({ visible, onClose, onJoin }: JoinClosetModalProps) {
   const { showToast } = useToast();
+  const { theme } = useTheme();
   const [passphrase, setPassphrase] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useWebModalBackHandler(visible, onClose);
 
   const handleClose = () => {
     setPassphrase('');
     setError(null);
     onClose();
   };
+
+  // handleClose, not onClose: the back gesture must also clear the typed
+  // passphrase and stale error, same as Cancel and onRequestClose do.
+  useWebModalBackHandler(visible, handleClose);
 
   const handleJoin = async () => {
     setSubmitting(true);
@@ -191,13 +228,19 @@ function JoinClosetModal({ visible, onClose, onJoin }: JoinClosetModalProps) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalCard} role="dialog" aria-label="Join a closet" accessibilityViewIsModal>
-          <Text style={styles.modalTitle} role="heading">
+      <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+        <View
+          style={[styles.modalCard, { backgroundColor: theme.surface }]}
+          role="dialog"
+          aria-label="Join a closet"
+          accessibilityViewIsModal
+        >
+          <Text style={[styles.modalTitle, { color: theme.textPrimary }]} role="heading">
             Join a closet
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
+            placeholderTextColor={theme.textSecondary}
             value={passphrase}
             onChangeText={setPassphrase}
             placeholder="Enter closet code"
@@ -208,7 +251,7 @@ function JoinClosetModal({ visible, onClose, onJoin }: JoinClosetModalProps) {
             autoFocus
           />
           {error && (
-            <Text style={styles.errorText} role="alert">
+            <Text style={[styles.errorText, { color: theme.danger }]} role="alert">
               {error}
             </Text>
           )}
@@ -227,6 +270,7 @@ function JoinClosetModal({ visible, onClose, onJoin }: JoinClosetModalProps) {
 }
 
 function ClosetPassphraseCard({ closetName, passphrase }: { closetName: string; passphrase: string }) {
+  const { theme } = useTheme();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -236,15 +280,19 @@ function ClosetPassphraseCard({ closetName, passphrase }: { closetName: string; 
   };
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{closetName}</Text>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>{closetName}</Text>
       <View style={styles.passphraseRow}>
-        <Text style={styles.passphraseText}>Passphrase: {passphrase}</Text>
+        <Text style={[styles.passphraseText, { color: theme.textPrimary }]}>
+          Passphrase: {passphrase}
+        </Text>
         <Pressable onPress={handleCopy} role="button">
-          <Text style={styles.copyText}>{copied ? 'Copied!' : 'Copy'}</Text>
+          <Text style={[styles.copyText, { color: theme.link }]}>{copied ? 'Copied!' : 'Copy'}</Text>
         </Pressable>
       </View>
-      <Text style={styles.hintText}>Share this with a stylist so they can access your closet.</Text>
+      <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+        Share this with a stylist so they can access your closet.
+      </Text>
     </View>
   );
 }
@@ -256,11 +304,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  text: {
-    color: '#000',
-  },
   welcomeText: {
-    color: '#000',
     fontWeight: '500',
   },
   closetRow: {
@@ -271,14 +315,12 @@ const styles = StyleSheet.create({
   },
   closetRowText: {
     fontSize: 15,
-    color: '#000',
   },
   radioOuter: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#25292e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -286,34 +328,23 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#25292e',
   },
   toggleRow: {
     flexDirection: 'row',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
     overflow: 'hidden',
   },
   toggleButton: {
     paddingVertical: 8,
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#25292e',
   },
   toggleText: {
-    color: '#25292e',
     fontWeight: '600',
-  },
-  toggleTextActive: {
-    color: '#fff',
   },
   card: {
     width: '85%',
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     padding: 16,
     gap: 8,
@@ -321,15 +352,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: '#000',
   },
   passphraseRow: {
     flexDirection: 'row',
@@ -338,31 +366,25 @@ const styles = StyleSheet.create({
   },
   passphraseText: {
     fontSize: 15,
-    color: '#000',
     fontWeight: '500',
   },
   copyText: {
-    color: '#1a73e8',
     fontWeight: '600',
     fontSize: 14,
   },
   hintText: {
     fontSize: 13,
-    color: '#666',
   },
   errorText: {
-    color: '#c00',
     fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalCard: {
     width: '80%',
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
     gap: 12,
@@ -370,7 +392,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#000',
   },
   modalActions: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { showAlert } from '@/utils/alert';
 
 /** Requests photo library access if needed, then opens the native photo picker. Returns picked image URIs, or [] if cancelled/denied. */
 export async function pickLibraryImages(allowsMultipleSelection: boolean): Promise<string[]> {
@@ -10,7 +10,7 @@ export async function pickLibraryImages(allowsMultipleSelection: boolean): Promi
     granted = requested.status === 'granted';
   }
   if (!granted) {
-    Alert.alert('Photo access needed', 'Please allow photo library access in Settings to add photos.');
+    showAlert('Photo access needed', 'Please allow photo library access in Settings to add photos.');
     return [];
   }
 

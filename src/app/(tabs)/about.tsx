@@ -1,5 +1,6 @@
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage, type ActivityLogEntry } from '@/services/dataService.types';
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -21,6 +22,7 @@ export default function AboutScreen() {
   // mounted (only hidden via zIndex/pointer-events), so NVDA still reads
   // this screen after navigating away unless we aria-hide it ourselves.
   const isFocused = useIsFocused();
+  const { theme } = useTheme();
   const { dataService } = useDataMode();
   const { activeClosetId, isLoading: closetLoading, error: closetError } = useCloset();
 
@@ -62,19 +64,19 @@ export default function AboutScreen() {
   } else if (closetError) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{closetError}</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{closetError}</Text>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>No closet found.</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>No closet found.</Text>
       </View>
     );
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       </View>
     );
   } else if (!entries) {
@@ -86,7 +88,7 @@ export default function AboutScreen() {
   } else if (entries.length === 0) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.emptyText}>No activity yet.</Text>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No activity yet.</Text>
       </View>
     );
   } else {
@@ -94,8 +96,10 @@ export default function AboutScreen() {
       <ScrollView contentContainerStyle={styles.listPadding}>
         {entries.map(entry => (
           <View key={entry.id} style={styles.row}>
-            <Text style={styles.rowText}>{describeActivity(entry)}</Text>
-            <Text style={styles.rowTimestamp}>{new Date(entry.created_at).toLocaleString()}</Text>
+            <Text style={[styles.rowText, { color: theme.textPrimary }]}>{describeActivity(entry)}</Text>
+            <Text style={[styles.rowTimestamp, { color: theme.textSecondary }]}>
+              {new Date(entry.created_at).toLocaleString()}
+            </Text>
           </View>
         ))}
       </ScrollView>
@@ -128,21 +132,17 @@ const styles = StyleSheet.create({
   },
   rowText: {
     fontSize: 15,
-    color: '#1a1a1a',
   },
   rowTimestamp: {
     fontSize: 12,
-    color: '#666',
     marginTop: 2,
   },
   errorText: {
-    color: '#c00',
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 24,
   },
   emptyText: {
-    color: '#666',
     fontSize: 15,
     textAlign: 'center',
   },

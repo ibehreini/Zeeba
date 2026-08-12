@@ -2,7 +2,6 @@ import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { TEST_ACCOUNTS } from '@/constants/testAccounts';
 import { isTestAuthEnabled, useAuth } from '@/context/AuthContext';
+import { showAlert } from '@/utils/alert';
 
 export default function SignInScreen() {
   const { signInWithGoogle, signInWithTestAccount, continueAsGuest } = useAuth();
@@ -22,7 +22,7 @@ export default function SignInScreen() {
     try {
       await signIn();
     } catch (error) {
-      Alert.alert('Sign-in failed', error instanceof Error ? error.message : String(error));
+      showAlert('Sign-in failed', error instanceof Error ? error.message : String(error));
     } finally {
       setIsSigningIn(false);
     }

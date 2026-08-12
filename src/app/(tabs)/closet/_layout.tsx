@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useCloset } from '@/context/ClosetContext';
+import { useTheme } from '@/context/ThemeContext';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -7,14 +8,15 @@ export const unstable_settings = {
 
 export default function ClosetLayout() {
   const { closetMode } = useCloset();
+  const { theme } = useTheme();
   const isStylist = closetMode === 'stylist';
 
   return (
     <Stack
       screenOptions={{
         headerTitleAlign: 'center',
-        headerStyle: { backgroundColor: isStylist ? '#38bdf8' : '#fff' },
-        headerTintColor: isStylist ? '#fff' : '#25292e',
+        headerStyle: { backgroundColor: isStylist ? theme.stylist : theme.surface },
+        headerTintColor: isStylist ? theme.onStylist : theme.textPrimary,
       }}
     />
   );

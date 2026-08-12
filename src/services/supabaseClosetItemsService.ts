@@ -94,6 +94,15 @@ export async function updateClosetItem(
   expectedUpdatedAt: string,
   input: UpdateClosetItemInput,
 ): Promise<ClosetItem> {
+  // Photo first, OCC write second. The photo tables carry no updated_at
+  // trigger, so this order can't invalidate expectedUpdatedAt - whereas the
+  // old order (fields first) bumped updated_at before the upload, so a failed
+  // upload turned the user's own retry into a false "changed by someone else"
+  // conflict that also discarded their picked photo.
+  if (input.newPrimaryPhotoUri) {
+    await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri);
+  }
+
   await updateWithOcc('clothing_items', itemId, expectedUpdatedAt, {
     name: input.name,
     description: input.description,
@@ -102,10 +111,6 @@ export async function updateClosetItem(
     brand: input.brand,
     purchase_url: input.purchaseUrl,
   });
-
-  if (input.newPrimaryPhotoUri) {
-    await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri);
-  }
 
   const updated = await getClosetItemById(itemId);
   if (!updated) throw new Error('Failed to load the updated item.');

@@ -1,12 +1,13 @@
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { ConflictError, getErrorMessage, toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { useToast } from '@/components/Toast';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export default function EditClothingItemForm({ itemId }: Props) {
+  const { theme } = useTheme();
   const router = useRouter();
   const { dataService } = useDataMode();
   const { showToast } = useToast();
@@ -80,7 +82,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
   const handleSubmit = async () => {
     if (!item || !name.trim() || !description.trim()) {
-      Alert.alert('Missing information', 'Name and description are required.');
+      showAlert('Missing information', 'Name and description are required.');
       return;
     }
 
@@ -102,9 +104,9 @@ export default function EditClothingItemForm({ itemId }: Props) {
       if (err instanceof ConflictError) {
         setNewPrimaryPhotoUri(null);
         await loadItem().catch(() => {});
-        Alert.alert('Already changed', err.message);
+        showAlert('Already changed', err.message);
       } else {
-        Alert.alert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+        showAlert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
       }
     } finally {
       setSubmitting(false);
@@ -113,7 +115,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator />
       </View>
     );
@@ -121,8 +123,8 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
   if (loadError || !item) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{loadError ?? 'Item not found.'}</Text>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Item not found.'}</Text>
       </View>
     );
   }
@@ -130,16 +132,16 @@ export default function EditClothingItemForm({ itemId }: Props) {
   const previewSource = newPrimaryPhotoUri ? { uri: newPrimaryPhotoUri } : toRNImageSource(item.img);
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
       <Field label="Primary photo">
         {Platform.OS === 'web' ? (
-          <View style={styles.primaryPhotoBox}>
+          <View style={[styles.primaryPhotoBox, { borderColor: theme.border }]}>
             <Image source={previewSource} style={styles.primaryPhotoImage} />
           </View>
         ) : (
           <Pressable
             onPress={handlePickPrimaryPhoto}
-            style={styles.primaryPhotoBox}
+            style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
             role="button"
             aria-label="Change primary photo"
           >
@@ -204,15 +206,15 @@ export default function EditClothingItemForm({ itemId }: Props) {
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
-        style={({ pressed }) => [styles.submitButton, !canSubmit && styles.submitButtonDisabled, pressed && styles.submitButtonPressed]}
+        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, !canSubmit && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
         role="button"
         aria-label="Save changes"
         aria-disabled={!canSubmit}
       >
         {submitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={theme.onAccent} />
         ) : (
-          <Text style={styles.submitButtonText}>Save Changes</Text>
+          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Changes</Text>
         )}
       </Pressable>
     </ScrollView>
@@ -226,11 +228,12 @@ type FieldProps = {
 };
 
 function Field({ label, required, children }: FieldProps) {
+  const { theme } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>
+      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
         {label}
-        {required && <Text style={styles.requiredMark}> *</Text>}
+        {required && <Text style={{ color: theme.danger }}> *</Text>}
       </Text>
       {children}
     </View>
@@ -260,18 +263,21 @@ function LabeledTextInput({
   autoCapitalize,
   maxLength,
 }: LabeledTextInputProps) {
+  const { theme } = useTheme();
+  const themedInput = { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.textPrimary };
   return (
     <Field label={label} required={required}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         maxLength={maxLength}
-        style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
+        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
         aria-label={required ? `${label}, required` : label}
       />
     </Field>
@@ -283,16 +289,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
   },
   container: {
     padding: 20,
     paddingBottom: 48,
-    backgroundColor: '#fff',
   },
   field: {
     marginBottom: 20,
@@ -300,22 +303,15 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 8,
-  },
-  requiredMark: {
-    color: '#c00',
   },
   textInput: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
-    backgroundColor: '#fafafa',
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1a1a1a',
   },
   multilineInput: {
     minHeight: 96,
@@ -326,7 +322,7 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    // Photo wells stay light in both themes: the garment photos are shot on white, so a dark well would frame each one in a hard white box.
     backgroundColor: '#fafafa',
     justifyContent: 'center',
     alignItems: 'center',
@@ -339,25 +335,21 @@ const styles = StyleSheet.create({
   primaryPhotoPlaceholder: {
     fontSize: 15,
     fontWeight: '600',
+    // Sits on the hardcoded-light photo well, so it stays a fixed grey in both themes.
     color: '#999',
   },
   submitButton: {
     marginTop: 12,
     minHeight: 50,
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   submitButtonPressed: {
     opacity: 0.85,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#bbb',
-  },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
   },
 });

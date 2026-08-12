@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 type Props = {
   label: string;
@@ -8,12 +9,15 @@ type Props = {
 
 /** Destructive action button placed at the bottom of a detail page. */
 export default function DeleteButton({ label, onPress, isDeleting }: Props) {
+  const { theme } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
       disabled={isDeleting}
       style={({ pressed }) => [
         styles.button,
+        { borderColor: theme.danger },
         pressed && styles.buttonPressed,
         isDeleting && styles.buttonDisabled,
       ]}
@@ -21,7 +25,11 @@ export default function DeleteButton({ label, onPress, isDeleting }: Props) {
       accessibilityLabel={label}
       accessibilityState={{ disabled: isDeleting }}
     >
-      {isDeleting ? <ActivityIndicator color="#c00" /> : <Text style={styles.text}>{label}</Text>}
+      {isDeleting ? (
+        <ActivityIndicator color={theme.danger} />
+      ) : (
+        <Text style={[styles.text, { color: theme.danger }]}>{label}</Text>
+      )}
     </Pressable>
   );
 }
@@ -33,7 +41,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#c00',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -46,6 +53,5 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#c00',
   },
 });

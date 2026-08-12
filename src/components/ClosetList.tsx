@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import type { ClosetSection } from '@/services/dataService.types';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import ClosetHeader from './ClosetHeader';
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export default function ClosetList({ items, onItemPress }: Props) {
+  const { theme } = useTheme();
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.listPadding}>
@@ -20,7 +22,7 @@ export default function ClosetList({ items, onItemPress }: Props) {
             </View>
           ))
         ) : (
-          <Text style={styles.emptyText}>No clothing items yet.</Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No clothing items yet.</Text>
         )}
       </ScrollView>
     </View>
@@ -40,7 +42,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyText: {
-    color: '#666',
     fontSize: 15,
     textAlign: 'center',
     marginTop: 24,

@@ -1,4 +1,5 @@
 import HeaderNav from '@/components/HeaderNav';
+import { useTheme } from '@/context/ThemeContext';
 import { usePathname } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -25,9 +26,10 @@ const focusMainContent = () => document.getElementById(MAIN_CONTENT_ID)?.focus()
  */
 export default function AppShell({ signedIn, children }: AppShellProps) {
   useAnnounceRouteChange();
+  const { theme } = useTheme();
 
   return (
-    <View style={styles.shell}>
+    <View style={[styles.shell, { backgroundColor: theme.background }]}>
       {signedIn && (
         <>
           <SkipLink />
@@ -101,6 +103,7 @@ function useAnnounceRouteChange() {
  * on every route.
  */
 function SkipLink() {
+  const { theme } = useTheme();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -109,17 +112,21 @@ function SkipLink() {
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       onPress={focusMainContent}
-      style={[styles.skipLink, focused && styles.skipLinkVisible]}
+      style={[styles.skipLink, { backgroundColor: theme.accent }, focused && styles.skipLinkVisible]}
     >
-      <Text style={styles.skipLinkText}>Skip to main content</Text>
+      <Text style={[styles.skipLinkText, { color: theme.onAccent }]}>Skip to main content</Text>
     </Pressable>
   );
 }
 
 function SiteFooter() {
+  const { theme } = useTheme();
+
   return (
-    <View role="contentinfo" style={styles.footer}>
-      <Text style={styles.footerText}>Zeeba - your closet, organised.</Text>
+    <View role="contentinfo" style={[styles.footer, { borderTopColor: theme.border }]}>
+      <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+        Zeeba - your closet, organised.
+      </Text>
     </View>
   );
 }
@@ -127,7 +134,6 @@ function SiteFooter() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   main: {
     flex: 1,
@@ -137,7 +143,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
     top: 8,
     left: -9999,
-    backgroundColor: '#25292e',
     borderRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -146,19 +151,16 @@ const styles = StyleSheet.create({
     left: 8,
   },
   skipLinkText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 15,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#e3e3e3',
     paddingHorizontal: 24,
     paddingVertical: 10,
     alignItems: 'center',
   },
   footerText: {
     fontSize: 13,
-    color: '#666',
   },
 });

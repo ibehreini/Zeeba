@@ -1,5 +1,6 @@
 import NativeSelect from '@/components/NativeSelect';
 import { useCloset } from '@/context/ClosetContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useDataMode } from '@/context/DataModeContext';
 import {
   CLOTHING_ITEM_TYPE_LABELS,
@@ -9,12 +10,13 @@ import {
   type NewClosetItemPhoto,
 } from '@/services/dataService.types';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,6 +26,7 @@ import {
 } from 'react-native';
 
 export default function AddClothingItemForm() {
+  const { theme } = useTheme();
   const router = useRouter();
   const { dataService } = useDataMode();
   const { activeClosetId } = useCloset();
@@ -50,11 +53,11 @@ export default function AddClothingItemForm() {
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
-      Alert.alert('No closet found', 'You need a closet before you can add items to it.');
+      showAlert('No closet found', 'You need a closet before you can add items to it.');
       return;
     }
     if (!primaryPhotoUri || !itemType || !name.trim() || !description.trim()) {
-      Alert.alert('Missing information', 'Type, name, description, and a primary photo are all required.');
+      showAlert('Missing information', 'Type, name, description, and a primary photo are all required.');
       return;
     }
 
@@ -74,7 +77,7 @@ export default function AddClothingItemForm() {
         photos,
       });
 
-      Alert.alert('Item added', `"${created.name}" was added to your closet.`, [
+      showAlert('Item added', `"${created.name}" was added to your closet.`, [
         {
           text: 'OK',
           onPress: () => {
@@ -87,18 +90,28 @@ export default function AddClothingItemForm() {
         },
       ]);
     } catch (err) {
-      Alert.alert('Couldn’t add item', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert('Couldn’t add item', getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
       <Field label="Primary photo" required>
+        {/* Web-gated like EditClothingItemForm: photo upload runs through
+            compressImage, whose web variant throws - without this gate the
+            picker "worked" but every save silently failed and rolled back. */}
+        {Platform.OS === 'web' ? (
+          <View style={[styles.primaryPhotoBox, { borderColor: theme.border }]}>
+            <Text style={styles.primaryPhotoPlaceholder}>
+              Adding photos isn't supported on the web yet - please use the mobile app to add items.
+            </Text>
+          </View>
+        ) : (
         <Pressable
           onPress={handlePickPrimaryPhoto}
-          style={styles.primaryPhotoBox}
+          style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
           role="button"
           aria-label={primaryPhotoUri ? 'Change primary photo' : 'Add primary photo, required'}
         >
@@ -108,6 +121,7 @@ export default function AddClothingItemForm() {
             <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
           )}
         </Pressable>
+        )}
       </Field>
 
       <Field label="Type" required>
@@ -178,15 +192,15 @@ export default function AddClothingItemForm() {
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
-        style={({ pressed }) => [styles.submitButton, !canSubmit && styles.submitButtonDisabled, pressed && styles.submitButtonPressed]}
+        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, !canSubmit && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
         role="button"
         aria-label="Save item"
         aria-disabled={!canSubmit}
       >
         {submitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={theme.onAccent} />
         ) : (
-          <Text style={styles.submitButtonText}>Save Item</Text>
+          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Item</Text>
         )}
       </Pressable>
     </ScrollView>
@@ -200,11 +214,12 @@ type FieldProps = {
 };
 
 function Field({ label, required, children }: FieldProps) {
+  const { theme } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>
+      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
         {label}
-        {required && <Text style={styles.requiredMark}> *</Text>}
+        {required && <Text style={{ color: theme.danger }}> *</Text>}
       </Text>
       {children}
     </View>
@@ -234,18 +249,21 @@ function LabeledTextInput({
   autoCapitalize,
   maxLength,
 }: LabeledTextInputProps) {
+  const { theme } = useTheme();
+  const themedInput = { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.textPrimary };
   return (
     <Field label={label} required={required}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         maxLength={maxLength}
-        style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
+        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
         aria-label={required ? `${label}, required` : label}
       />
     </Field>
@@ -256,7 +274,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 48,
-    backgroundColor: '#fff',
   },
   field: {
     marginBottom: 20,
@@ -264,22 +281,15 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 8,
-  },
-  requiredMark: {
-    color: '#c00',
   },
   textInput: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
-    backgroundColor: '#fafafa',
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1a1a1a',
   },
   multilineInput: {
     minHeight: 96,
@@ -290,7 +300,7 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    // Photo wells stay light in both themes: the garment photos are shot on white, so a dark well would frame each one in a hard white box.
     backgroundColor: '#fafafa',
     justifyContent: 'center',
     alignItems: 'center',
@@ -303,25 +313,21 @@ const styles = StyleSheet.create({
   primaryPhotoPlaceholder: {
     fontSize: 15,
     fontWeight: '600',
+    // Sits on the hardcoded-light photo well, so it stays a fixed grey in both themes.
     color: '#999',
   },
   submitButton: {
     marginTop: 12,
     minHeight: 50,
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   submitButtonPressed: {
     opacity: 0.85,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#bbb',
-  },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
   },
 });

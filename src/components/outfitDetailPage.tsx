@@ -3,17 +3,18 @@ import EditButton from '@/components/EditButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   Platform,
@@ -48,6 +49,7 @@ type Props = {
 
 export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Props) {
   const router = useRouter();
+  const { theme } = useTheme();
   const { mode, dataService } = useDataMode();
   const { session } = useAuth();
   // Preview (guest) sessions have no real user id, but the preview data
@@ -84,7 +86,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         setIsClosetOwner(ownCloset?.closet_id === outfit.closetId);
       })
       .catch(err => {
-        if (!cancelled) Alert.alert("Couldn't load wear history", getErrorMessage(err, 'Something went wrong.'));
+        if (!cancelled) showAlert("Couldn't load wear history", getErrorMessage(err, 'Something went wrong.'));
       });
 
     return () => {
@@ -107,7 +109,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         setWearCount(prev => prev + 1);
       }
     } catch (err) {
-      Alert.alert("Couldn't update", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't update", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsTogglingWorn(false);
     }
@@ -119,7 +121,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
       const newCount = await dataService.logCompliment(outfit.id);
       setComplimentCount(newCount);
     } catch (err) {
-      Alert.alert("Couldn't log compliment", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't log compliment", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsLoggingCompliment(false);
     }
@@ -145,7 +147,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
       const photo = await dataService.addOutfitPhoto(outfit.id, uri);
       setPhotos(prev => [...prev, photo]);
     } catch (err) {
-      Alert.alert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsAddingPhoto(false);
     }
@@ -161,14 +163,14 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
       setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
       setViewingPhoto(null);
     } catch (err) {
-      Alert.alert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsDeletingPhoto(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}>
       <View
         aria-hidden={true}
         style={styles.flatLayWrapper}
@@ -177,9 +179,11 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
       </View>
 
       <View style={styles.content}>
-        {outfit.description ? <Text style={styles.description}>{outfit.description}</Text> : null}
+        {outfit.description ? (
+          <Text style={[styles.description, { color: theme.textSecondary }]}>{outfit.description}</Text>
+        ) : null}
 
-        <Text style={styles.wearCountText}>
+        <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
           This outfit has been worn {wearCount} {wearCount === 1 ? 'time' : 'times'}
         </Text>
 
@@ -192,22 +196,29 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             aria-disabled={isTogglingWorn}
             style={({ pressed }) => [
               styles.wornTodayButton,
-              todayWearLogId && styles.wornTodayButtonActive,
+              todayWearLogId
+                ? { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.accent }
+                : { backgroundColor: theme.accent },
               pressed && styles.wornTodayButtonPressed,
               isTogglingWorn && styles.wornTodayButtonDisabled,
             ]}
           >
             {isTogglingWorn ? (
-              <ActivityIndicator color={todayWearLogId ? '#1a1a1a' : '#fff'} />
+              <ActivityIndicator color={todayWearLogId ? theme.textPrimary : theme.onAccent} />
             ) : (
-              <Text style={[styles.wornTodayButtonText, todayWearLogId && styles.wornTodayButtonTextActive]}>
+              <Text
+                style={[
+                  styles.wornTodayButtonText,
+                  { color: todayWearLogId ? theme.textPrimary : theme.onAccent },
+                ]}
+              >
                 {todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
               </Text>
             )}
           </Pressable>
         ) : null}
 
-        <Text style={styles.complimentCountText}>
+        <Text style={[styles.complimentCountText, { color: theme.textSecondary }]}>
           This outfit has received {complimentCount} {complimentCount === 1 ? 'compliment' : 'compliments'}
         </Text>
 
@@ -219,18 +230,21 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
           aria-disabled={isLoggingCompliment}
           style={({ pressed }) => [
             styles.logComplimentButton,
+            { borderColor: theme.accent },
             pressed && styles.logComplimentButtonPressed,
             isLoggingCompliment && styles.logComplimentButtonDisabled,
           ]}
         >
           {isLoggingCompliment ? (
-            <ActivityIndicator color="#1a1a1a" />
+            <ActivityIndicator color={theme.textPrimary} />
           ) : (
-            <Text style={styles.logComplimentButtonText}>Log compliment</Text>
+            <Text style={[styles.logComplimentButtonText, { color: theme.textPrimary }]}>
+              Log compliment
+            </Text>
           )}
         </Pressable>
 
-        <Text role="heading" style={styles.sectionLabel}>
+        <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
           Pieces in this outfit
         </Text>
 
@@ -245,7 +259,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
                   style={styles.pieceBox}
                 >
                   <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
-                  <Text style={styles.pieceLabel} numberOfLines={1}>
+                  <Text style={[styles.pieceLabel, { color: theme.textPrimary }]} numberOfLines={1}>
                     {item.name}
                   </Text>
                 </Pressable>
@@ -253,10 +267,12 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             ))}
           </View>
         ) : (
-          <Text style={styles.emptyText}>No clothing items for this outfit yet.</Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+            No clothing items for this outfit yet.
+          </Text>
         )}
 
-        <Text role="heading" style={styles.sectionLabel}>
+        <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
           Worn in the Wild
         </Text>
 
@@ -280,9 +296,15 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
               role="button"
               aria-label="Add a worn-in-the-wild photo"
               aria-disabled={isAddingPhoto}
-              style={[styles.pieceBox, styles.addPhotoBox]}
+              style={[
+                styles.pieceBox,
+                styles.addPhotoBox,
+                { borderColor: theme.border, backgroundColor: theme.surfaceAlt },
+              ]}
             >
-              <Text style={styles.addPhotoBoxText}>{isAddingPhoto ? '…' : '+'}</Text>
+              <Text style={[styles.addPhotoBoxText, { color: theme.textSecondary }]}>
+                {isAddingPhoto ? '…' : '+'}
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -339,7 +361,6 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -356,34 +377,25 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#555',
     marginBottom: 12,
   },
   sectionLabel: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginTop: 8,
     marginBottom: 12,
   },
   wearCountText: {
     fontSize: 15,
-    color: '#555',
     marginBottom: 12,
   },
   wornTodayButton: {
     minHeight: 50,
     width: '100%',
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  wornTodayButtonActive: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
   },
   wornTodayButtonPressed: {
     opacity: 0.7,
@@ -394,14 +406,9 @@ const styles = StyleSheet.create({
   wornTodayButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
-  },
-  wornTodayButtonTextActive: {
-    color: '#1a1a1a',
   },
   complimentCountText: {
     fontSize: 15,
-    color: '#555',
     marginBottom: 12,
   },
   logComplimentButton: {
@@ -409,7 +416,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -423,7 +429,6 @@ const styles = StyleSheet.create({
   logComplimentButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a1a1a',
   },
   pieceGrid: {
     flexDirection: 'row',
@@ -434,6 +439,8 @@ const styles = StyleSheet.create({
     width: 84,
     alignItems: 'center',
   },
+  // Photo wells stay light in both themes: the garment photos are shot on
+  // white, so a dark well would frame each one in a hard white box.
   pieceImage: {
     width: 72,
     height: 72,
@@ -443,11 +450,9 @@ const styles = StyleSheet.create({
   pieceLabel: {
     marginTop: 6,
     fontSize: 13,
-    color: '#333',
     textAlign: 'center',
   },
   emptyText: {
-    color: '#666',
     fontSize: 15,
   },
   addPhotoBox: {
@@ -455,15 +460,12 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderStyle: 'dashed',
-    backgroundColor: '#fafafa',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addPhotoBoxText: {
     fontSize: 28,
-    color: '#999',
   },
   modalBackdrop: {
     flex: 1,

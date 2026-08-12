@@ -1,6 +1,7 @@
 import ClosetList from '@/components/ClosetList';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage, groupClosetItemsBySection, type ClosetSection } from '@/services/dataService.types';
 import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -13,6 +14,7 @@ export default function Index() {
   const isFocused = useIsFocused();
   const router = useRouter();
   const { dataService } = useDataMode();
+  const { theme } = useTheme();
   const {
     closetMode,
     activeClosetId,
@@ -67,7 +69,7 @@ export default function Index() {
       accessibilityLabel="Add new item"
       hitSlop={8}
     >
-      <Text style={styles.addButtonText}>Add New</Text>
+      <Text style={[styles.addButtonText, { color: theme.textPrimary }]}>Add New</Text>
     </Pressable>
   );
 
@@ -81,13 +83,13 @@ export default function Index() {
   } else if (closetError) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{closetError}</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{closetError}</Text>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>
+        <Text style={[styles.errorText, { color: theme.danger }]}>
           {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
         </Text>
       </View>
@@ -95,7 +97,7 @@ export default function Index() {
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       </View>
     );
   } else if (!sections) {
@@ -128,7 +130,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#c00',
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -140,6 +141,5 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
   },
 });

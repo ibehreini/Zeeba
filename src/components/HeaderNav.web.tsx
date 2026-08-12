@@ -1,17 +1,19 @@
 import { Link, usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 type NavItem = {
-  href: '/' | '/closet' | '/outfits' | '/about';
+  href: '/' | '/closet' | '/outfits' | '/about' | '/settings';
   label: string;
 };
 
-// Mirrors the four <Tabs.Screen> destinations in src/app/(tabs)/_layout.web.tsx.
+// Mirrors the five <Tabs.Screen> destinations in src/app/(tabs)/_layout.web.tsx.
 const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Home' },
   { href: '/closet', label: 'My Closet' },
   { href: '/outfits', label: 'Outfits' },
   { href: '/about', label: 'About' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -38,11 +40,15 @@ function ariaCurrentPage(active: boolean): Record<string, string> {
  */
 export default function HeaderNav() {
   const pathname = usePathname();
+  const { theme } = useTheme();
 
   return (
-    <View role="banner" style={styles.banner}>
+    <View
+      role="banner"
+      style={[styles.banner, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
+    >
       <View style={styles.bar}>
-        <Text style={styles.brand}>Zeeba</Text>
+        <Text style={[styles.brand, { color: theme.textPrimary }]}>Zeeba</Text>
 
         <View role="navigation" aria-label="Primary" style={styles.nav}>
           {NAV_ITEMS.map(item => {
@@ -51,7 +57,13 @@ export default function HeaderNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                style={[styles.link, active && styles.linkActive]}
+                style={[
+                  styles.link,
+                  { color: active ? theme.textPrimary : theme.textSecondary },
+                  // The active state is a colour *and* an underline, so it
+                  // doesn't rely on colour alone to distinguish the current page.
+                  active && { borderBottomColor: theme.textPrimary },
+                ]}
                 {...ariaCurrentPage(active)}
               >
                 {item.label}
@@ -66,9 +78,7 @@ export default function HeaderNav() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e3e3e3',
   },
   bar: {
     width: '100%',
@@ -86,7 +96,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 0.5,
-    color: '#25292e',
   },
   nav: {
     flexDirection: 'row',
@@ -99,14 +108,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 15,
     fontWeight: '600',
-    color: '#4a4f57',
     borderBottomWidth: 2,
-    // The active state is a colour *and* an underline, so it doesn't rely on
-    // colour alone to distinguish the current page.
     borderBottomColor: 'transparent',
-  },
-  linkActive: {
-    color: '#25292e',
-    borderBottomColor: '#25292e',
   },
 });

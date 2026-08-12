@@ -1,6 +1,7 @@
 import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitDetailPage from '@/components/outfitDetailPage';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -9,6 +10,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 export default function OutfitDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const outfitId = Array.isArray(id) ? id[0] : id;
+  const { theme } = useTheme();
   const { dataService } = useDataMode();
 
   const [outfit, setOutfit] = useState<Outfit | null>(null);
@@ -48,25 +50,29 @@ export default function OutfitDetailScreen() {
 
   if (isLoading) {
     content = (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator />
       </View>
     );
   } else if (error) {
     content = (
-      <View style={styles.centered}>
-        <Text style={styles.notFoundText}>{error}</Text>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.notFoundText, { color: theme.textSecondary }]}>{error}</Text>
       </View>
     );
   } else if (!outfit) {
     content = (
-      <View style={styles.centered}>
-        <Text style={styles.notFoundText}>Outfit not found.</Text>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.notFoundText, { color: theme.textSecondary }]}>Outfit not found.</Text>
       </View>
     );
   } else {
     content = (
+      // Keyed on updated_at: the detail page seeds photos/compliment count
+      // into local state, so a conflict-triggered refetch must remount it or
+      // those sections keep showing the stale pre-refresh values.
       <OutfitDetailPage
+        key={outfit.updated_at}
         outfit={{
           id: outfit.outfit_id,
           closetId: outfit.closet_id,
@@ -85,7 +91,7 @@ export default function OutfitDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: outfit?.name ?? 'Outfit', headerLeft: HeaderBackButton }} />
+      <Stack.Screen options={{ title: outfit?.name ?? 'Outfit', headerLeft: () => <HeaderBackButton /> }} />
       {content}
     </>
   );
@@ -96,10 +102,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   notFoundText: {
     fontSize: 18,
-    color: '#666',
   },
 });

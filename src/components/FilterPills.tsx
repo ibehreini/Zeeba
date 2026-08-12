@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 type Props<T extends string> = {
@@ -17,6 +18,10 @@ export default function FilterPills<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // ScrollView defaults to flexGrow: 1, which made the pills row absorb
+      // leftover vertical space (and stretch the pills) whenever the grid
+      // below it was short - e.g. a filter with no matching outfits.
+      style={styles.scroll}
       contentContainerStyle={styles.row}
       accessibilityRole="tablist"
     >
@@ -56,6 +61,7 @@ type PillProps = {
  * `aria-selected` back to the native selected state, so iOS is unchanged.
  */
 function Pill({ label, isSelected, onPress }: PillProps) {
+  const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -64,16 +70,27 @@ function Pill({ label, isSelected, onPress }: PillProps) {
       aria-selected={isSelected}
       style={({ pressed }) => [
         styles.pill,
-        isSelected && styles.pillSelected,
+        { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+        isSelected && { backgroundColor: theme.accent, borderColor: theme.accent },
         pressed && styles.pillPressed,
       ]}
     >
-      <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>{label}</Text>
+      <Text
+        style={[
+          styles.pillText,
+          { color: isSelected ? theme.onAccent : theme.textPrimary },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flexGrow: 0,
+  },
   row: {
     gap: 8,
     paddingHorizontal: 16,
@@ -85,13 +102,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 22,
-    backgroundColor: '#f0f0f0',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  pillSelected: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#1a1a1a',
   },
   pillPressed: {
     opacity: 0.8,
@@ -99,10 +110,6 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
     textTransform: 'capitalize',
-  },
-  pillTextSelected: {
-    color: '#fff',
   },
 });

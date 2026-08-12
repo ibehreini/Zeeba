@@ -31,6 +31,7 @@ export default function TabLayout() {
       <Tabs.Screen name="closet" options={{ title: 'My Closet', headerShown: false }} />
       <Tabs.Screen name="outfits" options={{ title: 'Outfits', headerShown: false }} />
       <Tabs.Screen name="about" options={{ title: 'About' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );
 }

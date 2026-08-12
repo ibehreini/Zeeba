@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, Platform, StyleSheet, Text } from 'react-native';
 
@@ -11,6 +12,7 @@ const DISPLAY_MS = 2500;
 const FADE_MS = 180;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { theme } = useTheme();
   const [message, setMessage] = useState('');
   const opacity = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,7 +43,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <Animated.View pointerEvents="none" style={[styles.container, { opacity }]}>
         <Text
-          style={styles.text}
+          // Inverse surface so the toast stands out on any screen in either theme.
+          style={[styles.text, { backgroundColor: theme.textPrimary, color: theme.background }]}
           role="alert"
           aria-live={Platform.OS === 'web' ? 'polite' : 'off'}
         >
@@ -67,8 +70,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    backgroundColor: 'rgba(26,26,26,0.95)',
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
     paddingHorizontal: 16,

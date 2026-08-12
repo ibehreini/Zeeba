@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import type { ImageSource } from '@/services/dataService.types';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function ClothingItem({ source, ariaLabel, onPress, selected }: Props) {
+  const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -24,7 +26,7 @@ export default function ClothingItem({ source, ariaLabel, onPress, selected }: P
       aria-selected={selected}
       style={({ pressed }) => [
         styles.container,
-        selected && styles.containerSelected,
+        selected && [styles.containerSelected, { borderColor: theme.accent }],
         { opacity: pressed ? 0.8 : 1 },
       ]}
     >
@@ -35,8 +37,8 @@ export default function ClothingItem({ source, ariaLabel, onPress, selected }: P
         transition={200}
       />
       {selected && (
-        <View style={styles.checkBadge}>
-          <Text style={styles.checkBadgeText}>✓</Text>
+        <View style={[styles.checkBadge, { backgroundColor: theme.accent }]}>
+          <Text style={[styles.checkBadgeText, { color: theme.onAccent }]}>✓</Text>
         </View>
       )}
     </Pressable>
@@ -48,13 +50,14 @@ const styles = StyleSheet.create({
     flex: 1, // Crucial for 2-column grid layout
     margin: 6,
     aspectRatio: 3 / 4,       // Moved here to force the card container to be perfectly uniform
+    // Photo wells stay light in both themes: the garment photos are shot on
+    // white, so a dark well would frame each one in a hard white box.
     backgroundColor: '#f9f9f9',
     borderRadius: 12,
     overflow: 'hidden',       // Ensures the background doesn't bleed past the border radius on iOS
   },
   containerSelected: {
     borderWidth: 2,
-    borderColor: '#1a1a1a',
   },
   image: {
     width: '100%',
@@ -68,12 +71,10 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkBadgeText: {
-    color: '#fff',
     fontSize: 13,
     fontWeight: '700',
   },

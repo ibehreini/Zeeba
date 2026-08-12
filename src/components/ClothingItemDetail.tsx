@@ -3,16 +3,18 @@ import EditButton from '@/components/EditButton';
 import HeaderBackButton from '@/components/HeaderBackButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
+import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
-import { Link, Stack, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Link, Stack, useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Modal,
   Platform,
@@ -43,6 +45,7 @@ function getDetailFields(item: ClosetItem): { label: string; value: string | nul
 
 export default function ClothingItemDetail({ itemId }: Props) {
   const router = useRouter();
+  const { theme } = useTheme();
   const { dataService } = useDataMode();
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
@@ -64,7 +67,16 @@ export default function ClothingItemDetail({ itemId }: Props) {
     onConflict: () => setRefreshKey(key => key + 1),
   });
 
-  useEffect(() => {
+  // Web-only: the browser back gesture closes the photo preview instead of
+  // navigating the route underneath it away (parity with the app's other
+  // modals - see outfitDetailPage and NativeSelect).
+  useWebModalBackHandler(previewIndex !== null, () => setPreviewIndex(null));
+
+  // Focus-based rather than mount-only: returning here after deleting an
+  // outfit deeper in the stack must refresh "Featured in outfits", or the
+  // deleted outfit stays listed and taps on it dead-end on "not found".
+  useFocusEffect(
+    useCallback(() => {
     let cancelled = false;
     setIsLoading(true);
 
@@ -106,7 +118,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [itemId, dataService, refreshKey]);
+    }, [itemId, dataService, refreshKey]),
+  );
 
   const handleAddPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
@@ -117,7 +130,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
       const photo = await dataService.addClosetItemPhoto(itemId, uri);
       setPhotos(prev => [...prev, photo]);
     } catch (err) {
-      Alert.alert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsAddingPhoto(false);
     }
@@ -134,7 +147,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
       setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
       setPreviewIndex(null);
     } catch (err) {
-      Alert.alert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsDeletingPhoto(false);
     }
@@ -142,22 +155,26 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   let content: React.ReactNode;
 
-  if (isLoading) {
+  const screen = { backgroundColor: theme.background };
+
+  // `&& !item`: focus-triggered refetches keep showing the loaded page
+  // instead of flashing a spinner on every return to this screen.
+  if (isLoading && !item) {
     content = (
-      <View style={styles.container}>
+      <View style={[styles.container, screen]}>
         <ActivityIndicator />
       </View>
     );
   } else if (error) {
     content = (
-      <View style={styles.container}>
-        <Text style={styles.text}>{error}</Text>
+      <View style={[styles.container, screen]}>
+        <Text style={[styles.text, { color: theme.textPrimary }]}>{error}</Text>
       </View>
     );
   } else if (!item) {
     content = (
-      <View style={styles.container}>
-        <Text style={styles.text}>Item not found!</Text>
+      <View style={[styles.container, screen]}>
+        <Text style={[styles.text, { color: theme.textPrimary }]}>Item not found!</Text>
       </View>
     );
   } else {
@@ -165,7 +182,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
     const detailFields = getDetailFields(item);
 
     content = (
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, screen]}>
         <View style={styles.imageContainer}>
           <Image
             source={item.img}
@@ -176,15 +193,15 @@ export default function ClothingItemDetail({ itemId }: Props) {
           />
         </View>
         <View style={styles.contentContainer}>
-          <Text style={styles.wearCountText}>
+          <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
             You have worn this item {wearCount} {wearCount === 1 ? 'time' : 'times'}
           </Text>
 
-          <Text role="heading" style={styles.sectionLabel}>
+          <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             More photos
           </Text>
           {secondaryPhotos.length === 0 ? (
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
               Add some photos of the garment in different lighting or a close up of the fabric here
             </Text>
           ) : null}
@@ -205,42 +222,56 @@ export default function ClothingItemDetail({ itemId }: Props) {
               <Pressable
                 onPress={handleAddPhoto}
                 disabled={isAddingPhoto}
-                style={[styles.photoThumb, styles.addPhotoThumb]}
+                style={[
+                  styles.photoThumb,
+                  styles.addPhotoThumb,
+                  { borderColor: theme.border, backgroundColor: theme.surfaceAlt },
+                ]}
                 role="button"
                 aria-label="Add a photo"
                 aria-disabled={isAddingPhoto}
               >
-                <Text style={styles.addPhotoThumbText}>{isAddingPhoto ? '…' : '+'}</Text>
+                <Text style={[styles.addPhotoThumbText, { color: theme.textSecondary }]}>
+                  {isAddingPhoto ? '…' : '+'}
+                </Text>
               </Pressable>
             ) : null}
           </ScrollView>
 
-          <Text role="heading" style={styles.sectionLabel}>
+          <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             Item Details
           </Text>
           <View style={styles.detailsList}>
             {detailFields.map(({ label, value, isLink }) => (
               <View
                 key={label}
-                style={styles.detailRow}
+                style={[styles.detailRow, { borderBottomColor: theme.border }]}
                 accessible={!isLink || !value}
                 aria-label={`${label}: ${value ?? 'No info yet'}`}
               >
-                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>{label}</Text>
                 {isLink && value ? (
                   <Pressable onPress={() => Linking.openURL(value)} role="link" aria-label={`Open ${label}`}>
-                    <Text style={[styles.text, styles.linkText]} numberOfLines={1}>
+                    <Text style={[styles.text, styles.linkText, { color: theme.link }]} numberOfLines={1}>
                       {value}
                     </Text>
                   </Pressable>
                 ) : (
-                  <Text style={value ? styles.text : styles.emptyText}>{value ?? 'No info yet'}</Text>
+                  <Text
+                    style={
+                      value
+                        ? [styles.text, { color: theme.textPrimary }]
+                        : [styles.emptyText, { color: theme.textSecondary }]
+                    }
+                  >
+                    {value ?? 'No info yet'}
+                  </Text>
                 )}
               </View>
             ))}
           </View>
 
-          <Text role="heading" style={styles.sectionLabel}>
+          <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             Featured in outfits
           </Text>
           {featuredOutfits.length > 0 ? (
@@ -259,7 +290,9 @@ export default function ClothingItemDetail({ itemId }: Props) {
               ))}
             </ScrollView>
           ) : (
-            <Text style={styles.emptyText}>Not featured in any outfits yet.</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              Not featured in any outfits yet.
+            </Text>
           )}
 
           <EditButton
@@ -314,7 +347,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   return (
     <>
-      <Stack.Screen options={{ title: item?.name ?? 'Item details', headerLeft: HeaderBackButton }} />
+      <Stack.Screen options={{ title: item?.name ?? 'Item details', headerLeft: () => <HeaderBackButton /> }} />
       {content}
     </>
   );
@@ -323,7 +356,6 @@ export default function ClothingItemDetail({ itemId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
     alignItems: 'center',
   },
   // Centered wrapper for the image to mimic Amazon's frame
@@ -333,6 +365,8 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     alignItems: 'center',    // Centers the image horizontally
   },
+  // Photo wells stay light in both themes: the garment photos are shot on
+  // white, so a dark well would frame each one in a hard white box.
   image: {
     width: '100%',          // Spans full width of its padded parent
     aspectRatio: 1,         // Forces a perfect square dynamically
@@ -342,14 +376,11 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 17,
     lineHeight: 24,
-    color: '#333',
   },
   wearCountText: {
     fontSize: 15,
-    color: '#555',
   },
   linkText: {
-    color: '#0066cc',
     textDecorationLine: 'underline',
   },
   contentContainer: {
@@ -361,7 +392,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginTop: 20,
     marginBottom: 12,
   },
@@ -382,15 +412,12 @@ const styles = StyleSheet.create({
   },
   addPhotoThumb: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderStyle: 'dashed',
-    backgroundColor: '#fafafa',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addPhotoThumbText: {
     fontSize: 28,
-    color: '#999',
   },
   detailsList: {
     width: '100%',
@@ -399,12 +426,10 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e5e5',
   },
   detailLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
     marginBottom: 2,
   },
   outfitThumb: {
@@ -415,7 +440,6 @@ const styles = StyleSheet.create({
     width: 96,
   },
   emptyText: {
-    color: '#666',
     fontSize: 15,
   },
   modalBackdrop: {

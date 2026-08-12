@@ -1,6 +1,7 @@
 import FilterPills from '@/components/FilterPills';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import {
   getErrorMessage,
   OUTFIT_LABELS,
@@ -21,6 +22,7 @@ type Props = {
 
 export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
   const { dataService } = useDataMode();
+  const { theme } = useTheme();
   const [outfits, setOutfits] = useState<Outfit[] | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -72,14 +74,14 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text role="heading" style={styles.heading}>
+      <Text role="heading" style={[styles.heading, { color: theme.textPrimary }]}>
         My outfits
       </Text>
 
       <FilterPills options={OUTFIT_LABELS} selected={selectedLabel} onSelect={setSelectedLabel} />
 
       {error ? (
-        <Text style={styles.emptyText}>{error}</Text>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{error}</Text>
       ) : !outfits ? (
         <ActivityIndicator style={styles.loading} />
       ) : (
@@ -95,14 +97,14 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
                   aria-label={outfit.name}
                 >
                   <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} />
-                  <Text style={styles.cardLabel} numberOfLines={1}>
+                  <Text style={[styles.cardLabel, { color: theme.textPrimary }]} numberOfLines={1}>
                     {outfit.name}
                   </Text>
                 </Pressable>
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>No outfits match this filter.</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No outfits match this filter.</Text>
           )}
         </ScrollView>
       )}
@@ -116,7 +118,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   heading: {
-    color: '#000',
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
@@ -139,10 +140,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     fontWeight: '500',
-    color: '#333',
   },
   emptyText: {
-    color: '#666',
     fontSize: 15,
     textAlign: 'center',
     marginTop: 24,

@@ -19,6 +19,9 @@ export async function getOutfitWearStatus(
       .select('id', { count: 'exact', head: true })
       .eq('closet_id', closetId)
       .eq('outfit_id', outfitId),
+    // limit(1) rather than maybeSingle(): nothing stops two same-day rows from
+    // existing (e.g. logged from two devices at once), and maybeSingle() turns
+    // that into a permanent error on every later visit to the outfit.
     supabase
       .from('wear_logs')
       .select('id')
@@ -26,12 +29,12 @@ export async function getOutfitWearStatus(
       .eq('outfit_id', outfitId)
       .eq('user_id', userId)
       .eq('worn_on_date', todayDateString())
-      .maybeSingle(),
+      .limit(1),
   ]);
   if (countResult.error) throw countResult.error;
   if (todayResult.error) throw todayResult.error;
 
-  return { wearCount: countResult.count ?? 0, todayWearLogId: todayResult.data?.id ?? null };
+  return { wearCount: countResult.count ?? 0, todayWearLogId: todayResult.data?.[0]?.id ?? null };
 }
 
 /** Logs an outfit as worn today by `userId`. Returns the new wear_logs row id. Throws the Supabase error on failure. */

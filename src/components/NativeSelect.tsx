@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActionSheetIOS, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
+import { useTheme } from '@/context/ThemeContext';
 
 function defaultFormatLabel(value: string): string {
   return value
@@ -37,6 +38,7 @@ export default function NativeSelect<T extends string>({
   allowClear = false,
   formatLabel = defaultFormatLabel,
 }: Props<T>) {
+  const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const displayValue = value ? formatLabel(value) : placeholder;
 
@@ -76,39 +78,39 @@ export default function NativeSelect<T extends string>({
     <View>
       <Pressable
         onPress={openPicker}
-        style={({ pressed }) => [styles.field, pressed && styles.fieldPressed]}
+        style={({ pressed }) => [styles.field, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }, pressed && styles.fieldPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${label}${required ? ', required' : ''}`}
         accessibilityValue={{ text: value ? formatLabel(value) : 'Not selected' }}
         accessibilityHint="Double tap to change selection"
       >
-        <Text style={[styles.fieldText, !value && styles.placeholderText]}>{displayValue}</Text>
-        <Text style={styles.chevron}>›</Text>
+        <Text style={[styles.fieldText, { color: value ? theme.textPrimary : theme.textSecondary }]}>{displayValue}</Text>
+        <Text style={[styles.chevron, { color: theme.textSecondary }]}>›</Text>
       </Pressable>
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setModalVisible(false)}>
-          <View style={styles.sheet}>
-            <Text accessibilityRole="header" style={styles.sheetTitle}>
+        <Pressable style={[styles.backdrop, { backgroundColor: theme.overlay }]} onPress={() => setModalVisible(false)}>
+          <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
+            <Text accessibilityRole="header" style={[styles.sheetTitle, { color: theme.textPrimary }]}>
               {label}
             </Text>
             <ScrollView accessibilityRole="menu">
               {allowClear && (
                 <Pressable
-                  style={styles.option}
+                  style={[styles.option, { borderTopColor: theme.border }]}
                   accessibilityRole="menuitem"
                   onPress={() => {
                     onChange(null);
                     setModalVisible(false);
                   }}
                 >
-                  <Text style={styles.optionText}>Clear selection</Text>
+                  <Text style={[styles.optionText, { color: theme.textPrimary }]}>Clear selection</Text>
                 </Pressable>
               )}
               {options.map(option => (
                 <Pressable
                   key={option}
-                  style={styles.option}
+                  style={[styles.option, { borderTopColor: theme.border }]}
                   accessibilityRole="menuitem"
                   accessibilityState={{ selected: option === value }}
                   onPress={() => {
@@ -116,16 +118,16 @@ export default function NativeSelect<T extends string>({
                     setModalVisible(false);
                   }}
                 >
-                  <Text style={styles.optionText}>{formatLabel(option)}</Text>
+                  <Text style={[styles.optionText, { color: theme.textPrimary }]}>{formatLabel(option)}</Text>
                 </Pressable>
               ))}
             </ScrollView>
             <Pressable
-              style={styles.cancelButton}
+              style={[styles.cancelButton, { backgroundColor: theme.surfaceAlt }]}
               accessibilityRole="button"
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: theme.textPrimary }]}>Cancel</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -143,30 +145,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fafafa',
   },
   fieldPressed: {
     opacity: 0.7,
   },
   fieldText: {
     fontSize: 16,
-    color: '#1a1a1a',
-  },
-  placeholderText: {
-    color: '#999',
   },
   chevron: {
     fontSize: 20,
-    color: '#999',
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingTop: 16,
@@ -176,7 +169,6 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a1a1a',
     paddingHorizontal: 20,
     paddingBottom: 8,
   },
@@ -184,11 +176,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#eee',
   },
   optionText: {
     fontSize: 16,
-    color: '#1a1a1a',
     textTransform: 'capitalize',
   },
   cancelButton: {
@@ -197,11 +187,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#f0f0f0',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
   },
 });

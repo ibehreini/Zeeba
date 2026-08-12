@@ -139,9 +139,17 @@ export interface OutfitWearStatus {
   todayWearLogId: string | null;
 }
 
-/** Today's date as wear_logs.worn_on_date expects it (a plain date, no time component). */
+/**
+ * Today's date as wear_logs.worn_on_date expects it (a plain date, no time
+ * component), in the user's local calendar day. toISOString() would give the
+ * UTC day, which flips mid-evening in the Americas - resetting the
+ * "Worn Today" toggle at 5pm PST and stamping late logs with tomorrow's date.
+ */
 export function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 /**

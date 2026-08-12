@@ -34,7 +34,8 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="manifest" href="/manifest.json" />
         {/* Colours the Android status bar in the installed app. Matches the
             shell background in AppShell.web.tsx so the bar blends into the
-            header rather than drawing a line across the top. */}
+            header rather than drawing a line across the top. The pre-paint
+            script below and RootNavigator both rewrite it for dark mode. */}
         <meta name="theme-color" content="#ffffff" />
         <meta name="application-name" content="Zeeba" />
 
@@ -49,6 +50,9 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: rootStyles }} />
+        {/* Runs before first paint so a dark-theme visitor never sees the
+            white statically-exported page flash before React hydrates. */}
+        <script dangerouslySetInnerHTML={{ __html: applyStoredTheme }} />
         {/* Dev builds deliberately skip registration: a service worker sitting
             in front of the Metro dev server serves stale bundles and makes
             fast refresh look broken. NODE_ENV is resolved when this document
@@ -63,6 +67,24 @@ export default function Root({ children }: PropsWithChildren) {
 }
 
 const APP_DESCRIPTION = 'Share your closet with a stylist and build outfits together.';
+
+// 'zeeba.theme-mode' is the AsyncStorage key from src/context/ThemeContext.tsx
+// (AsyncStorage on web is localStorage with the raw key), and the two hex
+// values mirror `background` in src/theme/theme.ts. `color-scheme` also flips
+// the browser's own chrome (scrollbars, form controls) to match.
+const applyStoredTheme = `
+(function () {
+  try {
+    var mode = localStorage.getItem('zeeba.theme-mode');
+    var dark = mode === 'dark' ||
+      (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.style.backgroundColor = dark ? '#151718' : '#ffffff';
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#151718' : '#ffffff');
+  } catch (e) {}
+})();
+`;
 
 // Waits for `load` so registration never competes with the initial bundle
 // download for bandwidth. Failure is non-fatal by design - an unsupported or

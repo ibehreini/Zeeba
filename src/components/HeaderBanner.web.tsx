@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useCloset } from '@/context/ClosetContext';
+import { useTheme } from '@/context/ThemeContext';
 
 /**
  * Web page-title bar - turns sky blue while the Stylist closet mode is active.
@@ -12,12 +13,25 @@ import { useCloset } from '@/context/ClosetContext';
  */
 export default function HeaderBanner({ title }: { title?: string }) {
   const { closetMode } = useCloset();
+  const { theme } = useTheme();
   const isStylist = closetMode === 'stylist';
 
   return (
-    <View style={[styles.container, isStylist && styles.stylist]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isStylist ? theme.stylist : theme.surface,
+          borderBottomColor: isStylist ? theme.stylist : theme.border,
+        },
+      ]}
+    >
       <View style={styles.inner}>
-        <Text role="heading" aria-level={1} style={[styles.title, isStylist && styles.stylistText]}>
+        <Text
+          role="heading"
+          aria-level={1}
+          style={[styles.title, { color: isStylist ? theme.onStylist : theme.textPrimary }]}
+        >
           {title}
         </Text>
       </View>
@@ -27,13 +41,7 @@ export default function HeaderBanner({ title }: { title?: string }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
-  },
-  stylist: {
-    backgroundColor: '#38bdf8',
-    borderBottomColor: '#38bdf8',
   },
   inner: {
     width: '100%',
@@ -45,9 +53,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#25292e',
-  },
-  stylistText: {
-    color: '#fff',
   },
 });

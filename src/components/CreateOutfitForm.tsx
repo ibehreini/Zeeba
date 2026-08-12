@@ -4,6 +4,7 @@ import type { ClothingCategory } from '@/constants/closetData';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import {
   getErrorMessage,
   groupClosetItemsByAllCategories,
@@ -12,11 +13,11 @@ import {
   type OutfitLabel,
 } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
+import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -55,6 +56,7 @@ const EMPTY_SELECTION: SelectionByCategory = {
 };
 
 export default function CreateOutfitForm() {
+  const { theme } = useTheme();
   const router = useRouter();
   const { dataService } = useDataMode();
   const { activeClosetId } = useCloset();
@@ -134,7 +136,7 @@ export default function CreateOutfitForm() {
       if (limit === 1) {
         setSelectedByCategory(prev => ({ ...prev, [category]: [item.item_id] }));
       } else {
-        Alert.alert('Limit reached', `You can pick up to ${limit} accessories per outfit.`);
+        showAlert('Limit reached', `You can pick up to ${limit} accessories per outfit.`);
       }
       return;
     }
@@ -156,11 +158,11 @@ export default function CreateOutfitForm() {
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
-      Alert.alert('No closet found', 'You need a closet before you can create an outfit.');
+      showAlert('No closet found', 'You need a closet before you can create an outfit.');
       return;
     }
     if (!name.trim() || !description.trim() || !label || selectedItemIds.length === 0) {
-      Alert.alert(
+      showAlert(
         'Missing information',
         'Name, description, a label, and at least one clothing item are all required.',
       );
@@ -179,7 +181,7 @@ export default function CreateOutfitForm() {
       });
 
       markOutfitsDirty();
-      Alert.alert('Outfit created', `"${created.name}" was added to your closet.`, [
+      showAlert('Outfit created', `"${created.name}" was added to your closet.`, [
         {
           text: 'OK',
           onPress: () => {
@@ -192,14 +194,17 @@ export default function CreateOutfitForm() {
         },
       ]);
     } catch (err) {
-      Alert.alert('Couldn’t create outfit', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      showAlert('Couldn’t create outfit', getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <LabeledTextInput
         label="Name"
         required
@@ -232,11 +237,11 @@ export default function CreateOutfitForm() {
 
       <Field label="Items" required>
         {itemsError ? (
-          <Text style={styles.errorText}>{itemsError}</Text>
+          <Text style={[styles.errorText, { color: theme.danger }]}>{itemsError}</Text>
         ) : !closetItems ? (
           <ActivityIndicator style={styles.itemsLoading} />
         ) : closetItems.length === 0 ? (
-          <Text style={styles.errorText}>No items in this closet yet.</Text>
+          <Text style={[styles.errorText, { color: theme.danger }]}>No items in this closet yet.</Text>
         ) : (
           <>
             <ScrollView
@@ -256,17 +261,24 @@ export default function CreateOutfitForm() {
                     aria-selected={isActive}
                     style={({ pressed }) => [
                       styles.tab,
-                      isActive && styles.tabActive,
+                      { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+                      isActive && { backgroundColor: theme.accent, borderColor: theme.accent },
                       pressed && styles.tabPressed,
                     ]}
                   >
-                    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{section.title}</Text>
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: theme.textPrimary },
+                        isActive && { color: theme.onAccent },
+                      ]}
+                    >{section.title}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
             {activeSection && activeSection.data.length === 0 ? (
-              <Text style={styles.emptyTabText}>No {activeSection.title.toLowerCase()} in this closet yet.</Text>
+              <Text style={[styles.emptyTabText, { color: theme.textSecondary }]}>No {activeSection.title.toLowerCase()} in this closet yet.</Text>
             ) : (
               activeSection && (
                 <ClosetRow
@@ -288,7 +300,8 @@ export default function CreateOutfitForm() {
         disabled={!canSubmit}
         style={({ pressed }) => [
           styles.submitButton,
-          !canSubmit && styles.submitButtonDisabled,
+          { backgroundColor: theme.accent },
+          !canSubmit && { backgroundColor: theme.textSecondary },
           pressed && styles.submitButtonPressed,
         ]}
         role="button"
@@ -296,9 +309,9 @@ export default function CreateOutfitForm() {
         aria-disabled={!canSubmit}
       >
         {submitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={theme.onAccent} />
         ) : (
-          <Text style={styles.submitButtonText}>Save Outfit</Text>
+          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Outfit</Text>
         )}
       </Pressable>
     </ScrollView>
@@ -312,11 +325,12 @@ type FieldProps = {
 };
 
 function Field({ label, required, children }: FieldProps) {
+  const { theme } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>
+      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
         {label}
-        {required && <Text style={styles.requiredMark}> *</Text>}
+        {required && <Text style={{ color: theme.danger }}> *</Text>}
       </Text>
       {children}
     </View>
@@ -342,16 +356,23 @@ function LabeledTextInput({
   multiline,
   maxLength,
 }: LabeledTextInputProps) {
+  const { theme } = useTheme();
+  const themedInput = {
+    backgroundColor: theme.surfaceAlt,
+    borderColor: theme.border,
+    color: theme.textPrimary,
+  };
   return (
     <Field label={label} required={required}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
         maxLength={maxLength}
-        style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
+        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
         aria-label={required ? `${label}, required` : label}
       />
     </Field>
@@ -362,7 +383,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 48,
-    backgroundColor: '#fff',
   },
   field: {
     marginBottom: 20,
@@ -370,22 +390,15 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 8,
-  },
-  requiredMark: {
-    color: '#c00',
   },
   textInput: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
-    backgroundColor: '#fafafa',
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1a1a1a',
   },
   multilineInput: {
     minHeight: 96,
@@ -404,13 +417,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  tabActive: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#1a1a1a',
   },
   tabPressed: {
     opacity: 0.8,
@@ -418,17 +425,11 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  tabTextActive: {
-    color: '#fff',
   },
   errorText: {
-    color: '#c00',
     fontSize: 15,
   },
   emptyTabText: {
-    color: '#666',
     fontSize: 15,
     paddingHorizontal: 10,
   },
@@ -436,19 +437,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     minHeight: 50,
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   submitButtonPressed: {
     opacity: 0.85,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#bbb',
-  },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
   },
 });

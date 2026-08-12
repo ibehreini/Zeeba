@@ -1,7 +1,7 @@
 import { ConflictError, getErrorMessage } from '@/services/dataService.types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { showAlert } from '@/utils/alert';
 
 type Options = {
   confirmTitle: string;
@@ -28,7 +28,7 @@ export function useDeleteConfirm({ confirmTitle, confirmMessage, errorTitle, onD
   const [isDeleting, setIsDeleting] = useState(false);
 
   const confirmAndDelete = () => {
-    Alert.alert(confirmTitle, confirmMessage, [
+    showAlert(confirmTitle, confirmMessage, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -40,10 +40,10 @@ export function useDeleteConfirm({ confirmTitle, confirmMessage, errorTitle, onD
             router.back();
           } catch (err) {
             if (err instanceof ConflictError) {
-              Alert.alert('Already changed', err.message);
+              showAlert('Already changed', err.message);
               onConflict();
             } else {
-              Alert.alert(errorTitle, getErrorMessage(err, 'Something went wrong. Please try again.'));
+              showAlert(errorTitle, getErrorMessage(err, 'Something went wrong. Please try again.'));
             }
           } finally {
             setIsDeleting(false);
