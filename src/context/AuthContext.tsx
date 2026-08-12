@@ -17,9 +17,16 @@ import {
 import { Platform } from 'react-native';
 import { supabase } from '@/utils/supabase';
 
+// Lets a local Supabase docker instance (see .env.docker.local) skip Google/Apple
+// OAuth entirely and sign in a real seeded account instead, since neither provider's
+// redirect flow can complete against a non-public local URL. Unset on .env.remote.local
+// so this never activates against the hosted project.
+export const isTestAuthEnabled = process.env.EXPO_PUBLIC_ENABLE_TEST_AUTH === 'true';
+
 // @react-native-google-signin's web implementation is a paid sponsor-only
-// feature and only warns/no-ops; skip configuring it there entirely.
-if (Platform.OS !== 'web') {
+// feature and only warns/no-ops; skip configuring it there entirely. Also
+// skipped under test auth (local docker), which never uses Google sign-in.
+if (Platform.OS !== 'web' && !isTestAuthEnabled) {
   GoogleSignin.configure({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
@@ -32,6 +39,7 @@ type AuthContextValue = {
   isGuest: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  signInWithTestAccount: (email: string) => Promise<void>;
   continueAsGuest: () => void;
   signOut: () => Promise<void>;
 };
@@ -65,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest,
       signInWithGoogle,
       signInWithApple,
+      signInWithTestAccount,
       continueAsGuest: () => setIsGuest(true),
       signOut: async () => {
         setIsGuest(false);
@@ -84,6 +93,19 @@ export function useAuth(): AuthContextValue {
 }
 
 async function signInWithGoogle(): Promise<void> {
+  if (Platform.OS === 'web') {
+    // Full-page redirect to Google's consent screen; there is no session to
+    // return here. It lands once the browser comes back to redirectTo, at
+    // which point the client's `detectSessionInUrl` exchanges the code and
+    // onAuthStateChange (registered in AuthProvider) picks up the session.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/sign-in` },
+    });
+    if (error) throw error;
+    return;
+  }
+
   try {
     await GoogleSignin.hasPlayServices();
     const response = await GoogleSignin.signIn();
@@ -141,6 +163,27 @@ async function signInWithApple(): Promise<void> {
       return;
     }
     throw error;
+  }
+}
+
+// All seeded accounts (see supabase/seed.sql, src/constants/testAccounts.ts)
+// share this one password - there's nothing to protect locally, and a shared
+// password is what lets the sign-in screen be a one-tap account picker.
+async function signInWithTestAccount(email: string): Promise<void> {
+  if (!isTestAuthEnabled) {
+    throw new Error('Test auth is disabled. Set EXPO_PUBLIC_ENABLE_TEST_AUTH=true (docker env only).');
+  }
+
+  const password = process.env.EXPO_PUBLIC_TEST_ACCOUNT_PASSWORD;
+  if (!password) {
+    throw new Error('EXPO_PUBLIC_TEST_ACCOUNT_PASSWORD is not set.');
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw new Error(
+      `${error.message} - has "supabase db reset" been run to load supabase/seed.sql?`,
+    );
   }
 }
 

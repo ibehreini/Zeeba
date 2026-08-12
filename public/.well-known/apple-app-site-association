@@ -1,0 +1,51 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["5VJ8NVZ358.com.idabeeme.zeeba"],
+        "components": [
+          {
+            "/": "/api/*",
+            "exclude": true,
+            "comment": "Expo Router API routes are server endpoints - never hand these to the app. Exclusions must come first: the system stops at the first matching component."
+          },
+          {
+            "/": "/",
+            "comment": "Home."
+          },
+          {
+            "/": "/about",
+            "comment": "About / activity log."
+          },
+          {
+            "/": "/closet",
+            "comment": "Closet list."
+          },
+          {
+            "/": "/closet/*",
+            "comment": "Closet sub-screens (/closet/new)."
+          },
+          {
+            "/": "/item/*",
+            "comment": "Clothing item detail and edit screens (/item/[id], /item/edit/[id])."
+          },
+          {
+            "/": "/outfits",
+            "comment": "Outfits grid."
+          },
+          {
+            "/": "/outfits/*",
+            "comment": "Outfits sub-screens (/outfits/new)."
+          },
+          {
+            "/": "/outfit/*",
+            "comment": "Outfit detail and edit screens (/outfit/[id], /outfit/edit/[id])."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["5VJ8NVZ358.com.idabeeme.zeeba"]
+  }
+}

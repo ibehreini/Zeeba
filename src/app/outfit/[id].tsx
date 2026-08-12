@@ -15,6 +15,7 @@ export default function OutfitDetailScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!outfitId) {
@@ -41,7 +42,7 @@ export default function OutfitDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [outfitId, dataService]);
+  }, [outfitId, dataService, refreshKey]);
 
   let content: React.ReactNode;
 
@@ -74,8 +75,10 @@ export default function OutfitDetailScreen() {
           itemIds: outfit.item_ids,
           photos: outfit.photos,
           complimentCount: outfit.compliment_count,
+          updatedAt: outfit.updated_at,
         }}
         closetItems={closetItems}
+        onConflict={() => setRefreshKey(key => key + 1)}
       />
     );
   }

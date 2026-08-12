@@ -82,6 +82,7 @@ function toClosetItems(): ClosetItem[] {
     img: item.img,
     secondary_photos: [],
     created_at: now,
+    updated_at: now,
   }));
   return [...bundledItems, ...previewCreatedItems]
     .filter(item => !previewDeletedItemIds.has(item.item_id))
@@ -105,6 +106,7 @@ function toOutfits(): Outfit[] {
     outfit_img_preview: { img: outfit.outfit_img_preview.img },
     photos: [],
     created_at: now,
+    updated_at: now,
   }));
   return [...bundledOutfits, ...previewCreatedOutfits]
     .filter(outfit => !previewDeletedOutfitIds.has(outfit.outfit_id))
@@ -147,12 +149,20 @@ class PreviewDataService implements IDataService {
       img: primaryPhoto.uri,
       secondary_photos: [],
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     previewCreatedItems.push(created);
     return delay(created);
   }
 
-  async updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem> {
+  // expectedUpdatedAt is accepted for interface parity with supabaseService
+  // but ignored - preview mode is a single local session, so there's no
+  // other writer to conflict with.
+  async updateClosetItem(
+    itemId: string,
+    _expectedUpdatedAt: string,
+    input: UpdateClosetItemInput,
+  ): Promise<ClosetItem> {
     const existing = toClosetItems().find(candidate => candidate.item_id === itemId);
     if (!existing) throw new Error('Item not found.');
 
@@ -172,7 +182,7 @@ class PreviewDataService implements IDataService {
     return delay(updated);
   }
 
-  async deleteClosetItem(itemId: string): Promise<void> {
+  async deleteClosetItem(itemId: string, _expectedUpdatedAt: string): Promise<void> {
     previewDeletedItemIds.add(itemId);
     return delay(undefined);
   }
@@ -221,12 +231,15 @@ class PreviewDataService implements IDataService {
       outfit_img_preview: { img: PLACEHOLDER_IMAGE },
       photos: [],
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     previewCreatedOutfits.push(created);
     return delay(created);
   }
 
-  async updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit> {
+  // expectedUpdatedAt is accepted for interface parity with supabaseService
+  // but ignored - see updateClosetItem above.
+  async updateOutfit(outfitId: string, _expectedUpdatedAt: string, input: UpdateOutfitInput): Promise<Outfit> {
     const existing = toOutfits().find(candidate => candidate.outfit_id === outfitId);
     if (!existing) throw new Error('Outfit not found.');
 
@@ -241,7 +254,7 @@ class PreviewDataService implements IDataService {
     return delay(updated);
   }
 
-  async deleteOutfit(outfitId: string): Promise<void> {
+  async deleteOutfit(outfitId: string, _expectedUpdatedAt: string): Promise<void> {
     previewDeletedOutfitIds.add(outfitId);
     return delay(undefined);
   }

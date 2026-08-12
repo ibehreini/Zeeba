@@ -1,12 +1,14 @@
 import { useDataMode } from '@/context/DataModeContext';
-import { getErrorMessage, toRNImageSource, type ClosetItem } from '@/services/dataService.types';
+import { ConflictError, getErrorMessage, toRNImageSource, type ClosetItem } from '@/services/dataService.types';
+import { useToast } from '@/components/Toast';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import { useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +24,7 @@ type Props = {
 export default function EditClothingItemForm({ itemId }: Props) {
   const router = useRouter();
   const { dataService } = useDataMode();
+  const { showToast } = useToast();
 
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,23 +40,25 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
 
+  const loadItem = useCallback(async () => {
+    const fetchedItem = await dataService.getClosetItemById(itemId);
+    setItem(fetchedItem);
+    if (fetchedItem) {
+      setName(fetchedItem.name);
+      setDescription(fetchedItem.description ?? '');
+      setFitNotes(fetchedItem.fit_notes ?? '');
+      setCareInstructions(fetchedItem.care_instructions ?? '');
+      setBrand(fetchedItem.brand ?? '');
+      setPurchaseUrl(fetchedItem.purchase_url ?? '');
+    }
+    return fetchedItem;
+  }, [itemId, dataService]);
+
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
 
-    dataService
-      .getClosetItemById(itemId)
-      .then(fetchedItem => {
-        if (cancelled) return;
-        setItem(fetchedItem);
-        if (fetchedItem) {
-          setName(fetchedItem.name);
-          setDescription(fetchedItem.description ?? '');
-          setFitNotes(fetchedItem.fit_notes ?? '');
-          setCareInstructions(fetchedItem.care_instructions ?? '');
-          setBrand(fetchedItem.brand ?? '');
-          setPurchaseUrl(fetchedItem.purchase_url ?? '');
-        }
-      })
+    loadItem()
       .catch(err => {
         if (!cancelled) setLoadError(getErrorMessage(err, 'Failed to load item.'));
       })
@@ -64,7 +69,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [itemId, dataService]);
+  }, [loadItem]);
 
   const handlePickPrimaryPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
@@ -74,14 +79,14 @@ export default function EditClothingItemForm({ itemId }: Props) {
   const canSubmit = !submitting && name.trim().length > 0 && description.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!name.trim() || !description.trim()) {
+    if (!item || !name.trim() || !description.trim()) {
       Alert.alert('Missing information', 'Name and description are required.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await dataService.updateClosetItem(itemId, {
+      await dataService.updateClosetItem(itemId, item.updated_at, {
         name: name.trim(),
         description: description.trim(),
         fitNotes: fitNotes.trim() || null,
@@ -91,10 +96,16 @@ export default function EditClothingItemForm({ itemId }: Props) {
         newPrimaryPhotoUri,
       });
 
-      router.back();
-      router.replace({ pathname: '/item/[id]', params: { id: itemId } });
+      showToast('Item updated');
+      router.dismissTo('/closet');
     } catch (err) {
-      Alert.alert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      if (err instanceof ConflictError) {
+        setNewPrimaryPhotoUri(null);
+        await loadItem().catch(() => {});
+        Alert.alert('Already changed', err.message);
+      } else {
+        Alert.alert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -121,14 +132,20 @@ export default function EditClothingItemForm({ itemId }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Field label="Primary photo">
-        <Pressable
-          onPress={handlePickPrimaryPhoto}
-          style={styles.primaryPhotoBox}
-          accessibilityRole="button"
-          accessibilityLabel="Change primary photo"
-        >
-          <Image source={previewSource} style={styles.primaryPhotoImage} />
-        </Pressable>
+        {Platform.OS === 'web' ? (
+          <View style={styles.primaryPhotoBox}>
+            <Image source={previewSource} style={styles.primaryPhotoImage} />
+          </View>
+        ) : (
+          <Pressable
+            onPress={handlePickPrimaryPhoto}
+            style={styles.primaryPhotoBox}
+            role="button"
+            aria-label="Change primary photo"
+          >
+            <Image source={previewSource} style={styles.primaryPhotoImage} />
+          </Pressable>
+        )}
       </Field>
 
       <LabeledTextInput
@@ -137,6 +154,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
         value={name}
         onChangeText={setName}
         placeholder="e.g. Black Silk Tank"
+        maxLength={100}
       />
 
       <LabeledTextInput
@@ -146,6 +164,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
         value={description}
         onChangeText={setDescription}
         placeholder="Describe the item"
+        maxLength={1000}
       />
 
       <LabeledTextInput
@@ -153,6 +172,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
         value={fitNotes}
         onChangeText={setFitNotes}
         placeholder="e.g. Runs small"
+        maxLength={500}
       />
 
       <LabeledTextInput
@@ -160,9 +180,16 @@ export default function EditClothingItemForm({ itemId }: Props) {
         value={careInstructions}
         onChangeText={setCareInstructions}
         placeholder="e.g. Dry clean only"
+        maxLength={500}
       />
 
-      <LabeledTextInput label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Everlane" />
+      <LabeledTextInput
+        label="Brand"
+        value={brand}
+        onChangeText={setBrand}
+        placeholder="e.g. Everlane"
+        maxLength={100}
+      />
 
       <LabeledTextInput
         label="Purchase URL"
@@ -171,15 +198,16 @@ export default function EditClothingItemForm({ itemId }: Props) {
         placeholder="https://..."
         keyboardType="url"
         autoCapitalize="none"
+        maxLength={2048}
       />
 
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
         style={({ pressed }) => [styles.submitButton, !canSubmit && styles.submitButtonDisabled, pressed && styles.submitButtonPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Save changes"
-        accessibilityState={{ disabled: !canSubmit }}
+        role="button"
+        aria-label="Save changes"
+        aria-disabled={!canSubmit}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -218,6 +246,7 @@ type LabeledTextInputProps = {
   multiline?: boolean;
   keyboardType?: 'default' | 'url';
   autoCapitalize?: 'none' | 'sentences';
+  maxLength?: number;
 };
 
 function LabeledTextInput({
@@ -229,6 +258,7 @@ function LabeledTextInput({
   multiline,
   keyboardType,
   autoCapitalize,
+  maxLength,
 }: LabeledTextInputProps) {
   return (
     <Field label={label} required={required}>
@@ -240,8 +270,9 @@ function LabeledTextInput({
         numberOfLines={multiline ? 4 : undefined}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        maxLength={maxLength}
         style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
-        accessibilityLabel={required ? `${label}, required` : label}
+        aria-label={required ? `${label}, required` : label}
       />
     </Field>
   );

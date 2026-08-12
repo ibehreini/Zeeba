@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActionSheetIOS, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 
 function defaultFormatLabel(value: string): string {
   return value
@@ -38,6 +39,8 @@ export default function NativeSelect<T extends string>({
 }: Props<T>) {
   const [modalVisible, setModalVisible] = useState(false);
   const displayValue = value ? formatLabel(value) : placeholder;
+
+  useWebModalBackHandler(modalVisible, () => setModalVisible(false));
 
   const openPicker = () => {
     if (Platform.OS === 'ios') {

@@ -47,6 +47,7 @@ export function mapClosetItemRow(row: ClosetItemQueryRow): ClosetItem {
       .filter(photo => photo !== primaryPhoto)
       .map(photo => ({ id: photo.id, image_url: photo.image_url, created_at: photo.created_at })),
     created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -71,5 +72,6 @@ export function mapOutfitRow(row: OutfitQueryRow): Outfit {
     outfit_img_preview: { img: sortedPhotos[0]?.image_url ?? PLACEHOLDER_IMAGE },
     photos: sortedPhotos,
     created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }

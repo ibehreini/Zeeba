@@ -1,9 +1,13 @@
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
+  // See src/app/(tabs)/index.tsx - the web tab view keeps inactive tabs
+  // mounted (only hidden via zIndex/pointer-events), so NVDA still reads
+  // this screen after navigating away unless we aria-hide it ourselves.
+  const isFocused = useIsFocused();
   const router = useRouter();
   const { closetMode, activeClosetId, activeClosetName, isLoading, error } = useCloset();
 
@@ -61,12 +65,17 @@ export default function Index() {
   return (
     <>
       <Stack.Screen options={{ headerRight, title }} />
-      {content}
+      <View style={styles.flex} aria-hidden={!isFocused}>
+        {content}
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingTop: 12,

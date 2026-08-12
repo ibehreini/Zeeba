@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import type { NewOutfitInput, Outfit, OutfitPhoto, UpdateOutfitInput } from './dataService.types';
+import { deleteWithOcc, updateWithOcc } from './occConcurrency';
 import { deleteOutfitPhotoObject, uploadOutfitPhoto } from './supabasePhotoStorage';
 import { mapOutfitRow, OUTFIT_SELECT, type OutfitQueryRow } from './supabaseRowMappers';
 
@@ -62,13 +63,21 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
   return created;
 }
 
-/** Updates an outfit's name and description. Throws the Supabase error on failure. */
-export async function updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit> {
-  const { error } = await supabase
-    .from('outfits')
-    .update({ name: input.name, description: input.description })
-    .eq('id', outfitId);
-  if (error) throw error;
+/**
+ * Updates an outfit's name and description. `expectedUpdatedAt` must match
+ * the row's current `updated_at` (i.e. what a stylist or the closet owner
+ * last read) or this throws `ConflictError` without writing - see
+ * occConcurrency.ts. Throws the Supabase error on any other failure.
+ */
+export async function updateOutfit(
+  outfitId: string,
+  expectedUpdatedAt: string,
+  input: UpdateOutfitInput,
+): Promise<Outfit> {
+  await updateWithOcc('outfits', outfitId, expectedUpdatedAt, {
+    name: input.name,
+    description: input.description,
+  });
 
   const updated = await getOutfitById(outfitId);
   if (!updated) throw new Error('Failed to load the updated outfit.');
@@ -78,11 +87,13 @@ export async function updateOutfit(outfitId: string, input: UpdateOutfitInput): 
 /**
  * Deletes an outfit row. Its outfit_items links, outfit_photos, and
  * wear_logs rows all cascade-delete via the DB's `on delete cascade` foreign
- * keys, so this is a single-row delete. Throws the Supabase error on failure.
+ * keys, so this is a single-row delete. `expectedUpdatedAt` must match the
+ * row's current `updated_at` or this throws `ConflictError` without
+ * deleting - see occConcurrency.ts. Throws the Supabase error on any other
+ * failure.
  */
-export async function deleteOutfit(outfitId: string): Promise<void> {
-  const { error } = await supabase.from('outfits').delete().eq('id', outfitId);
-  if (error) throw error;
+export async function deleteOutfit(outfitId: string, expectedUpdatedAt: string): Promise<void> {
+  await deleteWithOcc('outfits', outfitId, expectedUpdatedAt);
 }
 
 /**

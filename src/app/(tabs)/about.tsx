@@ -1,7 +1,7 @@
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { getErrorMessage, type ActivityLogEntry } from '@/services/dataService.types';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -17,6 +17,10 @@ function describeActivity(entry: ActivityLogEntry): string {
 }
 
 export default function AboutScreen() {
+  // See src/app/(tabs)/index.tsx - the web tab view keeps inactive tabs
+  // mounted (only hidden via zIndex/pointer-events), so NVDA still reads
+  // this screen after navigating away unless we aria-hide it ourselves.
+  const isFocused = useIsFocused();
   const { dataService } = useDataMode();
   const { activeClosetId, isLoading: closetLoading, error: closetError } = useCloset();
 
@@ -98,7 +102,11 @@ export default function AboutScreen() {
     );
   }
 
-  return <View style={styles.container}>{content}</View>;
+  return (
+    <View style={styles.container} aria-hidden={!isFocused}>
+      {content}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

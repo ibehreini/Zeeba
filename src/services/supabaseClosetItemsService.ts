@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import type { ClosetItem, ClosetItemPhoto, NewClosetItemInput, UpdateClosetItemInput } from './dataService.types';
+import { deleteWithOcc, updateWithOcc } from './occConcurrency';
 import {
   deleteClosetItemPhotoObject,
   removeClosetItemPhotoObjects,
@@ -83,21 +84,24 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
 
 /**
  * Updates a clothing item's editable fields, optionally replacing its
- * primary photo. Throws the Supabase error on failure.
+ * primary photo. `expectedUpdatedAt` must match the row's current
+ * `updated_at` (i.e. what a stylist or the closet owner last read) or this
+ * throws `ConflictError` without writing - see occConcurrency.ts. Throws the
+ * Supabase error on any other failure.
  */
-export async function updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem> {
-  const { error: updateError } = await supabase
-    .from('clothing_items')
-    .update({
-      name: input.name,
-      description: input.description,
-      fit_notes: input.fitNotes,
-      care_instructions: input.careInstructions,
-      brand: input.brand,
-      purchase_url: input.purchaseUrl,
-    })
-    .eq('id', itemId);
-  if (updateError) throw updateError;
+export async function updateClosetItem(
+  itemId: string,
+  expectedUpdatedAt: string,
+  input: UpdateClosetItemInput,
+): Promise<ClosetItem> {
+  await updateWithOcc('clothing_items', itemId, expectedUpdatedAt, {
+    name: input.name,
+    description: input.description,
+    fit_notes: input.fitNotes,
+    care_instructions: input.careInstructions,
+    brand: input.brand,
+    purchase_url: input.purchaseUrl,
+  });
 
   if (input.newPrimaryPhotoUri) {
     await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri);
@@ -111,11 +115,12 @@ export async function updateClosetItem(itemId: string, input: UpdateClosetItemIn
 /**
  * Deletes a clothing item row. Its photos, outfit_items links, and wear_logs
  * rows all cascade-delete via the DB's `on delete cascade` foreign keys, so
- * this is a single-row delete. Throws the Supabase error on failure.
+ * this is a single-row delete. `expectedUpdatedAt` must match the row's
+ * current `updated_at` or this throws `ConflictError` without deleting -
+ * see occConcurrency.ts. Throws the Supabase error on any other failure.
  */
-export async function deleteClosetItem(itemId: string): Promise<void> {
-  const { error } = await supabase.from('clothing_items').delete().eq('id', itemId);
-  if (error) throw error;
+export async function deleteClosetItem(itemId: string, expectedUpdatedAt: string): Promise<void> {
+  await deleteWithOcc('clothing_items', itemId, expectedUpdatedAt);
 }
 
 /** Uploads a non-primary photo for an existing closet item. Throws the Supabase error on failure. */

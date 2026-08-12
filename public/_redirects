@@ -1,0 +1,16 @@
+# Cloudflare (Pages / Workers static assets) reads this from the deploy root.
+# `expo export -p web` copies everything in public/ verbatim into dist/.
+#
+# Status 200 = rewrite (the URL stays put, Cloudflare just serves that file).
+# Rules are evaluated top to bottom, first match wins - so the /edit/ rules
+# must come before the broader ones.
+#
+# Why these exist: a static export prerenders one HTML file per route, and a
+# dynamic route becomes a file with the brackets in its name -
+# dist/item/[id].html. Nothing maps /item/<uuid> onto it, so without these
+# rewrites every item and outfit link 404s.
+
+/item/edit/*    /item/edit/[id].html      200
+/item/*         /item/[id].html           200
+/outfit/edit/*  /outfit/edit/[id].html    200
+/outfit/*       /outfit/[id].html         200

@@ -43,13 +43,25 @@ type PillProps = {
   onPress: () => void;
 };
 
+/**
+ * A tab rather than a button, so the selected pill actually announces as
+ * selected. `aria-selected` is only honoured on tab/option-style roles - on a
+ * button the browser drops it - and it's also what makes the row's `tablist`
+ * role valid, since a tablist is only allowed to contain tabs.
+ *
+ * The state has to be passed as `aria-selected` and not the older
+ * `accessibilityState={{ selected }}`: react-native-web 0.21 no longer maps
+ * accessibilityState to anything, so it emitted no attribute at all and the
+ * pill read as a plain "button" however it was styled. React Native maps
+ * `aria-selected` back to the native selected state, so iOS is unchanged.
+ */
 function Pill({ label, isSelected, onPress }: PillProps) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: isSelected }}
+      role="tab"
+      aria-label={label}
+      aria-selected={isSelected}
       style={({ pressed }) => [
         styles.pill,
         isSelected && styles.pillSelected,
@@ -68,7 +80,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   pill: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',

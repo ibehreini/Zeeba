@@ -72,7 +72,7 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.heading}>
+      <Text role="heading" style={styles.heading}>
         My outfits
       </Text>
 
@@ -91,8 +91,8 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
                   key={outfit.outfit_id}
                   style={styles.card}
                   onPress={() => onOutfitPress?.(outfit.outfit_id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={outfit.name}
+                  role="button"
+                  aria-label={outfit.name}
                 >
                   <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} />
                   <Text style={styles.cardLabel} numberOfLines={1}>

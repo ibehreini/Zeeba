@@ -10,7 +10,7 @@ export default function HeaderBackButton() {
       onPress={() => router.back()}
       accessibilityRole="button"
       accessibilityLabel="Back"
-      hitSlop={8}
+      hitSlop={10}
     >
       <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
     </Pressable>

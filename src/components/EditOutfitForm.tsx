@@ -1,8 +1,9 @@
 import { useDataMode } from '@/context/DataModeContext';
-import { getErrorMessage, type Outfit } from '@/services/dataService.types';
+import { ConflictError, getErrorMessage, type Outfit } from '@/services/dataService.types';
+import { useToast } from '@/components/Toast';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 export default function EditOutfitForm({ outfitId }: Props) {
   const router = useRouter();
   const { dataService } = useDataMode();
+  const { showToast } = useToast();
 
   const [outfit, setOutfit] = useState<Outfit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,19 +24,21 @@ export default function EditOutfitForm({ outfitId }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
 
+  const loadOutfit = useCallback(async () => {
+    const fetchedOutfit = await dataService.getOutfitById(outfitId);
+    setOutfit(fetchedOutfit);
+    if (fetchedOutfit) {
+      setName(fetchedOutfit.name);
+      setDescription(fetchedOutfit.description ?? '');
+    }
+    return fetchedOutfit;
+  }, [outfitId, dataService]);
+
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
 
-    dataService
-      .getOutfitById(outfitId)
-      .then(fetchedOutfit => {
-        if (cancelled) return;
-        setOutfit(fetchedOutfit);
-        if (fetchedOutfit) {
-          setName(fetchedOutfit.name);
-          setDescription(fetchedOutfit.description ?? '');
-        }
-      })
+    loadOutfit()
       .catch(err => {
         if (!cancelled) setLoadError(getErrorMessage(err, 'Failed to load outfit.'));
       })
@@ -45,28 +49,33 @@ export default function EditOutfitForm({ outfitId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [outfitId, dataService]);
+  }, [loadOutfit]);
 
   const canSubmit = !submitting && name.trim().length > 0 && description.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!name.trim() || !description.trim()) {
+    if (!outfit || !name.trim() || !description.trim()) {
       Alert.alert('Missing information', 'Name and description are required.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await dataService.updateOutfit(outfitId, {
+      await dataService.updateOutfit(outfitId, outfit.updated_at, {
         name: name.trim(),
         description: description.trim(),
       });
 
       markOutfitsDirty();
-      router.back();
-      router.replace({ pathname: '/outfit/[id]', params: { id: outfitId } });
+      showToast('Outfit updated');
+      router.dismissTo('/outfits');
     } catch (err) {
-      Alert.alert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      if (err instanceof ConflictError) {
+        await loadOutfit().catch(() => {});
+        Alert.alert('Already changed', err.message);
+      } else {
+        Alert.alert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -96,6 +105,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
         value={name}
         onChangeText={setName}
         placeholder="e.g. Sunday Brunch"
+        maxLength={100}
       />
 
       <LabeledTextInput
@@ -105,6 +115,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
         value={description}
         onChangeText={setDescription}
         placeholder="Describe the outfit"
+        maxLength={1000}
       />
 
       <Pressable
@@ -115,9 +126,9 @@ export default function EditOutfitForm({ outfitId }: Props) {
           !canSubmit && styles.submitButtonDisabled,
           pressed && styles.submitButtonPressed,
         ]}
-        accessibilityRole="button"
-        accessibilityLabel="Save changes"
-        accessibilityState={{ disabled: !canSubmit }}
+        role="button"
+        aria-label="Save changes"
+        aria-disabled={!canSubmit}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -154,9 +165,18 @@ type LabeledTextInputProps = {
   placeholder?: string;
   required?: boolean;
   multiline?: boolean;
+  maxLength?: number;
 };
 
-function LabeledTextInput({ label, value, onChangeText, placeholder, required, multiline }: LabeledTextInputProps) {
+function LabeledTextInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  required,
+  multiline,
+  maxLength,
+}: LabeledTextInputProps) {
   return (
     <Field label={label} required={required}>
       <TextInput
@@ -165,8 +185,9 @@ function LabeledTextInput({ label, value, onChangeText, placeholder, required, m
         placeholder={placeholder}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
+        maxLength={maxLength}
         style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
-        accessibilityLabel={required ? `${label}, required` : label}
+        aria-label={required ? `${label}, required` : label}
       />
     </Field>
   );

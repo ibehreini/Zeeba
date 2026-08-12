@@ -4,13 +4,25 @@ import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
+import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 // "Worn in the wild" photos are capped at this many per outfit; the Add tile
 // hides itself once this many exist.
@@ -24,14 +36,17 @@ type OutfitDetailItem = {
   itemIds: readonly string[];
   photos: readonly OutfitPhoto[];
   complimentCount: number;
+  updatedAt: string;
 };
 
 type Props = {
   outfit: OutfitDetailItem;
   closetItems: ClosetItem[];
+  /** Re-fetches this outfit's data - called when a delete is rejected because someone else already changed or deleted it. */
+  onConflict: () => void;
 };
 
-export default function OutfitDetailPage({ outfit, closetItems }: Props) {
+export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Props) {
   const router = useRouter();
   const { mode, dataService } = useDataMode();
   const { session } = useAuth();
@@ -46,6 +61,8 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<OutfitPhoto | null>(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+
+  useWebModalBackHandler(viewingPhoto !== null, () => setViewingPhoto(null));
 
   const [wearCount, setWearCount] = useState(0);
   const [todayWearLogId, setTodayWearLogId] = useState<string | null>(null);
@@ -113,9 +130,10 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
     confirmMessage: `Delete "${outfit.name ?? 'this outfit'}"? This can't be undone.`,
     errorTitle: "Couldn't delete outfit",
     onDelete: async () => {
-      await dataService.deleteOutfit(outfit.id);
+      await dataService.deleteOutfit(outfit.id, outfit.updatedAt);
       markOutfitsDirty();
     },
+    onConflict,
   });
 
   const handleAddPhoto = async () => {
@@ -152,8 +170,7 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden={true}
         style={styles.flatLayWrapper}
       >
         <OutfitFlatLay itemIds={outfit.itemIds} closetItems={closetItems} />
@@ -170,9 +187,9 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
           <Pressable
             onPress={handleToggleWornToday}
             disabled={isTogglingWorn}
-            accessibilityRole="button"
-            accessibilityLabel={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
-            accessibilityState={{ disabled: isTogglingWorn }}
+            role="button"
+            aria-label={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
+            aria-disabled={isTogglingWorn}
             style={({ pressed }) => [
               styles.wornTodayButton,
               todayWearLogId && styles.wornTodayButtonActive,
@@ -197,9 +214,9 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
         <Pressable
           onPress={handleLogCompliment}
           disabled={isLoggingCompliment}
-          accessibilityRole="button"
-          accessibilityLabel="Log compliment"
-          accessibilityState={{ disabled: isLoggingCompliment }}
+          role="button"
+          aria-label="Log compliment"
+          aria-disabled={isLoggingCompliment}
           style={({ pressed }) => [
             styles.logComplimentButton,
             pressed && styles.logComplimentButtonPressed,
@@ -213,7 +230,7 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
           )}
         </Pressable>
 
-        <Text accessibilityRole="header" style={styles.sectionLabel}>
+        <Text role="heading" style={styles.sectionLabel}>
           Pieces in this outfit
         </Text>
 
@@ -223,8 +240,8 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
               <Link key={item.item_id} href={`/item/${item.item_id}`} asChild>
                 <Pressable
                   accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={`View item: ${item.name}`}
+                  role="button"
+                  aria-label={`View item: ${item.name}`}
                   style={styles.pieceBox}
                 >
                   <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
@@ -239,7 +256,7 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
           <Text style={styles.emptyText}>No clothing items for this outfit yet.</Text>
         )}
 
-        <Text accessibilityRole="header" style={styles.sectionLabel}>
+        <Text role="heading" style={styles.sectionLabel}>
           Worn in the Wild
         </Text>
 
@@ -248,21 +265,21 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
             <Pressable
               key={photo.id}
               onPress={() => setViewingPhoto(photo)}
-              accessibilityRole="button"
-              accessibilityLabel={`Worn in the wild photo ${index + 1} of ${photos.length}`}
+              role="button"
+              aria-label={`Worn in the wild photo ${index + 1} of ${photos.length}`}
               style={styles.pieceBox}
             >
               <Image source={toRNImageSource(photo.image_url)} style={styles.pieceImage} resizeMode="cover" />
             </Pressable>
           ))}
 
-          {photos.length < MAX_OUTFIT_PHOTOS ? (
+          {Platform.OS !== 'web' && photos.length < MAX_OUTFIT_PHOTOS ? (
             <Pressable
               onPress={handleAddPhoto}
               disabled={isAddingPhoto}
-              accessibilityRole="button"
-              accessibilityLabel="Add a worn-in-the-wild photo"
-              accessibilityState={{ disabled: isAddingPhoto }}
+              role="button"
+              aria-label="Add a worn-in-the-wild photo"
+              aria-disabled={isAddingPhoto}
               style={[styles.pieceBox, styles.addPhotoBox]}
             >
               <Text style={styles.addPhotoBoxText}>{isAddingPhoto ? '…' : '+'}</Text>
@@ -297,9 +314,9 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
               style={styles.deleteImageButton}
               onPress={handleDeletePhoto}
               disabled={isDeletingPhoto}
-              accessibilityRole="button"
-              accessibilityLabel="delete image"
-              accessibilityState={{ disabled: isDeletingPhoto }}
+              role="button"
+              aria-label="delete image"
+              aria-disabled={isDeletingPhoto}
             >
               <Ionicons name="trash-outline" size={22} color="#fff" />
             </Pressable>
@@ -307,8 +324,8 @@ export default function OutfitDetailPage({ outfit, closetItems }: Props) {
             <Pressable
               style={styles.closeButton}
               onPress={() => setViewingPhoto(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Close image preview"
+              role="button"
+              aria-label="Close image preview"
             >
               <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>

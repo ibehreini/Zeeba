@@ -206,6 +206,7 @@ export default function CreateOutfitForm() {
         value={name}
         onChangeText={setName}
         placeholder="e.g. Sunday Brunch"
+        maxLength={100}
       />
 
       <LabeledTextInput
@@ -215,6 +216,7 @@ export default function CreateOutfitForm() {
         value={description}
         onChangeText={setDescription}
         placeholder="Describe the outfit"
+        maxLength={1000}
       />
 
       <Field label="Label" required>
@@ -241,7 +243,7 @@ export default function CreateOutfitForm() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.tabRow}
-              accessibilityRole="tablist"
+              role="tablist"
             >
               {closetSections.map(section => {
                 const isActive = section.category === activeCategory;
@@ -249,9 +251,9 @@ export default function CreateOutfitForm() {
                   <Pressable
                     key={section.category}
                     onPress={() => setActiveCategory(section.category)}
-                    accessibilityRole="tab"
-                    accessibilityLabel={section.title}
-                    accessibilityState={{ selected: isActive }}
+                    role="tab"
+                    aria-label={section.title}
+                    aria-selected={isActive}
                     style={({ pressed }) => [
                       styles.tab,
                       isActive && styles.tabActive,
@@ -289,9 +291,9 @@ export default function CreateOutfitForm() {
           !canSubmit && styles.submitButtonDisabled,
           pressed && styles.submitButtonPressed,
         ]}
-        accessibilityRole="button"
-        accessibilityLabel="Save outfit"
-        accessibilityState={{ disabled: !canSubmit }}
+        role="button"
+        aria-label="Save outfit"
+        aria-disabled={!canSubmit}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -328,9 +330,18 @@ type LabeledTextInputProps = {
   placeholder?: string;
   required?: boolean;
   multiline?: boolean;
+  maxLength?: number;
 };
 
-function LabeledTextInput({ label, value, onChangeText, placeholder, required, multiline }: LabeledTextInputProps) {
+function LabeledTextInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  required,
+  multiline,
+  maxLength,
+}: LabeledTextInputProps) {
   return (
     <Field label={label} required={required}>
       <TextInput
@@ -339,8 +350,9 @@ function LabeledTextInput({ label, value, onChangeText, placeholder, required, m
         placeholder={placeholder}
         multiline={multiline}
         numberOfLines={multiline ? 4 : undefined}
+        maxLength={maxLength}
         style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
-        accessibilityLabel={required ? `${label}, required` : label}
+        aria-label={required ? `${label}, required` : label}
       />
     </Field>
   );

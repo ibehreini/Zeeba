@@ -14,7 +14,11 @@ export const supabase = createClient(
       storage: Platform.OS === 'web' ? undefined : AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      // Web uses a browser redirect (signInWithOAuth) and needs the client to
+      // pick up the ?code=... it comes back with; native exchanges an ID
+      // token directly and never sees a redirect, so this must stay off there.
+      detectSessionInUrl: Platform.OS === 'web',
+      flowType: 'pkce',
     },
   })
 

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -177,6 +202,7 @@ export type Database = {
           item_type: string
           name: string
           purchase_url: string | null
+          updated_at: string
         }
         Insert: {
           brand?: string | null
@@ -189,6 +215,7 @@ export type Database = {
           item_type: string
           name: string
           purchase_url?: string | null
+          updated_at?: string
         }
         Update: {
           brand?: string | null
@@ -201,6 +228,7 @@ export type Database = {
           item_type?: string
           name?: string
           purchase_url?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -281,6 +309,7 @@ export type Database = {
           id: string
           labels: string[]
           name: string
+          updated_at: string
         }
         Insert: {
           closet_id: string
@@ -291,6 +320,7 @@ export type Database = {
           id?: string
           labels?: string[]
           name: string
+          updated_at?: string
         }
         Update: {
           closet_id?: string
@@ -301,6 +331,7 @@ export type Database = {
           id?: string
           labels?: string[]
           name?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -401,11 +432,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      increment_outfit_compliment_count: { Args: { target_outfit_id: string }; Returns: number }
+      increment_outfit_compliment_count: {
+        Args: { target_outfit_id: string }
+        Returns: number
+      }
       is_closet_member: { Args: { target_closet_id: string }; Returns: boolean }
       is_closet_owner: { Args: { target_closet_id: string }; Returns: boolean }
-      join_closet_by_passphrase: { Args: { target_pass_phrase: string }; Returns: string }
-      regenerate_closet_passphrase: { Args: { target_closet_id: string }; Returns: string }
+      join_closet_by_passphrase: {
+        Args: { target_pass_phrase: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -534,6 +570,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

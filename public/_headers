@@ -1,0 +1,41 @@
+# Cloudflare (Pages / Workers static assets) reads this from the deploy root.
+# `expo export -p web` copies everything in public/ verbatim into dist/, so this
+# lands where Cloudflare expects it. Rules are matched top to bottom and all
+# matching rules apply, so the broad /* block goes first and the specific paths
+# below it add to (or override) what it set.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+# Strict-Transport-Security is deliberately left off until the custom domain is
+# final - once set, browsers refuse plain HTTP for that domain (and every
+# subdomain, with includeSubDomains) for the whole max-age. Turn it on in the
+# Cloudflare dashboard, or uncomment here, after the domain is settled:
+#  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Apple's CDN refuses the association file unless it is served as JSON, and the
+# file deliberately has no extension - so Cloudflare guesses
+# application/octet-stream and universal links silently never associate.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+
+# Android's equivalent, if/when assetlinks.json is added alongside it.
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+
+# Metro fingerprints these filenames with a content hash
+# (entry-afedbb12....js, top.d1352554....jpg), so a changed file is a changed
+# URL and the old one can be cached forever.
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The HTML files keep their names across deploys and point at the hashed bundle,
+# so they must be revalidated or a new deploy stays invisible to return visitors.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate

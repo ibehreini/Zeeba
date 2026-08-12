@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@/services/dataService.types';
+import { ConflictError, getErrorMessage } from '@/services/dataService.types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
@@ -8,14 +8,22 @@ type Options = {
   confirmMessage: string;
   errorTitle: string;
   onDelete: () => Promise<void>;
+  /**
+   * Called instead of navigating back when `onDelete` throws `ConflictError`
+   * - i.e. someone else already edited or deleted this row first. Callers
+   * should refresh their screen's data so the user sees the current state.
+   */
+  onConflict: () => void;
 };
 
 /**
  * Shared "delete this thing" flow for the detail pages: confirm, call the
- * delete, navigate back on success, or pop a modal alert on failure (e.g. a
- * network error) so the user knows it never hit the DB.
+ * delete, navigate back on success. On failure, a `ConflictError` (the row
+ * changed since the caller last read it) triggers `onConflict` instead of
+ * the generic error alert, so the user is told someone beat them to it
+ * rather than seeing a misleading network-error message.
  */
-export function useDeleteConfirm({ confirmTitle, confirmMessage, errorTitle, onDelete }: Options) {
+export function useDeleteConfirm({ confirmTitle, confirmMessage, errorTitle, onDelete, onConflict }: Options) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -31,7 +39,12 @@ export function useDeleteConfirm({ confirmTitle, confirmMessage, errorTitle, onD
             await onDelete();
             router.back();
           } catch (err) {
-            Alert.alert(errorTitle, getErrorMessage(err, 'Something went wrong. Please try again.'));
+            if (err instanceof ConflictError) {
+              Alert.alert('Already changed', err.message);
+              onConflict();
+            } else {
+              Alert.alert(errorTitle, getErrorMessage(err, 'Something went wrong. Please try again.'));
+            }
           } finally {
             setIsDeleting(false);
           }

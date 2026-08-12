@@ -114,6 +114,8 @@ export interface ClosetItem {
   /** Non-primary photos for this item (e.g. different lighting, fabric close-ups). May be empty. */
   secondary_photos: ClosetItemPhoto[];
   created_at: string;
+  /** Bumped by a DB trigger on every update - used as the optimistic-concurrency token for edits/deletes. */
+  updated_at: string;
 }
 
 /** A non-primary photo attached to a closet item, sourced from clothing_item_photos. */
@@ -159,6 +161,8 @@ export interface Outfit {
   /** "Worn in the wild" photos, oldest first. Capped at 3 by the UI, not the DB. */
   photos: OutfitPhoto[];
   created_at: string;
+  /** Bumped by a DB trigger on every update - used as the optimistic-concurrency token for edits/deletes. */
+  updated_at: string;
 }
 
 /**
@@ -268,16 +272,38 @@ export interface UpdateOutfitInput {
   description: string;
 }
 
+/**
+ * Thrown by an update/delete call when the row's `updated_at` no longer
+ * matches the value the caller last read - i.e. someone else (a stylist or
+ * the closet owner) already edited or deleted it. Callers should refresh
+ * their data and let the user decide whether to retry.
+ */
+export class ConflictError extends Error {
+  constructor(message = 'This was changed by someone else. Refreshing with the latest version.') {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}
+
 /** Unified contract both the preview (dummy data) and live (Supabase) providers implement. */
 export interface IDataService {
   getClosetItems(closetId?: string): Promise<ClosetItem[]>;
   getClosetItemById(itemId: string): Promise<ClosetItem | null>;
   /** Creates a garment and uploads its photos. Throws if no photo is marked primary. */
   createClosetItem(input: NewClosetItemInput): Promise<ClosetItem>;
-  /** Updates a garment's editable fields, optionally replacing its primary photo. */
-  updateClosetItem(itemId: string, input: UpdateClosetItemInput): Promise<ClosetItem>;
-  /** Deletes a garment. Its clothing_item_photos/outfit_items/wear_logs rows cascade-delete in the DB. */
-  deleteClosetItem(itemId: string): Promise<void>;
+  /**
+   * Updates a garment's editable fields, optionally replacing its primary
+   * photo. `expectedUpdatedAt` must match the row's current `updated_at`
+   * (i.e. the value from the last read) or this throws `ConflictError`
+   * instead of applying the write.
+   */
+  updateClosetItem(itemId: string, expectedUpdatedAt: string, input: UpdateClosetItemInput): Promise<ClosetItem>;
+  /**
+   * Deletes a garment. Its clothing_item_photos/outfit_items/wear_logs rows
+   * cascade-delete in the DB. `expectedUpdatedAt` must match the row's
+   * current `updated_at` or this throws `ConflictError` instead of deleting.
+   */
+  deleteClosetItem(itemId: string, expectedUpdatedAt: string): Promise<void>;
   /** Uploads a non-primary photo for an existing closet item and returns its new row. */
   addClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto>;
   /** Deletes one non-primary closet item photo (row + storage object). */
@@ -286,10 +312,18 @@ export interface IDataService {
   getOutfitById(outfitId: string): Promise<Outfit | null>;
   /** Creates an outfit from picked closet items. */
   createOutfit(input: NewOutfitInput): Promise<Outfit>;
-  /** Updates an outfit's name and description. */
-  updateOutfit(outfitId: string, input: UpdateOutfitInput): Promise<Outfit>;
-  /** Deletes an outfit. The outfit_items/outfit_photos/wear_logs rows for it cascade-delete in the DB. */
-  deleteOutfit(outfitId: string): Promise<void>;
+  /**
+   * Updates an outfit's name and description. `expectedUpdatedAt` must match
+   * the row's current `updated_at` or this throws `ConflictError` instead of
+   * applying the write.
+   */
+  updateOutfit(outfitId: string, expectedUpdatedAt: string, input: UpdateOutfitInput): Promise<Outfit>;
+  /**
+   * Deletes an outfit. The outfit_items/outfit_photos/wear_logs rows for it
+   * cascade-delete in the DB. `expectedUpdatedAt` must match the row's
+   * current `updated_at` or this throws `ConflictError` instead of deleting.
+   */
+  deleteOutfit(outfitId: string, expectedUpdatedAt: string): Promise<void>;
   /** Uploads a "worn in the wild" photo for an outfit and returns its new row. */
   addOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto>;
   /** Deletes one outfit photo (row + storage object). */

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   source: ImageSource;
-  accessibilityLabel: string;
+  ariaLabel: string;
   onPress: () => void;
   /**
    * Renders the card as selectable/selected (checkmark badge + highlighted
@@ -15,13 +15,13 @@ type Props = {
   selected?: boolean;
 };
 
-export default function ClothingItem({ source, accessibilityLabel, onPress, selected }: Props) {
+export default function ClothingItem({ source, ariaLabel, onPress, selected }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={selected === undefined ? undefined : { selected }}
+      role="button"
+      aria-label={ariaLabel}
+      aria-selected={selected}
       style={({ pressed }) => [
         styles.container,
         selected && styles.containerSelected,

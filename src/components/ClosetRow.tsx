@@ -16,7 +16,7 @@ export default function ClosetRow({ items, onItemPress, isItemSelected }: Props)
         <View key={item.item_id} style={styles.itemWrapper}>
           <ClothingItem
             source={item.img}
-            accessibilityLabel={item.name}
+            ariaLabel={item.name}
             onPress={() => onItemPress(item.item_id)}
             selected={isItemSelected?.(item.item_id)}
           />

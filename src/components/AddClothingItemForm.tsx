@@ -99,8 +99,8 @@ export default function AddClothingItemForm() {
         <Pressable
           onPress={handlePickPrimaryPhoto}
           style={styles.primaryPhotoBox}
-          accessibilityRole="button"
-          accessibilityLabel={primaryPhotoUri ? 'Change primary photo' : 'Add primary photo, required'}
+          role="button"
+          aria-label={primaryPhotoUri ? 'Change primary photo' : 'Add primary photo, required'}
         >
           {primaryPhotoUri ? (
             <Image source={{ uri: primaryPhotoUri }} style={styles.primaryPhotoImage} />
@@ -128,6 +128,7 @@ export default function AddClothingItemForm() {
         value={name}
         onChangeText={setName}
         placeholder="e.g. Black Silk Tank"
+        maxLength={100}
       />
 
       <LabeledTextInput
@@ -137,6 +138,7 @@ export default function AddClothingItemForm() {
         value={description}
         onChangeText={setDescription}
         placeholder="Describe the item"
+        maxLength={1000}
       />
 
       <LabeledTextInput
@@ -144,6 +146,7 @@ export default function AddClothingItemForm() {
         value={fitNotes ?? ''}
         onChangeText={text => setFitNotes(text || null)}
         placeholder="e.g. Runs small"
+        maxLength={500}
       />
 
       <LabeledTextInput
@@ -151,9 +154,16 @@ export default function AddClothingItemForm() {
         value={careInstructions}
         onChangeText={setCareInstructions}
         placeholder="e.g. Dry clean only"
+        maxLength={500}
       />
 
-      <LabeledTextInput label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Everlane" />
+      <LabeledTextInput
+        label="Brand"
+        value={brand}
+        onChangeText={setBrand}
+        placeholder="e.g. Everlane"
+        maxLength={100}
+      />
 
       <LabeledTextInput
         label="Purchase URL"
@@ -162,15 +172,16 @@ export default function AddClothingItemForm() {
         placeholder="https://..."
         keyboardType="url"
         autoCapitalize="none"
+        maxLength={2048}
       />
 
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
         style={({ pressed }) => [styles.submitButton, !canSubmit && styles.submitButtonDisabled, pressed && styles.submitButtonPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Save item"
-        accessibilityState={{ disabled: !canSubmit }}
+        role="button"
+        aria-label="Save item"
+        aria-disabled={!canSubmit}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -209,6 +220,7 @@ type LabeledTextInputProps = {
   multiline?: boolean;
   keyboardType?: 'default' | 'url';
   autoCapitalize?: 'none' | 'sentences';
+  maxLength?: number;
 };
 
 function LabeledTextInput({
@@ -220,6 +232,7 @@ function LabeledTextInput({
   multiline,
   keyboardType,
   autoCapitalize,
+  maxLength,
 }: LabeledTextInputProps) {
   return (
     <Field label={label} required={required}>
@@ -231,8 +244,9 @@ function LabeledTextInput({
         numberOfLines={multiline ? 4 : undefined}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        maxLength={maxLength}
         style={multiline ? [styles.textInput, styles.multilineInput] : styles.textInput}
-        accessibilityLabel={required ? `${label}, required` : label}
+        aria-label={required ? `${label}, required` : label}
       />
     </Field>
   );

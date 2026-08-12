@@ -19,9 +19,9 @@ const DEFAULT_OPTIONS: Required<CompressImageOptions> = {
  * downscaled JPEG ready for upload. Returns a new local file:// URI - the
  * original file is left untouched.
  *
- * Falls back to the original URI on failure so a compressor bug never
- * blocks an upload outright; the fallback just means that one photo goes
- * up uncompressed (and possibly still HEIC).
+ * Throws on failure rather than falling back to the original file, so a
+ * compressor bug can't sneak an uncompressed (possibly still-HEIC) upload
+ * past callers unnoticed.
  */
 export async function compressImageForUpload(
   uri: string,
@@ -40,7 +40,6 @@ export async function compressImageForUpload(
       returnableOutputType: 'uri',
     });
   } catch (err) {
-    console.warn('[compressImageForUpload] compression failed, uploading original file', err);
-    return uri;
+    throw new Error('Could not compress image. Please try again.', { cause: err });
   }
 }

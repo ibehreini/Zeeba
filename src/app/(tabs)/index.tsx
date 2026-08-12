@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import { ActivityIndicator, Button, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useIsFocused } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 
 export default function Index() {
+  // react-navigation's web tab view only hides inactive tabs visually
+  // (absolute position + pointer-events: none) - it never removes them from
+  // the DOM, so NVDA's browse-mode buffer still contains the last-visited
+  // tab's content. Marking our own root aria-hidden while unfocused is what
+  // actually pulls this screen's content out of the accessibility tree.
+  const isFocused = useIsFocused();
   const { mode } = useDataMode();
   const { session, signOut } = useAuth();
   const {
@@ -24,7 +31,7 @@ export default function Index() {
   const displayName = session?.user.user_metadata?.full_name ?? session?.user.email;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} aria-hidden={!isFocused}>
       <Text style={styles.text}>{mode === 'preview' ? 'Welcome guest!' : 'Home screen'}</Text>
 
       {session && (
@@ -34,20 +41,20 @@ export default function Index() {
         </Text>
       )}
 
-      <View style={styles.toggleRow}>
+      <View style={styles.toggleRow} role="radiogroup" aria-label="Closet view">
         <Pressable
           style={[styles.toggleButton, closetMode === 'stylist' && styles.toggleButtonActive]}
           onPress={() => setClosetMode('stylist')}
-          accessibilityRole="button"
-          accessibilityState={{ selected: closetMode === 'stylist' }}
+          role="radio"
+          aria-checked={closetMode === 'stylist'}
         >
           <Text style={[styles.toggleText, closetMode === 'stylist' && styles.toggleTextActive]}>Stylist</Text>
         </Pressable>
         <Pressable
           style={[styles.toggleButton, closetMode === 'my-closet' && styles.toggleButtonActive]}
           onPress={() => setClosetMode('my-closet')}
-          accessibilityRole="button"
-          accessibilityState={{ selected: closetMode === 'my-closet' }}
+          role="radio"
+          aria-checked={closetMode === 'my-closet'}
         >
           <Text style={[styles.toggleText, closetMode === 'my-closet' && styles.toggleTextActive]}>My Closet</Text>
         </Pressable>
@@ -56,7 +63,7 @@ export default function Index() {
       {closetMode === 'stylist' && <JoinClosetForm onJoin={joinCloset} />}
 
       {closetMode === 'stylist' && stylistClosets && stylistClosets.length > 0 && (
-        <View style={styles.card} accessibilityRole="radiogroup" accessibilityLabel="Collaborator closets">
+        <View style={styles.card} role="radiogroup" aria-label="Collaborator closets">
           {stylistClosets.map(closet => {
             const isActive = closet.closet_id === activeClosetId;
             return (
@@ -64,8 +71,8 @@ export default function Index() {
                 key={closet.closet_id}
                 style={styles.closetRow}
                 onPress={() => selectStylistCloset(closet.closet_id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isActive, checked: isActive }}
+                role="radio"
+                aria-checked={isActive}
               >
                 <Text style={styles.closetRowText}>{closet.closet_name}</Text>
               </Pressable>
@@ -182,7 +189,7 @@ function ClosetPassphraseCard({ closetName, passphrase }: { closetName: string; 
       <Text style={styles.cardTitle}>{closetName}</Text>
       <View style={styles.passphraseRow}>
         <Text style={styles.passphraseText}>Passphrase: {passphrase}</Text>
-        <Pressable onPress={handleCopy} accessibilityRole="button">
+        <Pressable onPress={handleCopy} role="button">
           <Text style={styles.copyText}>{copied ? 'Copied!' : 'Copy'}</Text>
         </Pressable>
       </View>

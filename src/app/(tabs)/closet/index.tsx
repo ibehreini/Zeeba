@@ -2,11 +2,15 @@ import ClosetList from '@/components/ClosetList';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { getErrorMessage, groupClosetItemsBySection, type ClosetSection } from '@/services/dataService.types';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
+  // See src/app/(tabs)/index.tsx - the web tab view keeps inactive tabs
+  // mounted (only hidden via zIndex/pointer-events), so NVDA still reads
+  // this screen after navigating away unless we aria-hide it ourselves.
+  const isFocused = useIsFocused();
   const router = useRouter();
   const { dataService } = useDataMode();
   const {
@@ -106,13 +110,18 @@ export default function Index() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight, title }} />
-      {content}
+      <Stack.Screen options={{ headerRight: Platform.OS === 'web' ? undefined : headerRight, title }} />
+      <View style={styles.flex} aria-hidden={!isFocused}>
+        {content}
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',

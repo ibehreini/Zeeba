@@ -10,7 +10,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
 import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 type Props = {
   itemId: string;
@@ -43,12 +54,14 @@ export default function ClothingItemDetail({ itemId }: Props) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete item',
     confirmMessage: `Delete "${item?.name ?? 'this item'}"? This will remove the item from every outfit it is currently a part of, but the outfits will otherwise remain.  this can't be undone.`,
     errorTitle: "Couldn't delete item",
-    onDelete: () => dataService.deleteClosetItem(itemId),
+    onDelete: () => dataService.deleteClosetItem(itemId, item!.updated_at),
+    onConflict: () => setRefreshKey(key => key + 1),
   });
 
   useEffect(() => {
@@ -93,7 +106,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [itemId, dataService]);
+  }, [itemId, dataService, refreshKey]);
 
   const handleAddPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
@@ -167,7 +180,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
             You have worn this item {wearCount} {wearCount === 1 ? 'time' : 'times'}
           </Text>
 
-          <Text accessibilityRole="header" style={styles.sectionLabel}>
+          <Text role="heading" style={styles.sectionLabel}>
             More photos
           </Text>
           {secondaryPhotos.length === 0 ? (
@@ -181,28 +194,28 @@ export default function ClothingItemDetail({ itemId }: Props) {
                 key={photo.id}
                 style={styles.photoThumb}
                 onPress={() => setPreviewIndex(index)}
-                accessibilityRole="button"
-                accessibilityLabel={`Photo ${index + 1} of ${secondaryPhotos.length}`}
+                role="button"
+                aria-label={`Photo ${index + 1} of ${secondaryPhotos.length}`}
               >
                 <Image source={photo.image_url} style={styles.photoThumbImage} contentFit="cover" />
               </Pressable>
             ))}
 
-            {secondaryPhotos.length < MAX_SECONDARY_PHOTOS ? (
+            {Platform.OS !== 'web' && secondaryPhotos.length < MAX_SECONDARY_PHOTOS ? (
               <Pressable
                 onPress={handleAddPhoto}
                 disabled={isAddingPhoto}
                 style={[styles.photoThumb, styles.addPhotoThumb]}
-                accessibilityRole="button"
-                accessibilityLabel="Add a photo"
-                accessibilityState={{ disabled: isAddingPhoto }}
+                role="button"
+                aria-label="Add a photo"
+                aria-disabled={isAddingPhoto}
               >
                 <Text style={styles.addPhotoThumbText}>{isAddingPhoto ? '…' : '+'}</Text>
               </Pressable>
             ) : null}
           </ScrollView>
 
-          <Text accessibilityRole="header" style={styles.sectionLabel}>
+          <Text role="heading" style={styles.sectionLabel}>
             Item Details
           </Text>
           <View style={styles.detailsList}>
@@ -211,11 +224,11 @@ export default function ClothingItemDetail({ itemId }: Props) {
                 key={label}
                 style={styles.detailRow}
                 accessible={!isLink || !value}
-                accessibilityLabel={`${label}: ${value ?? 'No info yet'}`}
+                aria-label={`${label}: ${value ?? 'No info yet'}`}
               >
                 <Text style={styles.detailLabel}>{label}</Text>
                 {isLink && value ? (
-                  <Pressable onPress={() => Linking.openURL(value)} accessibilityRole="link" accessibilityLabel={`Open ${label}`}>
+                  <Pressable onPress={() => Linking.openURL(value)} role="link" aria-label={`Open ${label}`}>
                     <Text style={[styles.text, styles.linkText]} numberOfLines={1}>
                       {value}
                     </Text>
@@ -227,7 +240,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
             ))}
           </View>
 
-          <Text accessibilityRole="header" style={styles.sectionLabel}>
+          <Text role="heading" style={styles.sectionLabel}>
             Featured in outfits
           </Text>
           {featuredOutfits.length > 0 ? (
@@ -237,8 +250,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
                   <Pressable
                     style={styles.outfitThumb}
                     accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={`View outfit: ${outfit.name}`}
+                    role="button"
+                    aria-label={`View outfit: ${outfit.name}`}
                   >
                     <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} style={styles.outfitFlatLay} />
                   </Pressable>
@@ -268,7 +281,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
                 source={secondaryPhotos[previewIndex].image_url}
                 style={styles.modalImage}
                 contentFit="contain"
-                accessibilityLabel={`Photo ${previewIndex + 1} of ${secondaryPhotos.length}`}
+                aria-label={`Photo ${previewIndex + 1} of ${secondaryPhotos.length}`}
               />
             )}
 
@@ -277,9 +290,9 @@ export default function ClothingItemDetail({ itemId }: Props) {
                 style={styles.deleteImageButton}
                 onPress={handleDeletePhoto}
                 disabled={isDeletingPhoto}
-                accessibilityRole="button"
-                accessibilityLabel="Delete photo"
-                accessibilityState={{ disabled: isDeletingPhoto }}
+                role="button"
+                aria-label="Delete photo"
+                aria-disabled={isDeletingPhoto}
               >
                 <Ionicons name="trash-outline" size={22} color="#fff" />
               </Pressable>
@@ -287,8 +300,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
               <Pressable
                 style={styles.closeButton}
                 onPress={() => setPreviewIndex(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Close image preview"
+                role="button"
+                aria-label="Close image preview"
               >
                 <Text style={styles.closeButtonText}>Close</Text>
               </Pressable>
