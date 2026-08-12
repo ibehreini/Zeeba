@@ -3,6 +3,7 @@ import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage, groupClosetItemsBySection, type ClosetSection } from '@/services/dataService.types';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -62,6 +63,8 @@ export default function Index() {
   };
 
   const headerRight = () => (
+    // Visually just a plus; the accessibilityLabel keeps the full action name
+    // for screen readers on every platform.
     <Pressable
       onPress={() => router.push('/closet/new')}
       style={styles.addButton}
@@ -69,7 +72,7 @@ export default function Index() {
       accessibilityLabel="Add new item"
       hitSlop={8}
     >
-      <Text style={[styles.addButtonText, { color: theme.textPrimary }]}>Add New</Text>
+      <Ionicons name="add" size={28} color={theme.textPrimary} />
     </Pressable>
   );
 
@@ -137,9 +140,5 @@ const styles = StyleSheet.create({
   addButton: {
     paddingHorizontal: 4,
     paddingVertical: 4,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

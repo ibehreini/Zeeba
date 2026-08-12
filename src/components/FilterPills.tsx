@@ -18,9 +18,10 @@ export default function FilterPills<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      // ScrollView defaults to flexGrow: 1, which made the pills row absorb
-      // leftover vertical space (and stretch the pills) whenever the grid
-      // below it was short - e.g. a filter with no matching outfits.
+      // ScrollView defaults to flexGrow: 1 AND flexShrink: 1, so the pills
+      // row absorbed leftover vertical space (stretching the pills) when the
+      // grid below was short, and got crushed to a sliver when the grid
+      // overflowed. Pinning both keeps it at its natural content height.
       style={styles.scroll}
       contentContainerStyle={styles.row}
       accessibilityRole="tablist"
@@ -90,6 +91,7 @@ function Pill({ label, isSelected, onPress }: PillProps) {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 0,
+    flexShrink: 0,
   },
   row: {
     gap: 8,

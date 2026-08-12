@@ -31,9 +31,13 @@ export default function OutfitFlatLay({ itemIds, closetItems, style }: OutfitFla
   const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
   const items = itemIds.map(id => itemsById.get(id)).filter((item): item is ClosetItem => Boolean(item));
 
-  const column1Items = COLUMN_1_ORDER.map(category =>
-    items.find(item => item.category === category),
-  ).filter((item): item is ClosetItem => Boolean(item));
+  // filter, not find: the create form currently caps these categories at one
+  // each, but nothing in the schema does - if an outfit ever holds two bags,
+  // both stack in the column (cells split evenly, same as the main column)
+  // instead of the second one silently vanishing from the flat lay.
+  const column1Items = COLUMN_1_ORDER.flatMap(category =>
+    items.filter(item => item.category === category),
+  );
 
   const mainItems = items.filter(item => MAIN_CATEGORIES.has(item.category));
   const accessoryItems = items

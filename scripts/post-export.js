@@ -50,6 +50,61 @@ for (const iconPath of iconPaths) {
   }
 }
 
+// Cloudflare's uploader silently skips every path segment named
+// "node_modules", at any depth - and Expo emits library assets (the Ionicons
+// icon font, react-navigation's header icons) under paths like
+// dist/assets/node_modules/expo/node_modules/@expo/vector-icons/. Deployed
+// as-is, those URLs fall through to the SPA fallback and serve index.html:
+// the icon font "loads" with a 200, fails to parse, and every Ionicons glyph
+// renders invisibly. Rename every such segment to "vendor" and rewrite the
+// asset URLs inside the exported bundles to match.
+function renameNodeModulesDirs(dir) {
+  let renamed = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    let child = path.join(dir, entry.name);
+    if (entry.name === 'node_modules') {
+      const target = path.join(dir, 'vendor');
+      if (fs.existsSync(target)) {
+        console.error(`post-export: can't rename ${child} - ${target} already exists.`);
+        process.exit(1);
+      }
+      fs.renameSync(child, target);
+      child = target;
+      renamed++;
+    }
+    renamed += renameNodeModulesDirs(child);
+  }
+  return renamed;
+}
+
+const assetsDir = path.join(dist, 'assets');
+const renamedDirs = fs.existsSync(assetsDir) ? renameNodeModulesDirs(assetsDir) : 0;
+let rewrittenBundles = 0;
+if (renamedDirs > 0) {
+  const jsDir = path.join(dist, '_expo', 'static', 'js', 'web');
+  for (const file of fs.readdirSync(jsDir)) {
+    if (!file.endsWith('.js')) continue;
+    const filePath = path.join(jsDir, file);
+    const source = fs.readFileSync(filePath, 'utf8');
+    // Only rewrite node_modules inside asset URLs (strings starting with
+    // "assets/"), never elsewhere in the bundle.
+    const rewritten = source.replace(/assets\/[^"'`\\)\s]*/g, match =>
+      match.split('node_modules').join('vendor'),
+    );
+    if (rewritten !== source) {
+      fs.writeFileSync(filePath, rewritten);
+      rewrittenBundles++;
+    }
+  }
+  if (rewrittenBundles === 0) {
+    console.error(
+      `post-export: renamed ${renamedDirs} node_modules dir(s) under dist/assets but no bundle referenced them - asset URLs may be broken.`,
+    );
+    process.exit(1);
+  }
+}
+
 console.log(
-  `post-export: wrote dist/404.html, verified _redirects/_headers/.well-known, manifest + sw.js + ${iconPaths.length} icons`,
+  `post-export: wrote dist/404.html, verified _redirects/_headers/.well-known, manifest + sw.js + ${iconPaths.length} icons, renamed ${renamedDirs} node_modules dir(s) + rewrote ${rewrittenBundles} bundle(s)`,
 );

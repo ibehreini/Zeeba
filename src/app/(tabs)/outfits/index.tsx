@@ -1,6 +1,7 @@
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -24,6 +25,8 @@ export default function Index() {
   };
 
   const headerRight = () => (
+    // Visually just a plus; the accessibilityLabel keeps the full action name
+    // for screen readers on every platform.
     <Pressable
       onPress={() => router.push('/outfits/new')}
       style={styles.addButton}
@@ -31,7 +34,7 @@ export default function Index() {
       accessibilityLabel="Create new outfit"
       hitSlop={8}
     >
-      <Text style={[styles.addButtonText, { color: theme.textPrimary }]}>Create new Outfit</Text>
+      <Ionicons name="add" size={28} color={theme.textPrimary} />
     </Pressable>
   );
 
@@ -95,9 +98,5 @@ const styles = StyleSheet.create({
   addButton: {
     paddingHorizontal: 4,
     paddingVertical: 4,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

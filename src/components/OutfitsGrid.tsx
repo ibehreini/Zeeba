@@ -131,6 +131,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    // Caps the two-column grid on wide (desktop web) windows so each square
+    // card stays ~320px instead of filling half the viewport. Phone screens
+    // (native and PWA) sit under the cap, so nothing changes there.
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   card: {
     width: '48%',

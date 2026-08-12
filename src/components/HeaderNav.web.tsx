@@ -12,7 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Home' },
   { href: '/closet', label: 'My Closet' },
   { href: '/outfits', label: 'Outfits' },
-  { href: '/about', label: 'About' },
+  { href: '/about', label: 'Logs' },
   { href: '/settings', label: 'Settings' },
 ];
 
