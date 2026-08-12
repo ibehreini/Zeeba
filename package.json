@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:web": "expo export -p web && node scripts/post-export.js",
     "lint": "expo lint",
     "env:docker": "node scripts/use-env.js docker",
     "env:remote": "node scripts/use-env.js remote"
@@ -37,7 +38,6 @@
     "expo-symbols": "~55.0.7",
     "expo-system-ui": "~55.0.15",
     "expo-web-browser": "~55.0.14",
-    "git": "^0.1.5",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
