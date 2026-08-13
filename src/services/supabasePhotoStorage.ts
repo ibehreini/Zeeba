@@ -1,4 +1,5 @@
 import { compressImageForUpload } from '@/utils/compressImage';
+import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { supabase } from '@/utils/supabase';
 import type { ClosetItemPhoto, NewClosetItemPhoto, OutfitPhoto } from './dataService.types';
 
@@ -33,8 +34,16 @@ async function uploadPhotoToBucket(
 ): Promise<{ path: string; publicUrl: string }> {
   const compressedUri = await compressImageForUpload(uri);
 
-  const response = await fetch(compressedUri);
-  const arrayBuffer = await response.arrayBuffer();
+  let arrayBuffer: ArrayBuffer;
+  try {
+    const response = await fetch(compressedUri);
+    arrayBuffer = await response.arrayBuffer();
+  } finally {
+    // The web compressor hands back a blob: object URL, which stays alive
+    // (holding the full image in memory) until explicitly revoked - even
+    // when the read back fails.
+    revokeIfBlobUrl(compressedUri);
+  }
   const extension = extensionFromUri(compressedUri);
   const path = `${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
@@ -87,7 +96,18 @@ export async function uploadClosetItemPhoto(
  * either step.
  */
 export async function uploadSecondaryClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto> {
-  const { path, publicUrl } = await uploadPhotoToBucket(CLOTHING_ITEM_PHOTO_BUCKET, itemId, uri);
+  let path: string;
+  let publicUrl: string;
+  try {
+    ({ path, publicUrl } = await uploadPhotoToBucket(CLOTHING_ITEM_PHOTO_BUCKET, itemId, uri));
+  } finally {
+    // On web the picked uri is an object URL pinning the original file in
+    // memory (expo-image-picker never revokes it). This flow's callers drop
+    // the uri once the call settles (a retry re-picks), so free it here.
+    // Deliberately NOT done in uploadClosetItemPhoto: the add/edit forms
+    // keep their picked uri alive for previews and conflict retries.
+    revokeIfBlobUrl(uri);
+  }
 
   const { data, error } = await supabase
     .from('clothing_item_photos')
@@ -148,7 +168,14 @@ export async function deleteClosetItemPhotoObject(photo: ClosetItemPhoto): Promi
  * fails. Throws the underlying Supabase error on either step.
  */
 export async function uploadOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto> {
-  const { path, publicUrl } = await uploadPhotoToBucket(OUTFIT_PHOTO_BUCKET, outfitId, uri);
+  let path: string;
+  let publicUrl: string;
+  try {
+    ({ path, publicUrl } = await uploadPhotoToBucket(OUTFIT_PHOTO_BUCKET, outfitId, uri));
+  } finally {
+    // See uploadSecondaryClosetItemPhoto - same single-use picked uri.
+    revokeIfBlobUrl(uri);
+  }
 
   const { data, error } = await supabase
     .from('outfit_photos')

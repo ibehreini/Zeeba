@@ -115,7 +115,15 @@ export default function Index() {
 
   return (
     <>
-      <Stack.Screen options={{ headerRight: Platform.OS === 'web' ? undefined : headerRight, title }} />
+      {/* On web, adding items is only enabled for your own closet; native
+          keeps the button in stylist mode too. */}
+      <Stack.Screen
+        options={{
+          headerRight: Platform.OS === 'web' && closetMode !== 'my-closet' ? undefined : headerRight,
+          title,
+        }}
+      />
+
       <View style={styles.flex} aria-hidden={!isFocused}>
         {content}
       </View>

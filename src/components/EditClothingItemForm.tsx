@@ -3,13 +3,13 @@ import { useTheme } from '@/context/ThemeContext';
 import { ConflictError, getErrorMessage, toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { useToast } from '@/components/Toast';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -75,7 +75,10 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
   const handlePickPrimaryPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
-    if (uri) setNewPrimaryPhotoUri(uri);
+    if (!uri) return;
+    // On web each pick mints a fresh object URL; free the one it replaces.
+    if (uri !== newPrimaryPhotoUri) revokeIfBlobUrl(newPrimaryPhotoUri);
+    setNewPrimaryPhotoUri(uri);
   };
 
   const canSubmit = !submitting && name.trim().length > 0 && description.trim().length > 0;
@@ -148,20 +151,14 @@ export default function EditClothingItemForm({ itemId }: Props) {
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
       <Field label="Primary photo">
-        {Platform.OS === 'web' ? (
-          <View style={[styles.primaryPhotoBox, { borderColor: theme.border }]}>
-            <Image source={previewSource} style={styles.primaryPhotoImage} />
-          </View>
-        ) : (
-          <Pressable
-            onPress={handlePickPrimaryPhoto}
-            style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
-            role="button"
-            aria-label="Change primary photo"
-          >
-            <Image source={previewSource} style={styles.primaryPhotoImage} />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={handlePickPrimaryPhoto}
+          style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
+          role="button"
+          aria-label="Change primary photo"
+        >
+          <Image source={previewSource} style={styles.primaryPhotoImage} />
+        </Pressable>
       </Field>
 
       <LabeledTextInput
@@ -345,12 +342,6 @@ const styles = StyleSheet.create({
   primaryPhotoImage: {
     width: '100%',
     height: '100%',
-  },
-  primaryPhotoPlaceholder: {
-    fontSize: 15,
-    fontWeight: '600',
-    // Sits on the hardcoded-light photo well, so it stays a fixed grey in both themes.
-    color: '#999',
   },
   submitButton: {
     marginTop: 12,

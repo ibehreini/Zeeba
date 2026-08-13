@@ -10,13 +10,13 @@ import {
   type NewClosetItemPhoto,
 } from '@/services/dataService.types';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,7 +45,10 @@ export default function AddClothingItemForm() {
 
   const handlePickPrimaryPhoto = async () => {
     const [uri] = await pickLibraryImages(false);
-    if (uri) setPrimaryPhotoUri(uri);
+    if (!uri) return;
+    // On web each pick mints a fresh object URL; free the one it replaces.
+    if (uri !== primaryPhotoUri) revokeIfBlobUrl(primaryPhotoUri);
+    setPrimaryPhotoUri(uri);
   };
 
   const canSubmit =
@@ -99,16 +102,6 @@ export default function AddClothingItemForm() {
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
       <Field label="Primary photo" required>
-        {/* Web-gated like EditClothingItemForm: photo upload runs through
-            compressImage, whose web variant throws - without this gate the
-            picker "worked" but every save silently failed and rolled back. */}
-        {Platform.OS === 'web' ? (
-          <View style={[styles.primaryPhotoBox, { borderColor: theme.border }]}>
-            <Text style={styles.primaryPhotoPlaceholder}>
-              Adding photos isn't supported on the web yet - please use the mobile app to add items.
-            </Text>
-          </View>
-        ) : (
         <Pressable
           onPress={handlePickPrimaryPhoto}
           style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
@@ -121,7 +114,6 @@ export default function AddClothingItemForm() {
             <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
           )}
         </Pressable>
-        )}
       </Field>
 
       <Field label="Type" required>

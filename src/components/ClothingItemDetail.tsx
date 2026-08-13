@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
   Linking,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -218,7 +217,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
               </Pressable>
             ))}
 
-            {Platform.OS !== 'web' && secondaryPhotos.length < MAX_SECONDARY_PHOTOS ? (
+            {secondaryPhotos.length < MAX_SECONDARY_PHOTOS ? (
               <Pressable
                 onPress={handleAddPhoto}
                 disabled={isAddingPhoto}

@@ -1,32 +1,16 @@
 import { useState } from 'react';
 import { ActionSheetIOS, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { useTheme } from '@/context/ThemeContext';
-
-function defaultFormatLabel(value: string): string {
-  return value
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-type Props<T extends string> = {
-  label: string;
-  options: readonly T[];
-  value: T | null;
-  onChange: (value: T | null) => void;
-  placeholder?: string;
-  required?: boolean;
-  /** Shows a "Clear" option so the field can be reset to null. Use for optional selects. */
-  allowClear?: boolean;
-  formatLabel?: (value: T) => string;
-};
+import { defaultFormatLabel, type NativeSelectProps } from './NativeSelect.shared';
 
 /**
  * A single-select field styled to match the app's plain form inputs. On iOS
  * it opens the real native action sheet (UIAlertController via
  * ActionSheetIOS), which VoiceOver reads and navigates automatically. On
- * other platforms it falls back to a simple accessible modal list.
+ * Android it falls back to a simple accessible modal list.
+ *
+ * Web has its own build in NativeSelect.web.tsx - the accessibility props
+ * below don't survive react-native-web, so it uses a real <select> instead.
  */
 export default function NativeSelect<T extends string>({
   label,
@@ -37,12 +21,10 @@ export default function NativeSelect<T extends string>({
   required = false,
   allowClear = false,
   formatLabel = defaultFormatLabel,
-}: Props<T>) {
+}: NativeSelectProps<T>) {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const displayValue = value ? formatLabel(value) : placeholder;
-
-  useWebModalBackHandler(modalVisible, () => setModalVisible(false));
 
   const openPicker = () => {
     if (Platform.OS === 'ios') {

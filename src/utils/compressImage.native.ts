@@ -1,18 +1,7 @@
 import { Image as ImageCompressor } from 'react-native-compressor';
+import { DEFAULT_COMPRESS_OPTIONS, type CompressImageOptions } from './compressImage.shared';
 
-/** Tunable knobs for compressImageForUpload; defaults hit ~1920px / 80% quality, typically <500KB for iPhone photos. */
-export interface CompressImageOptions {
-  maxWidth?: number;
-  maxHeight?: number;
-  /** 0 (worst) to 1 (best). */
-  quality?: number;
-}
-
-const DEFAULT_OPTIONS: Required<CompressImageOptions> = {
-  maxWidth: 1920,
-  maxHeight: 1920,
-  quality: 0.8,
-};
+export type { CompressImageOptions };
 
 /**
  * Compresses a locally-picked photo (including iPhone HEIC) into a
@@ -27,7 +16,7 @@ export async function compressImageForUpload(
   uri: string,
   options: CompressImageOptions = {},
 ): Promise<string> {
-  const { maxWidth, maxHeight, quality } = { ...DEFAULT_OPTIONS, ...options };
+  const { maxWidth, maxHeight, quality } = { ...DEFAULT_COMPRESS_OPTIONS, ...options };
 
   try {
     return await ImageCompressor.compress(uri, {

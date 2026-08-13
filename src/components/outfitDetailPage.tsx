@@ -17,7 +17,6 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -289,7 +288,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             </Pressable>
           ))}
 
-          {Platform.OS !== 'web' && photos.length < MAX_OUTFIT_PHOTOS ? (
+          {photos.length < MAX_OUTFIT_PHOTOS ? (
             <Pressable
               onPress={handleAddPhoto}
               disabled={isAddingPhoto}
