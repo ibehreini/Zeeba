@@ -41,7 +41,9 @@ const config: ExpoConfig = {
   scheme: 'zeeba',
   userInterfaceStyle: 'automatic',
   ios: {
-    icon: './assets/expo.icon',
+    // A plain 1024x1024 PNG rather than the Icon Composer bundle that used to
+    // live in assets/expo.icon - Expo generates every iOS icon size from this.
+    icon: './assets/images/app-icon.png',
     bundleIdentifier: 'com.idabeeme.zeeba',
     usesAppleSignIn: true,
     // Universal links have two halves and both must name the same host: the

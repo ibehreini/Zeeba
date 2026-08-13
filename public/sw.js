@@ -8,7 +8,7 @@
 // Registered from src/app/+html.tsx, production builds only.
 //
 // Bump CACHE_VERSION to force every client to drop its caches on next load.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const PRECACHE = `zeeba-shell-${CACHE_VERSION}`;
 const RUNTIME = `zeeba-assets-${CACHE_VERSION}`;
 
