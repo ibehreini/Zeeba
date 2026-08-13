@@ -61,6 +61,27 @@ const config: ExpoConfig = {
     },
   },
   android: {
+    package: 'com.idabeeme.zeeba',
+    // Android's half of universal links (App Links). autoVerify makes Android
+    // check public/.well-known/assetlinks.json at install time; until that file
+    // carries the real signing-cert SHA-256 fingerprint (see the placeholder
+    // note in it), verification fails and these links open the browser - which
+    // is the intended fallback anyway. Paths mirror the AASA components list;
+    // pathPrefix "/outfit" also covers "/outfits", "/item" covers "/item/edit".
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          { scheme: 'https', host: 'zeeba-5kv.pages.dev', pathPrefix: '/outfit' },
+          { scheme: 'https', host: 'zeeba-5kv.pages.dev', pathPrefix: '/item' },
+          { scheme: 'https', host: 'zeeba-5kv.pages.dev', pathPrefix: '/closet' },
+          { scheme: 'https', host: 'zeeba-5kv.pages.dev', path: '/' },
+          { scheme: 'https', host: 'zeeba-5kv.pages.dev', path: '/about' },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',

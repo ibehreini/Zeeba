@@ -1,7 +1,9 @@
 import DeleteButton from '@/components/DeleteButton';
 import EditButton from '@/components/EditButton';
 import HeaderBackButton from '@/components/HeaderBackButton';
+import NoAccessScreen from '@/components/NoAccessScreen';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import ShareLinkButton from '@/components/ShareLinkButton';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
@@ -172,11 +174,9 @@ export default function ClothingItemDetail({ itemId }: Props) {
       </View>
     );
   } else if (!item) {
-    content = (
-      <View style={[styles.container, screen]}>
-        <Text style={[styles.text, { color: theme.textPrimary }]}>Item not found!</Text>
-      </View>
-    );
+    // RLS returns zero rows for items in closets the viewer isn't a member
+    // of, so a shared link opened by a non-member lands here.
+    content = <NoAccessScreen />;
   } else {
     const secondaryPhotos = photos.slice(0, MAX_SECONDARY_PHOTOS);
     const detailFields = getDetailFields(item);
@@ -347,7 +347,13 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   return (
     <>
-      <Stack.Screen options={{ title: item?.name ?? 'Item details', headerLeft: () => <HeaderBackButton /> }} />
+      <Stack.Screen
+        options={{
+          title: item?.name ?? 'Item details',
+          headerLeft: () => <HeaderBackButton />,
+          headerRight: () => (item ? <ShareLinkButton path={`/item/${itemId}`} title={item.name} /> : null),
+        }}
+      />
       {content}
     </>
   );

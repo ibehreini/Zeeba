@@ -74,8 +74,24 @@ export default function EditOutfitForm({ outfitId }: Props) {
       router.dismissTo('/outfits');
     } catch (err) {
       if (err instanceof ConflictError) {
-        await loadOutfit().catch(() => {});
-        showAlert('Already changed', err.message);
+        // Refresh only the OCC baseline (updated_at) - deliberately NOT the
+        // text fields, so the user's in-progress edits survive the conflict
+        // and pressing Save again applies them, now against the fresh token.
+        // This also self-heals the lost-response case: a save that reached
+        // the server but never answered comes back here as a false conflict,
+        // and the retry simply succeeds.
+        try {
+          const fresh = await dataService.getOutfitById(outfitId);
+          setOutfit(fresh);
+          showAlert(
+            fresh ? 'Someone else saved changes' : 'Outfit deleted',
+            fresh
+              ? 'This outfit was changed while you were editing. Your edits are still in the form - review them and press Save Changes again to apply.'
+              : 'This outfit was deleted while you were editing.',
+          );
+        } catch {
+          showAlert('Couldn’t save changes', 'Please check your connection and try again.');
+        }
       } else {
         showAlert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
       }

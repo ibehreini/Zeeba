@@ -102,9 +102,23 @@ export default function EditClothingItemForm({ itemId }: Props) {
       router.dismissTo('/closet');
     } catch (err) {
       if (err instanceof ConflictError) {
-        setNewPrimaryPhotoUri(null);
-        await loadItem().catch(() => {});
-        showAlert('Already changed', err.message);
+        // Refresh only the OCC baseline (updated_at) - deliberately NOT the
+        // text fields or the picked photo, so the user's in-progress edits
+        // survive the conflict and pressing Save again applies them against
+        // the fresh token. Also self-heals a save whose response was lost to
+        // a network drop: the retry hits a false conflict and then succeeds.
+        try {
+          const fresh = await dataService.getClosetItemById(itemId);
+          setItem(fresh);
+          showAlert(
+            fresh ? 'Someone else saved changes' : 'Item deleted',
+            fresh
+              ? 'This item was changed while you were editing. Your edits are still in the form - review them and press Save Changes again to apply.'
+              : 'This item was deleted while you were editing.',
+          );
+        } catch {
+          showAlert('Couldn’t save changes', 'Please check your connection and try again.');
+        }
       } else {
         showAlert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
       }

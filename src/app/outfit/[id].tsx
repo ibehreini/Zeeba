@@ -1,4 +1,6 @@
 import HeaderBackButton from '@/components/HeaderBackButton';
+import NoAccessScreen from '@/components/NoAccessScreen';
+import ShareLinkButton from '@/components/ShareLinkButton';
 import OutfitDetailPage from '@/components/outfitDetailPage';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -61,11 +63,9 @@ export default function OutfitDetailScreen() {
       </View>
     );
   } else if (!outfit) {
-    content = (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={[styles.notFoundText, { color: theme.textSecondary }]}>Outfit not found.</Text>
-      </View>
-    );
+    // RLS returns zero rows for outfits in closets the viewer isn't a member
+    // of, so a shared link opened by a non-member lands here.
+    content = <NoAccessScreen />;
   } else {
     content = (
       // Keyed on updated_at: the detail page seeds photos/compliment count
@@ -91,7 +91,14 @@ export default function OutfitDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: outfit?.name ?? 'Outfit', headerLeft: () => <HeaderBackButton /> }} />
+      <Stack.Screen
+        options={{
+          title: outfit?.name ?? 'Outfit',
+          headerLeft: () => <HeaderBackButton />,
+          headerRight: () =>
+            outfit ? <ShareLinkButton path={`/outfit/${outfit.outfit_id}`} title={outfit.name} /> : null,
+        }}
+      />
       {content}
     </>
   );
