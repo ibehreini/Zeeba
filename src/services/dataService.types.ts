@@ -8,6 +8,8 @@ import type { ClothingCategory } from '@/constants/closetData';
  */
 export type ClothingItemType =
   | 'shirt'
+  | 'sweater'
+  | 'cardigan'
   | 'pants'
   | 'dress_romper'
   | 'shoes'
@@ -19,6 +21,8 @@ export type ClothingItemType =
 /** All values allowed by the item_type check constraint - drives the create-item form's type select. */
 export const CLOTHING_ITEM_TYPES: readonly ClothingItemType[] = [
   'shirt',
+  'sweater',
+  'cardigan',
   'pants',
   'dress_romper',
   'shoes',
@@ -30,7 +34,9 @@ export const CLOTHING_ITEM_TYPES: readonly ClothingItemType[] = [
 
 /** Display label for each item type in the create-item form's type select. */
 export const CLOTHING_ITEM_TYPE_LABELS: Record<ClothingItemType, string> = {
-  shirt: 'Top (tank, short, sweater, etc)',
+  shirt: 'Top (tank, tee, blouse, etc)',
+  sweater: 'Sweater',
+  cardigan: 'Cardigan',
   pants: 'Bottoms (pants, shorts, or skirt)',
   dress_romper: 'Dress/Romper',
   shoes: 'Shoes',
@@ -51,6 +57,8 @@ export function toClothingItemType(value: string): ClothingItemType {
 /** clothing_items.item_type (db) -> ClothingCategory (app/UI grouping, e.g. OutfitFlatLay columns). */
 const ITEM_TYPE_TO_CATEGORY: Record<ClothingItemType, ClothingCategory> = {
   shirt: 'top',
+  sweater: 'sweater',
+  cardigan: 'cardigan',
   pants: 'bottom',
   dress_romper: 'dress',
   shoes: 'shoes',
@@ -71,6 +79,8 @@ export function mapItemTypeToCategory(itemType: ClothingItemType): ClothingCateg
  */
 const CATEGORY_TO_DEFAULT_ITEM_TYPE: Record<ClothingCategory, ClothingItemType> = {
   top: 'shirt',
+  sweater: 'sweater',
+  cardigan: 'cardigan',
   bottom: 'pants',
   dress: 'dress_romper',
   shoes: 'shoes',
@@ -373,6 +383,8 @@ export type ClosetSection = {
 
 const CATEGORY_ORDER: readonly ClothingCategory[] = [
   'top',
+  'sweater',
+  'cardigan',
   'bottom',
   'shoes',
   'jacket',
@@ -384,6 +396,8 @@ const CATEGORY_ORDER: readonly ClothingCategory[] = [
 /** Display title for each closet category - section headers, filter pills, and picker limit messages all read from here. */
 export const CATEGORY_TITLES: Record<ClothingCategory, string> = {
   top: 'Tops',
+  sweater: 'Sweaters',
+  cardigan: 'Cardigans',
   bottom: 'Bottoms',
   dress: 'Dresses',
   shoes: 'Shoes',

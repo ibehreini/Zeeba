@@ -12,9 +12,12 @@ type OutfitFlatLayProps = {
 // fixed order, one below the other.
 const COLUMN_1_ORDER: ClothingCategory[] = ['jacket', 'bag', 'shoes'];
 
-// Column 2: the main garment(s), laid out top-to-bottom the way they're worn -
-// layered tops, then a dress/romper, then bottoms (e.g. tights under a skirt).
-const MAIN_ORDER: ClothingCategory[] = ['top', 'dress', 'bottom'];
+// Column 2: the main garment(s), laid out top-to-bottom the way they're worn.
+// Each inner list is one grid: upper-body layers (tops, sweaters, cardigans)
+// share a grid so a tee + sweater + cardigan sit in a 2x2 instead of three
+// full-width slivers, then a dress/romper, then bottoms (e.g. tights under a
+// skirt).
+const MAIN_GROUPS: ClothingCategory[][] = [['top', 'sweater', 'cardigan'], ['dress'], ['bottom']];
 
 // Column 3 fits at most 5 accessories (jewelry, sunglasses, etc.).
 const MAX_ACCESSORIES = 5;
@@ -65,7 +68,7 @@ export default function OutfitFlatLay({ itemIds, closetItems, style }: OutfitFla
   // outfit with two jackets or two bags simply stacks both instead of the
   // second one silently vanishing from the flat lay.
   const column1Items = COLUMN_1_ORDER.flatMap(byCategory);
-  const mainGroups = MAIN_ORDER.map(byCategory).filter(group => group.length > 0);
+  const mainGroups = MAIN_GROUPS.map(categories => categories.flatMap(byCategory)).filter(group => group.length > 0);
   const accessoryItems = byCategory('accessory').slice(0, MAX_ACCESSORIES);
 
   return (

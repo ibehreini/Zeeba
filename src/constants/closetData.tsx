@@ -1,4 +1,13 @@
-export type ClothingCategory = 'top' | 'bottom' | 'dress' | 'shoes' | 'jacket' | 'bag' | 'accessory';
+export type ClothingCategory =
+  | 'top'
+  | 'sweater'
+  | 'cardigan'
+  | 'bottom'
+  | 'dress'
+  | 'shoes'
+  | 'jacket'
+  | 'bag'
+  | 'accessory';
 
 export type ClothingItemData = {
   id: string;

@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS "public"."clothing_items" (
     "brand" "text",
     "purchase_url" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "clothing_items_item_type_check" CHECK (("item_type" = ANY (ARRAY['shirt'::"text", 'pants'::"text", 'dress_romper'::"text", 'shoes'::"text", 'jacket'::"text", 'purse'::"text", 'jewelry'::"text", 'accessory'::"text"])))
+    CONSTRAINT "clothing_items_item_type_check" CHECK (("item_type" = ANY (ARRAY['shirt'::"text", 'sweater'::"text", 'cardigan'::"text", 'pants'::"text", 'dress_romper'::"text", 'shoes'::"text", 'jacket'::"text", 'purse'::"text", 'jewelry'::"text", 'accessory'::"text"])))
 );
 
 

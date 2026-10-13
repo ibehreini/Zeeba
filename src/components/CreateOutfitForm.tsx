@@ -29,15 +29,18 @@ import {
 
 /**
  * Max picks per clothing category, mirroring how an outfit is actually worn.
- * Tops and jackets layer (t-shirt + sweater + cardigan, vest + coat), bottoms
- * allow a pair for tights/leggings under a skirt, and accessories commonly
- * stack a few (necklace + earrings + bracelet). Dress, shoes, and bag are
- * one-at-a-time; a dress also replaces any top/bottom picks (and vice versa).
- * OutfitFlatLay lays every multi-pick group out as a grid, so these can grow
- * without the preview breaking.
+ * Upper-body layers each allow a pair (tee + tank, two sweaters, cardigan +
+ * cardigan, vest + coat), bottoms allow a pair for tights/leggings under a
+ * skirt, and accessories commonly stack a few (necklace + earrings +
+ * bracelet). Dress, shoes, and bag are one-at-a-time; a dress also replaces
+ * any top/bottom picks (and vice versa), while sweaters and cardigans still
+ * layer over a dress. OutfitFlatLay lays every multi-pick group out as a
+ * grid, so these can grow without the preview breaking.
  */
 const CATEGORY_SELECTION_LIMITS: Record<ClothingCategory, number> = {
-  top: 4,
+  top: 2,
+  sweater: 2,
+  cardigan: 2,
   bottom: 2,
   dress: 1,
   shoes: 1,
@@ -50,6 +53,8 @@ type SelectionByCategory = Record<ClothingCategory, string[]>;
 
 const EMPTY_SELECTION: SelectionByCategory = {
   top: [],
+  sweater: [],
+  cardigan: [],
   bottom: [],
   dress: [],
   shoes: [],
