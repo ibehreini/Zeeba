@@ -3,13 +3,24 @@ import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   title: string;
+  /** Number of items in this section, shown as "Jackets (21)". */
+  count: number;
 };
 
-export default function ClosetHeader({ title }: Props) {
+export default function ClosetHeader({ title, count }: Props) {
   const { theme } = useTheme();
+  const noun = count === 1 ? 'item' : 'items';
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text accessibilityRole="header" style={[styles.headerText, { color: theme.textPrimary }]}>{title}</Text>
+      {/* Screen readers get "Jackets, 21 items" instead of the bare "(21)",
+          which NVDA/VoiceOver otherwise read as a lone number. */}
+      <Text
+        accessibilityRole="header"
+        aria-label={`${title}, ${count} ${noun}`}
+        style={[styles.headerText, { color: theme.textPrimary }]}
+      >
+        {title} ({count})
+      </Text>
       <View style={[styles.underline, { backgroundColor: theme.textPrimary }]} />
     </View>
   );

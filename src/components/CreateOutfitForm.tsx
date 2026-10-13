@@ -6,6 +6,7 @@ import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
+  CATEGORY_TITLES,
   getErrorMessage,
   groupClosetItemsByAllCategories,
   OUTFIT_LABELS,
@@ -27,18 +28,20 @@ import {
 } from 'react-native';
 
 /**
- * Max picks per clothing category. Top/bottom/dress mirror how an outfit is
- * actually worn - one top + one bottom, OR one dress/romper, never both -
- * and shoes/jacket/bag follow the same "one worn at a time" rule. Accessories
- * are capped higher since outfits commonly stack a few (e.g. necklace +
- * earrings + bracelet) instead of wearing just one.
+ * Max picks per clothing category, mirroring how an outfit is actually worn.
+ * Tops and jackets layer (t-shirt + sweater + cardigan, vest + coat), bottoms
+ * allow a pair for tights/leggings under a skirt, and accessories commonly
+ * stack a few (necklace + earrings + bracelet). Dress, shoes, and bag are
+ * one-at-a-time; a dress also replaces any top/bottom picks (and vice versa).
+ * OutfitFlatLay lays every multi-pick group out as a grid, so these can grow
+ * without the preview breaking.
  */
 const CATEGORY_SELECTION_LIMITS: Record<ClothingCategory, number> = {
-  top: 1,
-  bottom: 1,
+  top: 4,
+  bottom: 2,
   dress: 1,
   shoes: 1,
-  jacket: 1,
+  jacket: 2,
   bag: 1,
   accessory: 3,
 };
@@ -112,12 +115,13 @@ export default function CreateOutfitForm() {
   const selectedItemIds = Object.values(selectedByCategory).flat();
 
   /**
-   * Tapping an item toggles it on/off. Single-select categories (top,
-   * bottom, dress, shoes, jacket, bag) swap in the new pick instead of
-   * requiring the old one to be manually deselected first. Picking a dress
-   * clears any picked top/bottom (and vice versa), since an outfit is one or
-   * the other, not both. Accessories can stack up to their limit; tapping
-   * past it just shows a message instead of silently dropping an old pick.
+   * Tapping an item toggles it on/off. Single-select categories (dress,
+   * shoes, bag) swap in the new pick instead of requiring the old one to be
+   * manually deselected first. Picking a dress clears any picked top/bottom
+   * (and vice versa), since an outfit is one or the other, not both.
+   * Multi-select categories (tops, bottoms, jackets, accessories) stack up to
+   * their limit; tapping past it just shows a message instead of silently
+   * dropping an old pick.
    */
   const handleToggleItem = (item: ClosetItem) => {
     const { category } = item;
@@ -136,7 +140,7 @@ export default function CreateOutfitForm() {
       if (limit === 1) {
         setSelectedByCategory(prev => ({ ...prev, [category]: [item.item_id] }));
       } else {
-        showAlert('Limit reached', `You can pick up to ${limit} accessories per outfit.`);
+        showAlert('Limit reached', `You can pick up to ${limit} ${CATEGORY_TITLES[category].toLowerCase()} per outfit.`);
       }
       return;
     }

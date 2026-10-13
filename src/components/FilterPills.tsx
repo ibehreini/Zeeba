@@ -6,6 +6,8 @@ type Props<T extends string> = {
   selected: T | null;
   onSelect: (value: T | null) => void;
   allLabel?: string;
+  /** Display text for an option; defaults to the option value itself. */
+  getLabel?: (option: T) => string;
 };
 
 export default function FilterPills<T extends string>({
@@ -13,6 +15,7 @@ export default function FilterPills<T extends string>({
   selected,
   onSelect,
   allLabel = 'All',
+  getLabel = option => option,
 }: Props<T>) {
   return (
     <ScrollView
@@ -34,7 +37,7 @@ export default function FilterPills<T extends string>({
       {options.map(option => (
         <Pill
           key={option}
-          label={option}
+          label={getLabel(option)}
           isSelected={selected === option}
           onPress={() => onSelect(selected === option ? null : option)}
         />

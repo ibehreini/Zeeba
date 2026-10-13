@@ -1,3 +1,4 @@
+import type { ClothingCategory } from '@/constants/closetData';
 import { toRNImageSource, type ClosetItem } from '@/services/dataService.types';
 import { Image, StyleSheet, View, ViewStyle } from 'react-native';
 
@@ -7,16 +8,15 @@ type OutfitFlatLayProps = {
   style?: ViewStyle;
 };
 
-// Column 1: jacket (optional) on top, then a bag/purse, then shoes -
-// stacked in that fixed order, one below the other.
-const COLUMN_1_ORDER: ClosetItem['category'][] = ['jacket', 'bag', 'shoes'];
+// Column 1: jacket(s) on top, then a bag/purse, then shoes - stacked in that
+// fixed order, one below the other.
+const COLUMN_1_ORDER: ClothingCategory[] = ['jacket', 'bag', 'shoes'];
 
-// Column 2: the main garment(s) - a top+bottom pairing, or a single
-// dress/romper.
-const MAIN_CATEGORIES = new Set(['top', 'bottom', 'dress']);
+// Column 2: the main garment(s), laid out top-to-bottom the way they're worn -
+// layered tops, then a dress/romper, then bottoms (e.g. tights under a skirt).
+const MAIN_ORDER: ClothingCategory[] = ['top', 'dress', 'bottom'];
 
-// Column 3 fits at most 5 accessories (jewelry, sunglasses, etc.); the grid
-// resizes its cells based on how many are present.
+// Column 3 fits at most 5 accessories (jewelry, sunglasses, etc.).
 const MAX_ACCESSORIES = 5;
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -27,66 +27,67 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return rows;
 }
 
+/**
+ * A group of garments laid out as a grid of equal-sized cells: one wide cell
+ * for a single item, two side by side for a pair, and two-column rows beyond
+ * that (an odd last row keeps its cell at pair size via an invisible spacer).
+ *
+ * The grid grows to `rows` flex units, so when several groups share a column
+ * (say three layered tops over one pair of pants) every row across the column
+ * ends up the same height instead of the taller group being squashed.
+ */
+function CellGrid({ items, columns = items.length > 1 ? 2 : 1 }: { items: ClosetItem[]; columns?: number }) {
+  const rows = chunk(items, columns);
+  return (
+    <View style={{ flex: rows.length, gap: 8 }}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map(item => (
+            <View key={item.item_id} style={styles.cell}>
+              <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
+            </View>
+          ))}
+          {Array.from({ length: columns - row.length }).map((_, i) => (
+            <View key={`spacer-${i}`} style={styles.spacer} />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function OutfitFlatLay({ itemIds, closetItems, style }: OutfitFlatLayProps) {
   const itemsById = new Map(closetItems.map(item => [item.item_id, item]));
   const items = itemIds.map(id => itemsById.get(id)).filter((item): item is ClosetItem => Boolean(item));
+  const byCategory = (category: ClothingCategory) => items.filter(item => item.category === category);
 
-  // filter, not find: the create form currently caps these categories at one
-  // each, but nothing in the schema does - if an outfit ever holds two bags,
-  // both stack in the column (cells split evenly, same as the main column)
-  // instead of the second one silently vanishing from the flat lay.
-  const column1Items = COLUMN_1_ORDER.flatMap(category =>
-    items.filter(item => item.category === category),
-  );
-
-  const mainItems = items.filter(item => MAIN_CATEGORIES.has(item.category));
-  const accessoryItems = items
-    .filter(item => item.category === 'accessory')
-    .slice(0, MAX_ACCESSORIES);
-
-  const accessoryCols = accessoryItems.length > 1 ? 2 : 1;
-  const accessoryRows = chunk(accessoryItems, accessoryCols);
+  // Everything is grouped by category rather than capped at one each, so an
+  // outfit with two jackets or two bags simply stacks both instead of the
+  // second one silently vanishing from the flat lay.
+  const column1Items = COLUMN_1_ORDER.flatMap(byCategory);
+  const mainGroups = MAIN_ORDER.map(byCategory).filter(group => group.length > 0);
+  const accessoryItems = byCategory('accessory').slice(0, MAX_ACCESSORIES);
 
   return (
     <View style={[styles.card, style]}>
       <View style={styles.row}>
         {column1Items.length > 0 && (
           <View style={styles.column}>
-            {column1Items.map(item => (
-              <View key={item.item_id} style={styles.stackedCell}>
-                <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
-              </View>
-            ))}
+            <CellGrid items={column1Items} columns={1} />
           </View>
         )}
 
-        {mainItems.length > 0 && (
+        {mainGroups.length > 0 && (
           <View style={[styles.column, styles.mainColumn]}>
-            {mainItems.map(item => (
-              <View key={item.item_id} style={styles.stackedCell}>
-                <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
-              </View>
+            {mainGroups.map(group => (
+              <CellGrid key={group[0].category} items={group} />
             ))}
           </View>
         )}
 
         {accessoryItems.length > 0 && (
           <View style={styles.column}>
-            {accessoryRows.map((row, rowIndex) => (
-              <View key={rowIndex} style={styles.accessoryRow}>
-                {row.map(item => (
-                  <View key={item.item_id} style={styles.accessoryCell}>
-                    <Image source={toRNImageSource(item.img)} style={styles.image} resizeMode="contain" />
-                  </View>
-                ))}
-                {/* Pad an incomplete last row so its cells stay the same
-                    size as the rest instead of stretching to fill. */}
-                {row.length < accessoryCols &&
-                  Array.from({ length: accessoryCols - row.length }).map((_, i) => (
-                    <View key={`spacer-${i}`} style={styles.accessorySpacer} />
-                  ))}
-              </View>
-            ))}
+            <CellGrid items={accessoryItems} />
           </View>
         )}
       </View>
@@ -116,10 +117,7 @@ const styles = StyleSheet.create({
   mainColumn: {
     flex: 1.3,
   },
-  // Shared by column 1 (jacket/bag/shoes) and column 2 (main garment):
-  // cells split the column's height evenly, so 1 item fills it and 2+
-  // items split it cleanly.
-  stackedCell: {
+  cell: {
     flex: 1,
     backgroundColor: '#f6f6f6',
     borderRadius: 10,
@@ -127,22 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Accessories: a dynamic grid - rows/cells grow or shrink to fill the
-  // column based on how many accessories are present.
-  accessoryRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  accessoryCell: {
-    flex: 1,
-    backgroundColor: '#f6f6f6',
-    borderRadius: 8,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  accessorySpacer: {
+  spacer: {
     flex: 1,
   },
   image: {

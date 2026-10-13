@@ -34,6 +34,11 @@ export default function ClothingItem({ source, ariaLabel, onPress, selected }: P
         source={source}
         style={styles.image}
         contentFit="contain" // Keeps the entire item visible without clipping
+        // memory-disk (not the default disk-only) keeps decoded thumbnails in
+        // RAM, so re-showing the closet grid - after a filter change or a
+        // background refetch - paints from cache instead of re-decoding every
+        // photo off disk.
+        cachePolicy="memory-disk"
         transition={200}
       />
       {selected && (

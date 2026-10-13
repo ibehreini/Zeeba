@@ -2,10 +2,10 @@ import ClosetList from '@/components/ClosetList';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
-import { getErrorMessage, groupClosetItemsBySection, type ClosetSection } from '@/services/dataService.types';
+import { getErrorMessage, groupClosetItemsBySection, type ClosetItem } from '@/services/dataService.types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
@@ -27,23 +27,29 @@ export default function Index() {
   const closetLabel = activeClosetName ?? 'Closet';
   const title = closetMode === 'stylist' ? `Styling for ${closetLabel}` : closetLabel;
 
-  const [sections, setSections] = useState<ClosetSection[] | null>(null);
+  // The last successful load, tagged with the closet it came from. Keeping it
+  // across refetches (instead of clearing to null) is what makes reopening
+  // the tab instant: the existing cards stay on screen while fresh data loads
+  // in the background, and expo-image's memory cache means nothing flickers.
+  // Tagging by closet id means switching closets still shows a spinner rather
+  // than another closet's items.
+  const [loaded, setLoaded] = useState<{ closetId: string; items: ClosetItem[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Refetches every time this tab regains focus (not just on mount), so an
-  // item created via /closet/new shows up the moment the user comes back.
+  // item created via /closet/new - or by a stylist on another device - shows
+  // up the moment the user comes back.
   useFocusEffect(
     useCallback(() => {
       if (!activeClosetId) return;
 
       let cancelled = false;
-      setSections(null);
       setError(null);
 
       dataService
         .getClosetItems(activeClosetId)
         .then(items => {
-          if (!cancelled) setSections(groupClosetItemsBySection(items));
+          if (!cancelled) setLoaded({ closetId: activeClosetId, items });
         })
         .catch(err => {
           if (!cancelled) setError(getErrorMessage(err, 'Failed to load closet items.'));
@@ -53,6 +59,11 @@ export default function Index() {
         cancelled = true;
       };
     }, [dataService, activeClosetId]),
+  );
+
+  const sections = useMemo(
+    () => (loaded?.closetId === activeClosetId ? groupClosetItemsBySection(loaded.items) : null),
+    [loaded, activeClosetId],
   );
 
   const handleNavigation = (id: string) => {

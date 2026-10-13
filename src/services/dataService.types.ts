@@ -381,7 +381,8 @@ const CATEGORY_ORDER: readonly ClothingCategory[] = [
   'accessory',
 ];
 
-const CATEGORY_TITLES: Record<ClothingCategory, string> = {
+/** Display title for each closet category - section headers, filter pills, and picker limit messages all read from here. */
+export const CATEGORY_TITLES: Record<ClothingCategory, string> = {
   top: 'Tops',
   bottom: 'Bottoms',
   dress: 'Dresses',
