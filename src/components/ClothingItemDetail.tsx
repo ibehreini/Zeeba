@@ -9,6 +9,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
+import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -64,7 +65,12 @@ export default function ClothingItemDetail({ itemId }: Props) {
     confirmTitle: 'Delete item',
     confirmMessage: `Delete "${item?.name ?? 'this item'}"? This will remove the item from every outfit it is currently a part of, but the outfits will otherwise remain.  this can't be undone.`,
     errorTitle: "Couldn't delete item",
-    onDelete: () => dataService.deleteClosetItem(itemId, item!.updated_at),
+    onDelete: async () => {
+      await dataService.deleteClosetItem(itemId, item!.updated_at);
+      // outfit_items rows cascade-delete in the DB, but the outfits tab caches
+      // its closet items - flag it so flat lays drop this item on next focus.
+      markOutfitsDirty();
+    },
     onConflict: () => setRefreshKey(key => key + 1),
   });
 

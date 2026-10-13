@@ -273,8 +273,15 @@ export interface NewClosetItemInput {
   photos: NewClosetItemPhoto[];
 }
 
-/** Form data for the "edit item" flow. `newPrimaryPhotoUri` is only set when the user picked a replacement photo. */
+/**
+ * Form data for the "edit item" flow. `newPrimaryPhotoUri` is only set when
+ * the user picked a replacement photo. `itemType` may differ from the stored
+ * one (re-categorizing a "jacket" as a "cardigan"): the item keeps its place
+ * in every outfit it's part of and simply shows up in its new category there
+ * - outfit composition rules are only enforced when an outfit is created.
+ */
 export interface UpdateClosetItemInput {
+  itemType: ClothingItemType;
   name: string;
   description: string;
   fitNotes: string | null;

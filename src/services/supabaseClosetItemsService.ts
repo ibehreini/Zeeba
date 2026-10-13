@@ -104,6 +104,7 @@ export async function updateClosetItem(
   }
 
   await updateWithOcc('clothing_items', itemId, expectedUpdatedAt, {
+    item_type: input.itemType,
     name: input.name,
     description: input.description,
     fit_notes: input.fitNotes,

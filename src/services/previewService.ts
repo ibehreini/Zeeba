@@ -168,6 +168,8 @@ class PreviewDataService implements IDataService {
 
     previewItemOverrides.set(itemId, {
       ...previewItemOverrides.get(itemId),
+      item_type: input.itemType,
+      category: mapItemTypeToCategory(input.itemType),
       name: input.name,
       description: input.description,
       fit_notes: input.fitNotes,

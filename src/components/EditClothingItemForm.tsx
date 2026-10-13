@@ -1,6 +1,16 @@
+import NativeSelect from '@/components/NativeSelect';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
-import { ConflictError, getErrorMessage, toRNImageSource, type ClosetItem } from '@/services/dataService.types';
+import {
+  CLOTHING_ITEM_TYPE_LABELS,
+  CLOTHING_ITEM_TYPES,
+  ConflictError,
+  getErrorMessage,
+  toRNImageSource,
+  type ClosetItem,
+  type ClothingItemType,
+} from '@/services/dataService.types';
+import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { useToast } from '@/components/Toast';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
@@ -33,6 +43,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [newPrimaryPhotoUri, setNewPrimaryPhotoUri] = useState<string | null>(null);
+  const [itemType, setItemType] = useState<ClothingItemType | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [fitNotes, setFitNotes] = useState('');
@@ -46,6 +57,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
     const fetchedItem = await dataService.getClosetItemById(itemId);
     setItem(fetchedItem);
     if (fetchedItem) {
+      setItemType(fetchedItem.item_type);
       setName(fetchedItem.name);
       setDescription(fetchedItem.description ?? '');
       setFitNotes(fetchedItem.fit_notes ?? '');
@@ -81,17 +93,19 @@ export default function EditClothingItemForm({ itemId }: Props) {
     setNewPrimaryPhotoUri(uri);
   };
 
-  const canSubmit = !submitting && name.trim().length > 0 && description.trim().length > 0;
+  const canSubmit = !submitting && !!itemType && name.trim().length > 0 && description.trim().length > 0;
+  const isRecategorizing = !!item && !!itemType && itemType !== item.item_type;
 
   const handleSubmit = async () => {
-    if (!item || !name.trim() || !description.trim()) {
-      showAlert('Missing information', 'Name and description are required.');
+    if (!item || !itemType || !name.trim() || !description.trim()) {
+      showAlert('Missing information', 'Type, name, and description are required.');
       return;
     }
 
     setSubmitting(true);
     try {
       await dataService.updateClosetItem(itemId, item.updated_at, {
+        itemType,
         name: name.trim(),
         description: description.trim(),
         fitNotes: fitNotes.trim() || null,
@@ -101,6 +115,9 @@ export default function EditClothingItemForm({ itemId }: Props) {
         newPrimaryPhotoUri,
       });
 
+      // The outfits tab caches closet items alongside its outfits, and a new
+      // type or photo changes where/how this item draws in every flat lay.
+      markOutfitsDirty();
       showToast('Item updated');
       router.dismissTo('/closet');
     } catch (err) {
@@ -159,6 +176,25 @@ export default function EditClothingItemForm({ itemId }: Props) {
         >
           <Image source={previewSource} style={styles.primaryPhotoImage} />
         </Pressable>
+      </Field>
+
+      <Field label="Type" required>
+        <NativeSelect
+          label="Type"
+          options={CLOTHING_ITEM_TYPES}
+          value={itemType}
+          onChange={setItemType}
+          placeholder="Select a type"
+          formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
+          required
+        />
+        {/* A live region so a screen reader hears the consequence of the
+            change at the moment it's made, without a modal interrupting. */}
+        {isRecategorizing && (
+          <Text role="status" style={[styles.helperText, { color: theme.textSecondary }]}>
+            This item stays in every outfit it's part of and will show there under its new type.
+          </Text>
+        )}
       </Field>
 
       <LabeledTextInput
@@ -315,6 +351,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 14,
+    marginTop: 8,
   },
   textInput: {
     minHeight: 48,
