@@ -26,6 +26,7 @@ import {
   logCompliment,
   updateOutfit,
 } from './supabaseOutfitsService';
+import { addVoiceNote, deleteVoiceNote, getVoiceNotes } from './supabaseVoiceNotesService';
 import {
   deleteWearLog,
   getOutfitWearStatus,
@@ -66,4 +67,7 @@ export const supabaseService: IDataService = {
   regeneratePassphrase,
   joinClosetByPassphrase,
   getActivityLog,
+  getVoiceNotes,
+  addVoiceNote,
+  deleteVoiceNote,
 };

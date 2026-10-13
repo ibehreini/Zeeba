@@ -130,6 +130,11 @@ public = true
 file_size_limit = "50MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/heic", "image/webp"]
 
+[storage.buckets.voice_notes]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac", "audio/webm", "audio/ogg", "audio/mpeg", "audio/wav"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

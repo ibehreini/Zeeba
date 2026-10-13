@@ -1,3 +1,4 @@
+import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { ConflictError, getErrorMessage, type Outfit } from '@/services/dataService.types';
@@ -139,6 +140,10 @@ export default function EditOutfitForm({ outfitId }: Props) {
         placeholder="Describe the outfit"
         maxLength={1000}
       />
+
+      {/* Uploads as soon as a recording stops - independent of Save Changes,
+          which only covers the text fields. */}
+      <VoiceNotesSection target={{ outfitId }} closetId={outfit.closet_id} canRecord />
 
       <Pressable
         onPress={handleSubmit}

@@ -4,6 +4,7 @@ import HeaderBackButton from '@/components/HeaderBackButton';
 import NoAccessScreen from '@/components/NoAccessScreen';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import ShareLinkButton from '@/components/ShareLinkButton';
+import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
@@ -275,6 +276,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
               </View>
             ))}
           </View>
+
+          <VoiceNotesSection target={{ clothingItemId: itemId }} closetId={item.closet_id} />
 
           <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             Featured in outfits

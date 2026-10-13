@@ -121,6 +121,12 @@ const config: ExpoConfig = {
     ],
     'react-native-compressor',
     [
+      'expo-audio',
+      {
+        microphonePermission: 'Allow Zeeba to use the microphone so you can record short voice notes about outfits and clothing items.',
+      },
+    ],
+    [
       'expo-build-properties',
       {
         // GoogleSignIn's pod chain (AppCheckCore -> GoogleUtilities/RecaptchaInterop)

@@ -1,5 +1,6 @@
 import ClosetRow from '@/components/ClosetRow';
 import NativeSelect from '@/components/NativeSelect';
+import { PendingVoiceNoteField } from '@/components/VoiceNotes';
 import type { ClothingCategory } from '@/constants/closetData';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
@@ -12,6 +13,7 @@ import {
   OUTFIT_LABELS,
   type ClosetItem,
   type OutfitLabel,
+  type PendingVoiceNote,
 } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
@@ -74,6 +76,7 @@ export default function CreateOutfitForm() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [label, setLabel] = useState<OutfitLabel | null>(null);
+  const [voiceNote, setVoiceNote] = useState<PendingVoiceNote | null>(null);
   const [selectedByCategory, setSelectedByCategory] = useState<SelectionByCategory>(EMPTY_SELECTION);
 
   const [closetItems, setClosetItems] = useState<ClosetItem[] | null>(null);
@@ -190,6 +193,21 @@ export default function CreateOutfitForm() {
       });
 
       markOutfitsDirty();
+
+      // The outfit row has to exist before a note can point at it, so the
+      // recording waits in local state until here. A failed upload must not
+      // read as a failed create: the outfit is saved, so say so and move on.
+      if (voiceNote) {
+        try {
+          await dataService.addVoiceNote({ outfitId: created.outfit_id }, activeClosetId, voiceNote);
+        } catch (err) {
+          showAlert(
+            'Outfit saved, but the voice note failed to upload',
+            `${getErrorMessage(err, 'Something went wrong.')} You can record it again from the outfit's edit screen.`,
+          );
+        }
+      }
+
       showAlert('Outfit created', `"${created.name}" was added to your closet.`, [
         {
           text: 'OK',
@@ -232,6 +250,10 @@ export default function CreateOutfitForm() {
         placeholder="Describe the outfit"
         maxLength={1000}
       />
+
+      <Field label="Voice note">
+        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
+      </Field>
 
       <Field label="Label" required>
         <NativeSelect

@@ -1,6 +1,7 @@
 import DeleteButton from '@/components/DeleteButton';
 import EditButton from '@/components/EditButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import VoiceNotesSection from '@/components/VoiceNotes';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -181,6 +182,8 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         {outfit.description ? (
           <Text style={[styles.description, { color: theme.textSecondary }]}>{outfit.description}</Text>
         ) : null}
+
+        <VoiceNotesSection target={{ outfitId: outfit.id }} closetId={outfit.closetId} />
 
         <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
           This outfit has been worn {wearCount} {wearCount === 1 ? 'time' : 'times'}

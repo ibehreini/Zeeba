@@ -12,9 +12,12 @@ import type {
   OutfitPhoto,
   OutfitWearStatus,
   OwnCloset,
+  PendingVoiceNote,
   StylistCloset,
   UpdateClosetItemInput,
   UpdateOutfitInput,
+  VoiceNote,
+  VoiceNoteTarget,
 } from './dataService.types';
 
 /** Same stock image supabaseRowMappers falls back to when a row has no photo yet. */
@@ -61,6 +64,16 @@ const previewClosetItemPhotos = new Map<string, ClosetItemPhoto[]>();
 // everything else above.
 const previewItemOverrides = new Map<string, Partial<ClosetItem>>();
 const previewOutfitOverrides = new Map<string, Partial<Outfit>>();
+
+// Voice notes recorded during a guest session. The app-facing VoiceNote has
+// no target columns (callers always query by target), so the preview store
+// tacks them on to know which outfit/item each note belongs to.
+type PreviewVoiceNote = VoiceNote & { outfit_id?: string; clothing_item_id?: string };
+const previewVoiceNotes: PreviewVoiceNote[] = [];
+
+function matchesTarget(note: PreviewVoiceNote, target: VoiceNoteTarget): boolean {
+  return 'outfitId' in target ? note.outfit_id === target.outfitId : note.clothing_item_id === target.clothingItemId;
+}
 
 // "Worn today" logs added during a guest session, keyed by outfit id - same
 // session-only lifetime as everything else above.
@@ -182,6 +195,33 @@ class PreviewDataService implements IDataService {
     const updated = toClosetItems().find(candidate => candidate.item_id === itemId);
     if (!updated) throw new Error('Item not found.');
     return delay(updated);
+  }
+
+  async getVoiceNotes(target: VoiceNoteTarget): Promise<VoiceNote[]> {
+    return delay(previewVoiceNotes.filter(note => matchesTarget(note, target)));
+  }
+
+  async addVoiceNote(target: VoiceNoteTarget, closetId: string, recording: PendingVoiceNote): Promise<VoiceNote> {
+    // The local recording URI plays back directly for the rest of the guest
+    // session - nothing is uploaded in preview mode.
+    const note: VoiceNote = {
+      id: `preview-voice-note-${Date.now()}`,
+      closet_id: closetId,
+      created_by_user_id: 'preview-user',
+      recorded_by: 'You',
+      audio_url: recording.uri,
+      duration_seconds: recording.durationSeconds,
+      created_at: new Date().toISOString(),
+      ...('outfitId' in target ? { outfit_id: target.outfitId } : { clothing_item_id: target.clothingItemId }),
+    } as PreviewVoiceNote;
+    previewVoiceNotes.push(note as PreviewVoiceNote);
+    return delay(note);
+  }
+
+  async deleteVoiceNote(note: VoiceNote): Promise<void> {
+    const index = previewVoiceNotes.findIndex(candidate => candidate.id === note.id);
+    if (index !== -1) previewVoiceNotes.splice(index, 1);
+    return delay(undefined);
   }
 
   async deleteClosetItem(itemId: string, _expectedUpdatedAt: string): Promise<void> {

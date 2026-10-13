@@ -1,10 +1,12 @@
 import NativeSelect from '@/components/NativeSelect';
+import { PendingVoiceNoteField } from '@/components/VoiceNotes';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDataMode } from '@/context/DataModeContext';
 import {
   CLOTHING_ITEM_TYPE_LABELS,
   CLOTHING_ITEM_TYPES,
+  type PendingVoiceNote,
   getErrorMessage,
   type ClothingItemType,
   type NewClosetItemPhoto,
@@ -40,6 +42,7 @@ export default function AddClothingItemForm() {
   const [careInstructions, setCareInstructions] = useState('');
   const [brand, setBrand] = useState('');
   const [purchaseUrl, setPurchaseUrl] = useState('');
+  const [voiceNote, setVoiceNote] = useState<PendingVoiceNote | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,6 +82,20 @@ export default function AddClothingItemForm() {
         purchaseUrl: purchaseUrl.trim() || null,
         photos,
       });
+
+      // Same pattern as CreateOutfitForm: the item row must exist before a
+      // note can point at it, and a failed upload must not read as a failed
+      // create.
+      if (voiceNote) {
+        try {
+          await dataService.addVoiceNote({ clothingItemId: created.item_id }, activeClosetId, voiceNote);
+        } catch (err) {
+          showAlert(
+            'Item saved, but the voice note failed to upload',
+            `${getErrorMessage(err, 'Something went wrong.')} You can record it again from the item's edit screen.`,
+          );
+        }
+      }
 
       showAlert('Item added', `"${created.name}" was added to your closet.`, [
         {
@@ -180,6 +197,10 @@ export default function AddClothingItemForm() {
         autoCapitalize="none"
         maxLength={2048}
       />
+
+      <Field label="Voice note">
+        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
+      </Field>
 
       <Pressable
         onPress={handleSubmit}

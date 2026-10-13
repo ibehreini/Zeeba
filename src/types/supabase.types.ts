@@ -299,6 +299,68 @@ export type Database = {
           },
         ]
       }
+      voice_notes: {
+        Row: {
+          audio_url: string
+          closet_id: string
+          clothing_item_id: string | null
+          created_at: string
+          created_by_user_id: string
+          duration_seconds: number
+          id: string
+          outfit_id: string | null
+        }
+        Insert: {
+          audio_url: string
+          closet_id: string
+          clothing_item_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          duration_seconds: number
+          id?: string
+          outfit_id?: string | null
+        }
+        Update: {
+          audio_url?: string
+          closet_id?: string
+          clothing_item_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          duration_seconds?: number
+          id?: string
+          outfit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_notes_closet_id_fkey"
+            columns: ["closet_id"]
+            isOneToOne: false
+            referencedRelation: "closets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_notes_outfit_id_fkey"
+            columns: ["outfit_id"]
+            isOneToOne: false
+            referencedRelation: "outfits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_notes_clothing_item_id_fkey"
+            columns: ["clothing_item_id"]
+            isOneToOne: false
+            referencedRelation: "clothing_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_notes_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outfits: {
         Row: {
           closet_id: string

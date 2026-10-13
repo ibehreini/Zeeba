@@ -142,6 +142,30 @@ export interface OutfitPhoto {
   created_at: string;
 }
 
+/** Voice notes cap out here; the recorder auto-stops and the DB check constraint rejects anything longer. */
+export const MAX_VOICE_NOTE_SECONDS = 30;
+
+/** What a voice note is attached to - exactly one of an outfit or a clothing item. */
+export type VoiceNoteTarget = { outfitId: string } | { clothingItemId: string };
+
+/** A short spoken note attached to an outfit or clothing item, sourced from voice_notes. */
+export interface VoiceNote {
+  id: string;
+  closet_id: string;
+  created_by_user_id: string;
+  /** Display name of whoever recorded it (their username, else email). */
+  recorded_by: string;
+  audio_url: string;
+  duration_seconds: number;
+  created_at: string;
+}
+
+/** A finished local recording that hasn't been uploaded yet (create forms hold one of these until Save). */
+export interface PendingVoiceNote {
+  uri: string;
+  durationSeconds: number;
+}
+
 /** How many times an outfit has been logged as worn, and whether the current user already logged it today. */
 export interface OutfitWearStatus {
   wearCount: number;
@@ -379,6 +403,12 @@ export interface IDataService {
   joinClosetByPassphrase(passphrase: string): Promise<StylistCloset>;
   /** Most recent create/edit/delete activity for a closet, newest first, capped at `limit`. */
   getActivityLog(closetId: string, limit?: number): Promise<ActivityLogEntry[]>;
+  /** Voice notes attached to one outfit or clothing item, oldest first. */
+  getVoiceNotes(target: VoiceNoteTarget): Promise<VoiceNote[]>;
+  /** Uploads a finished recording and links it to `target`. Returns the new row. */
+  addVoiceNote(target: VoiceNoteTarget, closetId: string, recording: PendingVoiceNote): Promise<VoiceNote>;
+  /** Deletes one voice note (row + storage object). RLS limits this to the recorder or the closet owner. */
+  deleteVoiceNote(note: VoiceNote): Promise<void>;
 }
 
 /** A titled group of closet items for one category, e.g. the "Tops" section on the closet screen. */

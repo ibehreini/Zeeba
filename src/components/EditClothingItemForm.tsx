@@ -1,4 +1,5 @@
 import NativeSelect from '@/components/NativeSelect';
+import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -249,6 +250,10 @@ export default function EditClothingItemForm({ itemId }: Props) {
         autoCapitalize="none"
         maxLength={2048}
       />
+
+      {/* Uploads as soon as a recording stops - independent of Save Changes,
+          which only covers the fields above. */}
+      <VoiceNotesSection target={{ clothingItemId: itemId }} closetId={item.closet_id} canRecord />
 
       <Pressable
         onPress={handleSubmit}
