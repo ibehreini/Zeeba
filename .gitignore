@@ -49,3 +49,7 @@ skills-lock.json
 
 # Supabase CLI local link cache
 supabase/.temp/
+
+# Bulk photo import script (scripts/import_items)
+scripts/import_items/.env
+scripts/import_items/.venv/
