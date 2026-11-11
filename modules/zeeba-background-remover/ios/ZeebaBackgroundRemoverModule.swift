@@ -22,7 +22,14 @@ public final class ZeebaBackgroundRemoverModule: Module {
     Name("ZeebaBackgroundRemover")
 
     // Subject lifting shipped in iOS 17; the JS side hides the button below that.
+    // The iOS Simulator is excluded too: VNGenerateForegroundInstanceMaskRequest
+    // is widely reported to fail there ("could not create inference context"),
+    // which would show a button whose every press ends in an error alert.
+    // Test background removal on a real iPhone.
     Function("isAvailable") { () -> Bool in
+      #if targetEnvironment(simulator)
+      return false
+      #endif
       if #available(iOS 17.0, *) {
         return true
       }

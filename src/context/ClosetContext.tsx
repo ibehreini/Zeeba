@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { getErrorMessage, type OwnCloset, type StylistCloset } from '@/services/dataService.types';
@@ -23,9 +23,28 @@ type ClosetContextValue = {
   regeneratePassphrase: () => Promise<void>;
   /** Joins a closet by passphrase (stylist flow) and makes it the active stylist closet. Returns its name, or throws on an invalid passphrase. */
   joinCloset: (passphrase: string) => Promise<string>;
+  /** Outfit tags of the active closet, in display order - what the Outfits filter and the outfit forms offer. Stylists get the owner's list read-only. Empty while no closet is active. */
+  activeClosetLabels: readonly string[];
+  /**
+   * Replaces the cached tag list of `closetId` (after Settings > Edit tags
+   * saved a change, or after a fresh read), so the Outfits filter and an open
+   * outfit form update without a refetch. Pass the `ticket` from
+   * startLabelsRequest() when the list comes from a read; omit it for the
+   * result of a write.
+   */
+  applyClosetLabels: (closetId: string, labels: string[], ticket?: number) => void;
+  /** Takes a ticket before reading a tag list - see applyClosetLabels. */
+  startLabelsRequest: () => number;
+  /** Re-reads the active closet's tags (Outfits and Create outfit call this on focus) so a stylist, or the owner's other device, sees edits made elsewhere. Failures keep the last good list. */
+  refreshActiveClosetLabels: () => void;
 };
 
 const ClosetContext = createContext<ClosetContextValue | null>(null);
+
+/** Stable empty list, so consumers' memos and effects don't re-run while no closet is active. */
+const NO_LABELS: readonly string[] = [];
+
+type LabelsEntry = { labels: string[]; ticket: number };
 
 export function ClosetProvider({ children }: { children: ReactNode }) {
   const { dataService, mode } = useDataMode();
@@ -48,6 +67,25 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
   const [stylistError, setStylistError] = useState<string | null>(null);
   const [selectedStylistClosetId, setSelectedStylistClosetId] = useState<string | null>(null);
 
+  // Latest known tag list per closet id. Closet loads, tag refreshes and tag
+  // edits all land here, and each carries a ticket: a read takes one when it
+  // starts, a write when it finishes. An entry is only replaced by a higher
+  // ticket, so a closet load that started before an edit can never put the
+  // pre-edit list back when it resolves late.
+  const [labelsByCloset, setLabelsByCloset] = useState<Record<string, LabelsEntry>>({});
+  const labelsTicket = useRef(0);
+
+  const startLabelsRequest = useCallback(() => ++labelsTicket.current, []);
+
+  const applyClosetLabels = useCallback((closetId: string, labels: string[], ticket?: number) => {
+    const effectiveTicket = ticket ?? ++labelsTicket.current;
+    setLabelsByCloset(prev => {
+      const current = prev[closetId];
+      if (current && current.ticket > effectiveTicket) return prev;
+      return { ...prev, [closetId]: { labels, ticket: effectiveTicket } };
+    });
+  }, []);
+
   useEffect(() => {
     if (closetMode !== 'my-closet' || waitingForSession) return;
 
@@ -55,6 +93,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     setMyCloset(null);
     setMyClosetChecked(false);
     setMyClosetError(null);
+    const ticket = startLabelsRequest();
 
     dataService
       .getOwnCloset(userId)
@@ -62,6 +101,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setMyCloset(closet);
         setMyClosetChecked(true);
+        if (closet) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
       })
       .catch(err => {
         if (cancelled) return;
@@ -72,7 +112,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [closetMode, dataService, userId, waitingForSession]);
+  }, [closetMode, dataService, userId, waitingForSession, startLabelsRequest, applyClosetLabels]);
 
   useEffect(() => {
     if (closetMode !== 'stylist' || waitingForSession) return;
@@ -81,11 +121,14 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     setStylistClosets(null);
     setStylistError(null);
     setSelectedStylistClosetId(null);
+    const ticket = startLabelsRequest();
 
     dataService
       .getStylistClosets(userId)
       .then(closets => {
-        if (!cancelled) setStylistClosets(closets);
+        if (cancelled) return;
+        setStylistClosets(closets);
+        for (const closet of closets) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
       })
       .catch(err => {
         if (!cancelled) setStylistError(getErrorMessage(err, 'Failed to load closets.'));
@@ -94,7 +137,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [closetMode, dataService, userId, waitingForSession]);
+  }, [closetMode, dataService, userId, waitingForSession, startLabelsRequest, applyClosetLabels]);
 
   // Defaults to the first stylist closet until one is explicitly selected.
   const activeCloset =
@@ -103,12 +146,27 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       : (stylistClosets?.find(closet => closet.closet_id === selectedStylistClosetId) ?? stylistClosets?.[0] ?? null);
 
   const needsOwnClosetSetup = closetMode === 'my-closet' && myClosetChecked && !myCloset && !myClosetError;
+  const activeClosetId = activeCloset?.closet_id ?? null;
+  const activeClosetLabels =
+    (activeClosetId ? labelsByCloset[activeClosetId]?.labels : null) ?? activeCloset?.outfit_labels ?? NO_LABELS;
+
+  const refreshActiveClosetLabels = useCallback(() => {
+    if (!activeClosetId) return;
+    const ticket = startLabelsRequest();
+    dataService
+      .getClosetOutfitLabels(activeClosetId)
+      .then(labels => applyClosetLabels(activeClosetId, labels, ticket))
+      // Not worth an error on screen: the list already shown came from the
+      // closet load moments ago, and the next focus tries again.
+      .catch(() => {});
+  }, [activeClosetId, dataService, startLabelsRequest, applyClosetLabels]);
 
   const createOwnCloset = async (closetName: string) => {
     const trimmed = closetName.trim();
     if (!trimmed) throw new Error('Give your closet a name.');
     const created = await dataService.createOwnCloset(userId, trimmed);
     setMyCloset(created);
+    applyClosetLabels(created.closet_id, created.outfit_labels);
     setMyClosetChecked(true);
     setMyClosetError(null);
   };
@@ -127,6 +185,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       const existing = prev ?? [];
       return existing.some(closet => closet.closet_id === joined.closet_id) ? existing : [...existing, joined];
     });
+    applyClosetLabels(joined.closet_id, joined.outfit_labels);
     setSelectedStylistClosetId(joined.closet_id);
     return joined.closet_name;
   };
@@ -135,7 +194,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     () => ({
       closetMode,
       setClosetMode,
-      activeClosetId: activeCloset?.closet_id ?? null,
+      activeClosetId,
       activeClosetName: activeCloset?.closet_name ?? null,
       stylistClosets,
       selectStylistCloset: setSelectedStylistClosetId,
@@ -147,10 +206,19 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       createOwnCloset,
       regeneratePassphrase,
       joinCloset,
+      activeClosetLabels,
+      applyClosetLabels,
+      startLabelsRequest,
+      refreshActiveClosetLabels,
     }),
     [
       closetMode,
       activeCloset,
+      activeClosetId,
+      activeClosetLabels,
+      applyClosetLabels,
+      startLabelsRequest,
+      refreshActiveClosetLabels,
       stylistClosets,
       myCloset,
       myClosetChecked,

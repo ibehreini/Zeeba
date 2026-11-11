@@ -67,7 +67,7 @@ in this folder and press the button again.
 |---|---|---|
 | No **Remove background** button on the web | The site was built without `EXPO_PUBLIC_BACKGROUND_REMOVER_URL` | Step 4, then redeploy the site |
 | "Your sign-in has expired" (401) | `SUPABASE_URL` points at a different project, or the session really expired | Check step 1, redeploy the Worker |
-| "Something went wrong" and the log shows `origin_not_allowed` (403) | The site is served from an address not listed in `ALLOWED_ORIGINS` | Add the address to `ALLOWED_ORIGINS` in `wrangler.toml`, redeploy |
+| "Couldn't reach the background removal service" while other requests work | The site is served from an address not listed in `ALLOWED_ORIGINS`: the worker answers 403 without CORS headers, so the browser blocks the reply and it looks like a network error. The worker log shows `origin_not_allowed` | Add the address to `ALLOWED_ORIGINS` in `wrangler.toml`, redeploy |
 | "Something went wrong" and the log shows `not_configured` (500) | `SUPABASE_URL` is still the placeholder | Step 1, redeploy |
 | "used up this month's free background removals" (429) | The 5,000 a month allowance is spent | Wait for next month |
 | "Something went wrong" and the log shows `removal_failed` (502) | Cloudflare Images rejected the request; the log line includes its error code | Look the code up in Cloudflare's Images docs. If it says the feature is not available on your plan, the service can't run for free on this account |

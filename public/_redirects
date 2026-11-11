@@ -21,3 +21,7 @@
 /item/*         /item/[id]           200
 /outfit/edit/*  /outfit/edit/[id]    200
 /outfit/*       /outfit/[id]         200
+
+# Logs moved from the /about tab to Settings > Logs. The app also redirects
+# /about itself (src/app/about.tsx); this saves the browser a page load.
+/about          /settings/logs       301

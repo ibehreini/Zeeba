@@ -1,11 +1,14 @@
 import type { IDataService } from './dataService.types';
 import { getActivityLog } from './supabaseActivityService';
 import {
+  addClosetOutfitLabel,
   createOwnCloset,
+  getClosetOutfitLabels,
   getOwnCloset,
   getStylistClosets,
   joinClosetByPassphrase,
   regeneratePassphrase,
+  removeClosetOutfitLabel,
 } from './supabaseClosetsService';
 import {
   addClosetItemPhoto,
@@ -66,6 +69,9 @@ export const supabaseService: IDataService = {
   createOwnCloset,
   regeneratePassphrase,
   joinClosetByPassphrase,
+  getClosetOutfitLabels,
+  addClosetOutfitLabel,
+  removeClosetOutfitLabel,
   getActivityLog,
   getVoiceNotes,
   addVoiceNote,

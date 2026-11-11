@@ -1,5 +1,5 @@
 import ClosetRow from '@/components/ClosetRow';
-import NativeSelect from '@/components/NativeSelect';
+import OutfitTagPicker from '@/components/OutfitTagPicker';
 import { PendingVoiceNoteField } from '@/components/VoiceNotes';
 import type { ClothingCategory } from '@/constants/closetData';
 import { useAuth } from '@/context/AuthContext';
@@ -10,15 +10,14 @@ import {
   CATEGORY_TITLES,
   getErrorMessage,
   groupClosetItemsByAllCategories,
-  OUTFIT_LABELS,
+  hasOutfitLabel,
   type ClosetItem,
-  type OutfitLabel,
   type PendingVoiceNote,
 } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -69,13 +68,13 @@ export default function CreateOutfitForm() {
   const { theme } = useTheme();
   const router = useRouter();
   const { dataService } = useDataMode();
-  const { activeClosetId } = useCloset();
+  const { activeClosetId, activeClosetLabels, closetMode, refreshActiveClosetLabels } = useCloset();
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [label, setLabel] = useState<OutfitLabel | null>(null);
+  const [pickedLabels, setPickedLabels] = useState<string[]>([]);
   const [voiceNote, setVoiceNote] = useState<PendingVoiceNote | null>(null);
   const [selectedByCategory, setSelectedByCategory] = useState<SelectionByCategory>(EMPTY_SELECTION);
 
@@ -165,18 +164,36 @@ export default function CreateOutfitForm() {
     });
   };
 
+  // Picks up tag edits made in Settings or by the closet owner on another
+  // device while this form wasn't showing.
+  useFocusEffect(
+    useCallback(() => {
+      refreshActiveClosetLabels();
+    }, [refreshActiveClosetLabels]),
+  );
+
+  // A tag is required only when the closet has tags to choose from. The
+  // effective picks are derived while rendering rather than pruned in an
+  // effect: a tag removed in Settings drops out immediately, and comes back
+  // still ticked if the removal is undone.
+  const hasTags = activeClosetLabels.length > 0;
+  const chosenLabels = pickedLabels.filter(picked => hasOutfitLabel(activeClosetLabels, picked));
+  const tagsMissing = hasTags && chosenLabels.length === 0;
+
   const canSubmit =
-    !submitting && name.trim().length > 0 && description.trim().length > 0 && !!label && selectedItemIds.length > 0;
+    !submitting && name.trim().length > 0 && description.trim().length > 0 && !tagsMissing && selectedItemIds.length > 0;
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
       showAlert('No closet found', 'You need a closet before you can create an outfit.');
       return;
     }
-    if (!name.trim() || !description.trim() || !label || selectedItemIds.length === 0) {
+    if (!name.trim() || !description.trim() || tagsMissing || selectedItemIds.length === 0) {
       showAlert(
         'Missing information',
-        'Name, description, a label, and at least one clothing item are all required.',
+        hasTags
+          ? 'Name, description, at least one tag, and at least one clothing item are all required.'
+          : 'Name, description, and at least one clothing item are all required.',
       );
       return;
     }
@@ -188,7 +205,7 @@ export default function CreateOutfitForm() {
         userId,
         name: name.trim(),
         description: description.trim(),
-        label,
+        labels: chosenLabels,
         itemIds: selectedItemIds,
       });
 
@@ -255,16 +272,26 @@ export default function CreateOutfitForm() {
         <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
       </Field>
 
-      <Field label="Label" required>
-        <NativeSelect
-          label="Label"
-          options={OUTFIT_LABELS}
-          value={label}
-          onChange={setLabel}
-          placeholder="Select a label"
-          required
-        />
-      </Field>
+      {/* Only once a closet is active: before that the list is empty because
+          nothing has loaded, not because the closet has no tags. */}
+      {activeClosetId && (
+        <Field label="Tags" required={hasTags}>
+          {hasTags ? (
+            <OutfitTagPicker
+              options={activeClosetLabels}
+              value={chosenLabels}
+              onChange={setPickedLabels}
+              groupLabel="Tags, required, choose at least one"
+            />
+          ) : (
+            <Text style={[styles.errorText, { color: theme.textSecondary }]}>
+              {closetMode === 'stylist'
+                ? 'This closet has no tags, so this outfit will be saved without one. Only the closet’s owner can add tags.'
+                : 'You have no tags, so this outfit will be saved without one. To add tags, go to Settings, then Edit tags.'}
+            </Text>
+          )}
+        </Field>
+      )}
 
       <Field label="Items" required>
         {itemsError ? (

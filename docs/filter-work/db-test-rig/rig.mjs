@@ -3,7 +3,10 @@ import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
 
-export const MIGRATIONS_DIR = '/home/user/Zeeba/supabase/migrations';
+// The rig is copied out of the repo to run (see README), so the folder is
+// passed in: MIGRATIONS_DIR=<repo>/supabase/migrations node sanity.mjs
+export const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR;
+if (!MIGRATIONS_DIR) throw new Error('Set MIGRATIONS_DIR to <repo>/supabase/migrations');
 
 const STUBS = `
 create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls; create role supabase_admin;

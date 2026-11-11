@@ -2,7 +2,8 @@ import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useIsFocused, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
@@ -12,7 +13,16 @@ export default function Index() {
   const isFocused = useIsFocused();
   const router = useRouter();
   const { theme } = useTheme();
-  const { closetMode, activeClosetId, activeClosetName, isLoading, error } = useCloset();
+  const { closetMode, activeClosetId, activeClosetName, activeClosetLabels, isLoading, error, refreshActiveClosetLabels } =
+    useCloset();
+
+  // Picks up tag edits made in Settings > Edit tags, by the closet owner, or
+  // on another device since the closet was loaded.
+  useFocusEffect(
+    useCallback(() => {
+      refreshActiveClosetLabels();
+    }, [refreshActiveClosetLabels]),
+  );
 
   const closetLabel = activeClosetName ?? 'Closet';
   const title = closetMode === 'stylist' ? `Styling for ${closetLabel} outfits` : `${closetLabel} outfits`;
@@ -62,7 +72,7 @@ export default function Index() {
   } else {
     content = (
       <View style={styles.container}>
-        <OutfitsGrid closetId={activeClosetId} onOutfitPress={handleNavigation} />
+        <OutfitsGrid closetId={activeClosetId} labels={activeClosetLabels} onOutfitPress={handleNavigation} />
       </View>
     );
   }

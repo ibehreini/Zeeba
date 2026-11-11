@@ -21,7 +21,7 @@ SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co"
 
 # Web origins allowed to call the service from a browser, comma-separated.
 # Add your custom domain here when you have one. localhost is for `expo start --web`.
-ALLOWED_ORIGINS = "https://zeeba-5kv.pages.dev,http://localhost:8081"
+ALLOWED_ORIGINS = "https://zeeba-5kv.pages.dev,http://localhost:8081,http://localhost:8082"
 
 [observability]
 enabled = true

@@ -208,11 +208,14 @@ export interface Outfit {
 }
 
 /**
- * Hardcoded vibe/occasion labels for the "create outfit" form (single-select
- * for v1). Kept as a plain const list, same pattern as CLOTHING_ITEM_TYPES,
- * so adding/renaming a label later is a one-line change.
+ * The ten outfit tags every closet starts with. Mirrors the DEFAULT of
+ * closets.outfit_labels (supabase/migrations/20261111000000_closet_outfit_labels.sql);
+ * live closets get their list from that column, so this is only used by
+ * preview mode and as the fallback for a database that predates the migration.
+ * UI copy calls these "tags"; code and the database keep "label" so nothing
+ * existing (outfits.labels, Outfit.labels) had to be renamed.
  */
-export const OUTFIT_LABELS = [
+export const DEFAULT_OUTFIT_LABELS: readonly string[] = [
   'Girly/Romantic',
   'Work',
   'Casual',
@@ -223,21 +226,84 @@ export const OUTFIT_LABELS = [
   'Minimalist Chic',
   'Artsy',
   'Boho',
-] as const;
+];
 
-export type OutfitLabel = (typeof OUTFIT_LABELS)[number];
+/** Longest allowed tag, in characters - mirrored by the closets_outfit_labels_valid check constraint. */
+export const MAX_OUTFIT_LABEL_LENGTH = 30;
+/** Most tags one closet can have - mirrored by the same check constraint. */
+export const MAX_OUTFIT_LABELS = 30;
 
 /**
- * Form data for the "create new outfit" flow. Name, description, label, and
- * at least one item are all required; item picking rules (one top + one
- * bottom, or one dress, etc.) are enforced by the form, not this type.
+ * The form tags are stored and compared in - the same steps as the
+ * normalize_outfit_label SQL function: invisible format characters
+ * (zero-width space/joiners, word joiner, BOM) dropped, control characters
+ * turned into spaces, whitespace runs collapsed to one space, ends trimmed.
+ * Letter case is kept as typed.
+ */
+export function normalizeOutfitLabel(raw: string): string {
+  return (
+    raw
+      .replace(/[​-‍⁠﻿]/g, '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
+/**
+ * Key two tags are compared by: normalised and lower-cased. Matching outfits
+ * to filter pills goes through this, so an outfit tagged "Date Night" still
+ * shows under a pill re-added as "Date night" after the original was removed.
+ */
+export function outfitLabelKey(label: string): string {
+  return normalizeOutfitLabel(label).toLowerCase();
+}
+
+/** True when `labels` contains `label`, ignoring case and stray spaces. */
+export function hasOutfitLabel(labels: readonly string[], label: string): boolean {
+  const key = outfitLabelKey(label);
+  return labels.some(candidate => outfitLabelKey(candidate) === key);
+}
+
+export type OutfitLabelValidation = { ok: true; label: string } | { ok: false; message: string };
+
+/**
+ * Checks a typed tag against a closet's current list. Messages are
+ * user-facing and identical to the ones add_closet_outfit_label raises, so
+ * the client and server read the same whichever one catches the problem.
+ */
+export function validateNewOutfitLabel(raw: string, existing: readonly string[]): OutfitLabelValidation {
+  const label = normalizeOutfitLabel(raw);
+  if (label.length === 0) return { ok: false, message: 'Enter a tag name.' };
+  if (label.length > MAX_OUTFIT_LABEL_LENGTH) {
+    return { ok: false, message: `Tags can be up to ${MAX_OUTFIT_LABEL_LENGTH} characters.` };
+  }
+  // The Outfits filter row always starts with a built-in "All" pill.
+  if (label.toLowerCase() === 'all') {
+    return { ok: false, message: '"All" is already used by the outfit filter. Choose another name.' };
+  }
+  const match = existing.find(candidate => candidate.toLowerCase() === label.toLowerCase());
+  if (match) return { ok: false, message: `You already have a tag named "${match}".` };
+  if (existing.length >= MAX_OUTFIT_LABELS) {
+    return { ok: false, message: `You can have up to ${MAX_OUTFIT_LABELS} tags. Remove one to add another.` };
+  }
+  return { ok: true, label };
+}
+
+/**
+ * Form data for the "create new outfit" flow. Name, description and at least
+ * one item are required, plus at least one tag whenever the closet has tags
+ * to choose from; item picking rules (one top + one bottom, or one dress,
+ * etc.) are enforced by the form, not this type.
  */
 export interface NewOutfitInput {
   closetId: string;
   userId: string;
   name: string;
   description: string;
-  label: OutfitLabel;
+  /** Chosen from the closet's tags; empty when the closet has none. */
+  labels: string[];
   itemIds: string[];
 }
 
@@ -270,6 +336,8 @@ export interface ActivityLogEntry {
 export interface StylistCloset {
   closet_id: string;
   closet_name: string;
+  /** The closet's outfit tags in display order (closets.outfit_labels). The owner edits them in Settings > Edit tags; stylists only read them. */
+  outfit_labels: string[];
 }
 
 /** The closet the current user owns - only owners can see their own passphrase. */
@@ -323,6 +391,12 @@ export interface UpdateClosetItemInput {
 export interface UpdateOutfitInput {
   name: string;
   description: string;
+  /**
+   * The outfit's full tag list after the edit. May keep a tag the closet
+   * owner has since removed from the closet's list (the edit form shows it so
+   * it can be unticked) - outfits.labels is free text.
+   */
+  labels: string[];
 }
 
 /**
@@ -366,7 +440,7 @@ export interface IDataService {
   /** Creates an outfit from picked closet items. */
   createOutfit(input: NewOutfitInput): Promise<Outfit>;
   /**
-   * Updates an outfit's name and description. `expectedUpdatedAt` must match
+   * Updates an outfit's name, description and tags. `expectedUpdatedAt` must match
    * the row's current `updated_at` or this throws `ConflictError` instead of
    * applying the write.
    */
@@ -405,6 +479,12 @@ export interface IDataService {
   regeneratePassphrase(closetId: string): Promise<string>;
   /** Joins the caller to the closet matching `passphrase` as a stylist/collaborator. Throws if the passphrase is invalid or belongs to a closet the caller already owns. */
   joinClosetByPassphrase(passphrase: string): Promise<StylistCloset>;
+  /** A closet's current outfit tags, in display order. Any member can read them; used to pick up edits made by the owner or on another device. */
+  getClosetOutfitLabels(closetId: string): Promise<string[]>;
+  /** Adds a tag to a closet's outfit tag list and returns the full updated list. `atIndex` (0-based) puts it at that position - used to undo a removal; omitted appends. Caller must own the closet. Throws with a user-facing message if the tag is empty, too long, "All", a duplicate (ignoring case) or the list is full. */
+  addClosetOutfitLabel(closetId: string, label: string, atIndex?: number): Promise<string[]>;
+  /** Removes a tag from a closet's outfit tag list and returns the full updated list. Outfits that already carry the tag keep it. Caller must own the closet. */
+  removeClosetOutfitLabel(closetId: string, label: string): Promise<string[]>;
   /** Most recent create/edit/delete activity for a closet, newest first, capped at `limit`. */
   getActivityLog(closetId: string, limit?: number): Promise<ActivityLogEntry[]>;
   /** Voice notes attached to one outfit or clothing item, oldest first. */

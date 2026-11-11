@@ -131,6 +131,7 @@ export type Database = {
           closet_name: string
           created_at: string
           id: string
+          outfit_labels: string[]
           owner_id: string
           pass_phrase: string
         }
@@ -138,6 +139,7 @@ export type Database = {
           closet_name: string
           created_at?: string
           id?: string
+          outfit_labels?: string[]
           owner_id: string
           pass_phrase?: string
         }
@@ -145,6 +147,7 @@ export type Database = {
           closet_name?: string
           created_at?: string
           id?: string
+          outfit_labels?: string[]
           owner_id?: string
           pass_phrase?: string
         }
@@ -494,6 +497,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_closet_outfit_label: {
+        Args: { target_closet_id: string; target_label: string; target_position?: number }
+        Returns: string[]
+      }
+      closet_outfit_labels_are_valid: {
+        Args: { target_labels: string[] }
+        Returns: boolean
+      }
       increment_outfit_compliment_count: {
         Args: { target_outfit_id: string }
         Returns: number
@@ -503,6 +514,11 @@ export type Database = {
       join_closet_by_passphrase: {
         Args: { target_pass_phrase: string }
         Returns: string
+      }
+      normalize_outfit_label: { Args: { raw_label: string }; Returns: string }
+      remove_closet_outfit_label: {
+        Args: { target_closet_id: string; target_label: string }
+        Returns: string[]
       }
     }
     Enums: {

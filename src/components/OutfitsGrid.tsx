@@ -4,10 +4,9 @@ import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
   getErrorMessage,
-  OUTFIT_LABELS,
+  hasOutfitLabel,
   type ClosetItem,
   type Outfit,
-  type OutfitLabel,
 } from '@/services/dataService.types';
 import { consumeOutfitsDirty } from '@/state/outfitsRefresh';
 import { useFocusEffect } from 'expo-router';
@@ -18,15 +17,19 @@ type Props = {
   onOutfitPress?: (id: string) => void;
   /** Restricts the grid to outfits from one closet; omit to show every closet the user can see. */
   closetId?: string;
+  /** The closet's outfit tags in display order - one filter pill each. Empty or omitted hides the filter row. */
+  labels?: readonly string[];
 };
 
-export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
+const NO_LABELS: readonly string[] = [];
+
+export default function OutfitsGrid({ onOutfitPress, closetId, labels = NO_LABELS }: Props) {
   const { dataService } = useDataMode();
   const { theme } = useTheme();
   const [outfits, setOutfits] = useState<Outfit[] | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLabel, setSelectedLabel] = useState<OutfitLabel | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
 
   const fetchOutfits = useCallback(
     (onCancelledRef: { cancelled: boolean }) => {
@@ -68,8 +71,15 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
     }, [fetchOutfits]),
   );
 
-  const visibleOutfits = selectedLabel
-    ? (outfits ?? []).filter(outfit => outfit.labels.includes(selectedLabel))
+  // Derived while rendering, not reset in an effect: if the selected tag is
+  // removed in Settings the grid falls back to "All" in the same frame, and
+  // the choice comes back if the removal is undone.
+  const activeLabel = selectedLabel !== null && labels.includes(selectedLabel) ? selectedLabel : null;
+
+  // Case- and space-insensitive, so outfits tagged "Date Night" still match a
+  // pill re-added as "Date night" after the original was removed.
+  const visibleOutfits = activeLabel
+    ? (outfits ?? []).filter(outfit => hasOutfitLabel(outfit.labels, activeLabel))
     : (outfits ?? []);
 
   return (
@@ -78,7 +88,9 @@ export default function OutfitsGrid({ onOutfitPress, closetId }: Props) {
         My outfits
       </Text>
 
-      <FilterPills options={OUTFIT_LABELS} selected={selectedLabel} onSelect={setSelectedLabel} />
+      {/* An "All"-only row would filter nothing, so it's left out entirely
+          when the closet has no tags. */}
+      {labels.length > 0 && <FilterPills options={labels} selected={activeLabel} onSelect={setSelectedLabel} />}
 
       {error ? (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{error}</Text>

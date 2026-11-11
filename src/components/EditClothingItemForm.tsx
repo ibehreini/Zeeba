@@ -19,7 +19,7 @@ import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -49,6 +49,12 @@ export default function EditClothingItemForm({ itemId }: Props) {
   // The background-removed version of the photo being shown (a newly picked
   // one, or the item's current photo), when the user asked for one.
   const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  // On web the cutout is a blob: URL pinning the whole PNG in memory. It's
+  // revoked when replaced or restored; this frees whatever is left when the
+  // form closes (after a save, the upload has already read it).
+  const cutoutUriRef = useRef(cutoutUri);
+  cutoutUriRef.current = cutoutUri;
+  useEffect(() => () => revokeIfBlobUrl(cutoutUriRef.current), []);
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [itemType, setItemType] = useState<ClothingItemType | null>(null);
   const [name, setName] = useState('');

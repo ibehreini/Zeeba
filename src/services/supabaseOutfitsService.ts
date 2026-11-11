@@ -40,7 +40,7 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
       created_by_user_id: input.userId,
       name: input.name,
       description: input.description,
-      labels: [input.label],
+      labels: input.labels,
     })
     .select('id')
     .single();
@@ -64,9 +64,9 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
 }
 
 /**
- * Updates an outfit's name and description. `expectedUpdatedAt` must match
- * the row's current `updated_at` (i.e. what a stylist or the closet owner
- * last read) or this throws `ConflictError` without writing - see
+ * Updates an outfit's name, description and tags. `expectedUpdatedAt` must
+ * match the row's current `updated_at` (i.e. what a stylist or the closet
+ * owner last read) or this throws `ConflictError` without writing - see
  * occConcurrency.ts. Throws the Supabase error on any other failure.
  */
 export async function updateOutfit(
@@ -77,6 +77,7 @@ export async function updateOutfit(
   await updateWithOcc('outfits', outfitId, expectedUpdatedAt, {
     name: input.name,
     description: input.description,
+    labels: input.labels,
   });
 
   const updated = await getOutfitById(outfitId);

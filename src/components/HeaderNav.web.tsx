@@ -3,16 +3,17 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 type NavItem = {
-  href: '/' | '/closet' | '/outfits' | '/about' | '/settings';
+  href: '/' | '/closet' | '/outfits' | '/settings';
   label: string;
 };
 
-// Mirrors the five <Tabs.Screen> destinations in src/app/(tabs)/_layout.web.tsx.
+// Mirrors the four <Tabs.Screen> destinations in src/app/(tabs)/_layout.web.tsx.
+// Logs and Edit tags are opened from Settings; isActive's prefix match keeps
+// the Settings link current on /settings/logs and /settings/tags.
 const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Home' },
   { href: '/closet', label: 'My Closet' },
   { href: '/outfits', label: 'Outfits' },
-  { href: '/about', label: 'Logs' },
   { href: '/settings', label: 'Settings' },
 ];
 
@@ -102,6 +103,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 4,
+    // Lets the links wrap onto a second line on very narrow (320px) screens
+    // instead of pushing the page into horizontal scroll.
+    flexShrink: 1,
   },
   link: {
     paddingHorizontal: 12,

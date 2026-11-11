@@ -15,7 +15,7 @@
           },
           {
             "/": "/about",
-            "comment": "About / activity log."
+            "comment": "Legacy Logs URL - the app redirects it to /settings/logs."
           },
           {
             "/": "/closet",

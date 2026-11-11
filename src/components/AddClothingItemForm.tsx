@@ -16,7 +16,7 @@ import { pickPhoto } from '@/utils/pickPhoto';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -38,6 +38,12 @@ export default function AddClothingItemForm() {
   // The background-removed version of primaryPhotoUri, when the user asked
   // for one. The original is kept so "Restore original photo" can undo it.
   const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  // On web the cutout is a blob: URL pinning the whole PNG in memory. It's
+  // revoked when replaced or restored; this frees whatever is left when the
+  // form closes (after a save, the upload has already read it).
+  const cutoutUriRef = useRef(cutoutUri);
+  cutoutUriRef.current = cutoutUri;
+  useEffect(() => () => revokeIfBlobUrl(cutoutUriRef.current), []);
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
 
   const [itemType, setItemType] = useState<ClothingItemType | null>(null);

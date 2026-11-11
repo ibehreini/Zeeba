@@ -70,6 +70,7 @@ function RootNavigator() {
                 <Stack.Screen name="item/edit/[id]" />
                 <Stack.Screen name="outfit/[id]" />
                 <Stack.Screen name="outfit/edit/[id]" />
+                <Stack.Screen name="about" options={{ headerShown: false }} />
               </Stack.Protected>
               <Stack.Protected guard={!signedIn}>
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />

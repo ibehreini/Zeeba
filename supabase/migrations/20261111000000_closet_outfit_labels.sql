@@ -1,13 +1,3 @@
--- DRAFT - NOT YET APPLIED, NOT YET TESTED AGAINST THE REAL DATABASE.
--- Written by the 'accessibility-first' design (see docs/filter-work/design.md).
--- The design critic ran it on a throwaway Postgres 16; it has not been run in
--- docs/filter-work/db-test-rig yet, and it still needs the fixes listed in
--- docs/filter-work/README.md ('Changes to make to the design before building').
--- When it is ready, move it to supabase/migrations/<timestamp>_closet_outfit_labels.sql.
-
--- FILE: supabase/migrations/20261111000000_closet_outfit_labels.sql
--- (sorts after 20261013000000_voice_notes.sql)
-
 -- Per-closet outfit tags (Settings > Edit tags).
 --
 -- Until now the app offered one hardcoded list of ten outfit labels to every
@@ -22,27 +12,50 @@
 --     can view their closets" lets stylists read the list, "Owners can update
 --     their closets" keeps editing to the owner. No new policy is needed.
 --   * The list rides along with the closet row the app already loads, so the
---     Outfits filter and the create-outfit form never wait on a second request.
+--     Outfits filter and the outfit forms never wait on a second request.
 --
--- The list only decides which tags the create-outfit form offers and which
--- filter pills the Outfits tab shows. outfits.labels stays free text and is
+-- The list only decides which tags the outfit forms offer and which filter
+-- pills the Outfits tab shows. outfits.labels stays free text and is
 -- deliberately NOT rewritten when a tag is removed: any UPDATE that names
 -- labels fires log_outfit_activity_trigger (one "edited outfit" log line per
 -- outfit) and bumps updated_at, which would throw a conflict at anyone who
--- has that outfit open. An outfit keeps a removed tag; it just no longer has
--- a filter pill.
+-- has that outfit open. An outfit keeps a removed tag until someone edits
+-- that outfit's tags; it just no longer has a filter pill.
 --
--- The ten defaults and both limits (30 tags, 30 characters) are mirrored by
--- DEFAULT_OUTFIT_LABELS, MAX_OUTFIT_LABELS and MAX_OUTFIT_LABEL_LENGTH in
+-- The ten defaults, both limits (30 tags, 30 characters), the reserved name
+-- "All" and the normalisation rules are mirrored by DEFAULT_OUTFIT_LABELS,
+-- MAX_OUTFIT_LABELS, MAX_OUTFIT_LABEL_LENGTH and normalizeOutfitLabel in
 -- src/services/dataService.types.ts - change them together.
+
+-- Cleans a typed tag the same way the app's normalizeOutfitLabel does:
+-- invisible format characters (zero-width space/joiners, word joiner, BOM)
+-- are dropped, control characters become spaces, whitespace runs collapse to
+-- one space and the ends are trimmed. Without the first step a tag made only
+-- of zero-width spaces would look blank and give VoiceOver a "Remove tag"
+-- button with no name.
+CREATE OR REPLACE FUNCTION "public"."normalize_outfit_label"("raw_label" "text") RETURNS "text"
+    LANGUAGE "sql" IMMUTABLE
+    SET "search_path" TO 'public'
+    AS $$
+  select btrim(
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(coalesce(raw_label, ''), '[​-‍⁠﻿]', '', 'g'),
+        '[[:cntrl:]]', ' ', 'g'),
+      '\s+', ' ', 'g'));
+$$;
+
+
+ALTER FUNCTION "public"."normalize_outfit_label"("raw_label" "text") OWNER TO "postgres";
+
 
 -- The rules every stored list must satisfy, as a function because a CHECK
 -- constraint cannot run a subquery over an array's elements: at most 30 tags;
--- each 1-30 characters with no leading/trailing spaces and no control
--- characters; no two tags that differ only by letter case. The add RPC below
--- gives friendlier messages for the same rules; this constraint is what holds
--- them when an owner PATCHes their closets row directly, which "Owners can
--- update their closets" allows.
+-- each 1-30 characters, already normalised (so no stray spaces, control or
+-- invisible characters) and not "All" in any case; no two tags that differ
+-- only by letter case. The add RPC below gives friendlier messages for the
+-- same rules; this constraint is what holds them when an owner PATCHes their
+-- closets row directly, which "Owners can update their closets" allows.
 CREATE OR REPLACE FUNCTION "public"."closet_outfit_labels_are_valid"("target_labels" "text"[]) RETURNS boolean
     LANGUAGE "sql" IMMUTABLE
     SET "search_path" TO 'public'
@@ -54,10 +67,10 @@ CREATE OR REPLACE FUNCTION "public"."closet_outfit_labels_are_valid"("target_lab
       select 1
       from unnest(target_labels) as l(label)
       where l.label is null
-         or l.label <> btrim(l.label)
+         or l.label <> public.normalize_outfit_label(l.label)
          or char_length(l.label) < 1
          or char_length(l.label) > 30
-         or l.label ~ '[[:cntrl:]]'
+         or lower(l.label) = 'all'
     )
     and (select count(*) from unnest(target_labels) as l(label))
       = (select count(distinct lower(l.label)) from unnest(target_labels) as l(label));
@@ -88,7 +101,7 @@ CREATE OR REPLACE FUNCTION "public"."add_closet_outfit_label"("target_closet_id"
     SET "search_path" TO 'public'
     AS $$
 declare
-  v_label text := btrim(regexp_replace(coalesce(target_label, ''), '\s+', ' ', 'g'));
+  v_label text := public.normalize_outfit_label(target_label);
   v_current text[];
   v_existing text;
   v_position integer;
@@ -100,6 +113,10 @@ begin
 
   if char_length(v_label) > 30 then
     raise exception 'Tags can be up to 30 characters.';
+  end if;
+
+  if lower(v_label) = 'all' then
+    raise exception '"All" is already used by the outfit filter. Choose another name.';
   end if;
 
   -- Locks the row so two adds at the same moment can't both pass the
@@ -169,6 +186,10 @@ $$;
 ALTER FUNCTION "public"."remove_closet_outfit_label"("target_closet_id" "uuid", "target_label" "text") OWNER TO "postgres";
 
 
+GRANT ALL ON FUNCTION "public"."normalize_outfit_label"("raw_label" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."normalize_outfit_label"("raw_label" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."normalize_outfit_label"("raw_label" "text") TO "service_role";
+
 GRANT ALL ON FUNCTION "public"."closet_outfit_labels_are_valid"("target_labels" "text"[]) TO "anon";
 GRANT ALL ON FUNCTION "public"."closet_outfit_labels_are_valid"("target_labels" "text"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."closet_outfit_labels_are_valid"("target_labels" "text"[]) TO "service_role";
@@ -180,8 +201,3 @@ GRANT ALL ON FUNCTION "public"."add_closet_outfit_label"("target_closet_id" "uui
 GRANT ALL ON FUNCTION "public"."remove_closet_outfit_label"("target_closet_id" "uuid", "target_label" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."remove_closet_outfit_label"("target_closet_id" "uuid", "target_label" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."remove_closet_outfit_label"("target_closet_id" "uuid", "target_label" "text") TO "service_role";
-
--- NOTES (not part of the file):
--- * No new table, policy, trigger or backfill statement. No grant is needed for the column: GRANT ALL ON TABLE closets already exists (baseline:664-666).
--- * supabase/seed.sql and supabase/schema.sql are not edited (seed closets take the default; schema.sql is a stale snapshot).
--- * Written by inspection only; not run. For a PGlite check: stub roles, auth.uid() and the baseline as the database engineer described, then assert (1) existing and new closets rows have the ten defaults, (2) add as owner appends / inserts at target_position, (3) add of 'casual ' raises the duplicate message, (4) add as a collaborator raises 'Only the closet owner can edit its tags.', (5) remove is idempotent, (6) a direct UPDATE setting ARRAY['a','A'] or a 31-element array violates closets_outfit_labels_valid, (7) '{}' is accepted.

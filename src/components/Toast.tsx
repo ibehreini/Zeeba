@@ -1,6 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Platform, StyleSheet, Text } from 'react-native';
+import { Animated, Platform, StyleSheet, Text } from 'react-native';
+import { announceForScreenReader } from '@/utils/announce';
 
 type ToastContextValue = {
   showToast: (message: string) => void;
@@ -21,18 +22,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (text: string) => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
 
-      // iOS/Android have no live-region concept; announce explicitly there.
-      // On web, react-native-web's announceForAccessibility is a no-op, so
-      // that platform relies on the always-mounted aria-live Text below.
-      if (Platform.OS !== 'web') {
-        AccessibilityInfo.announceForAccessibility(text);
-      }
+      // iOS/Android have no live-region concept; announce explicitly there
+      // (queued on iOS so it doesn't cut off the button VoiceOver is still
+      // reading). On web that's a no-op, so that platform relies on the
+      // always-mounted aria-live Text below.
+      announceForScreenReader(text);
 
       setMessage(text);
       Animated.timing(opacity, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
 
       hideTimer.current = setTimeout(() => {
-        Animated.timing(opacity, { toValue: 0, duration: FADE_MS, useNativeDriver: true }).start();
+        Animated.timing(opacity, { toValue: 0, duration: FADE_MS, useNativeDriver: true }).start(({ finished }) => {
+          // Empties the faded-out text so VoiceOver can't swipe onto an
+          // invisible, stale message. `finished` is false when a newer
+          // toast interrupted the fade, which must keep its own text.
+          if (finished) setMessage('');
+        });
       }, DISPLAY_MS);
     },
     [opacity],

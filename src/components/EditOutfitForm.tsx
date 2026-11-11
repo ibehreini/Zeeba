@@ -1,4 +1,6 @@
+import OutfitTagPicker from '@/components/OutfitTagPicker';
 import VoiceNotesSection from '@/components/VoiceNotes';
+import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { ConflictError, getErrorMessage, type Outfit } from '@/services/dataService.types';
@@ -23,8 +25,14 @@ export default function EditOutfitForm({ outfitId }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const { applyClosetLabels, startLabelsRequest } = useCloset();
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [labels, setLabels] = useState<string[]>([]);
+  // The tags of the outfit's own closet (not necessarily the active one - an
+  // outfit link can be opened from anywhere). null if they couldn't be read.
+  const [closetLabels, setClosetLabels] = useState<string[] | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,9 +42,21 @@ export default function EditOutfitForm({ outfitId }: Props) {
     if (fetchedOutfit) {
       setName(fetchedOutfit.name);
       setDescription(fetchedOutfit.description ?? '');
+      setLabels(fetchedOutfit.labels);
+
+      const ticket = startLabelsRequest();
+      try {
+        const fetchedLabels = await dataService.getClosetOutfitLabels(fetchedOutfit.closet_id);
+        setClosetLabels(fetchedLabels);
+        applyClosetLabels(fetchedOutfit.closet_id, fetchedLabels, ticket);
+      } catch {
+        // The outfit itself loaded, so the form stays usable: the picker
+        // falls back to the tags the outfit already has (see below).
+        setClosetLabels(null);
+      }
     }
     return fetchedOutfit;
-  }, [outfitId, dataService]);
+  }, [outfitId, dataService, applyClosetLabels, startLabelsRequest]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +88,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
       await dataService.updateOutfit(outfitId, outfit.updated_at, {
         name: name.trim(),
         description: description.trim(),
+        labels,
       });
 
       markOutfitsDirty();
@@ -141,8 +162,29 @@ export default function EditOutfitForm({ outfitId }: Props) {
         maxLength={1000}
       />
 
+      {/* Optional here even though Create outfit asks for one: an edit
+          shouldn't be blocked by a rule the outfit may predate (one saved
+          while the closet had no tags). Saved with Save Changes. */}
+      <Field label="Tags">
+        {closetLabels === null ? (
+          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+            Couldn’t load this closet’s tags. You can still untick the tags this outfit already has.
+          </Text>
+        ) : closetLabels.length === 0 && labels.length === 0 ? (
+          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+            This closet has no tags yet. The closet’s owner can add them in Settings, then Edit tags.
+          </Text>
+        ) : null}
+        <OutfitTagPicker
+          options={closetLabels ?? outfit.labels}
+          value={labels}
+          onChange={setLabels}
+          groupLabel="Tags"
+        />
+      </Field>
+
       {/* Uploads as soon as a recording stops - independent of Save Changes,
-          which only covers the text fields. */}
+          which only covers the text fields and tags. */}
       <VoiceNotesSection target={{ outfitId }} closetId={outfit.closet_id} canRecord />
 
       <Pressable
@@ -234,6 +276,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  hintText: {
+    fontSize: 15,
+    marginBottom: 8,
   },
   errorText: {
     fontSize: 16,

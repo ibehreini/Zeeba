@@ -49,18 +49,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="about"
-        options={{
-          title: 'Logs',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'information-circle' : 'information-circle-outline'} color={color} size={24}/>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
+          headerShown: false,
+          // Leaving the tab returns it to its top screen, so tapping Settings
+          // later never reopens Logs or Edit tags out of context.
+          popToTopOnBlur: true,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'settings-sharp' : 'settings-outline'} color={color} size={24} />
           ),

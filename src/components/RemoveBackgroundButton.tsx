@@ -1,6 +1,7 @@
 import { useToast } from '@/components/Toast';
 import { useTheme } from '@/context/ThemeContext';
 import { showAlert } from '@/utils/alert';
+import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import {
   BackgroundRemovalError,
   isBackgroundRemovalAvailable,
@@ -61,6 +62,10 @@ export default function RemoveBackgroundButton({
   const { theme } = useTheme();
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
+  // Set synchronously on press: `busy` comes from the render closure, so a
+  // second press landing before React re-renders (a double tap, a repeated
+  // Enter on web) would otherwise start a second removal.
+  const inFlight = useRef(false);
 
   // A removal takes about a second. If the user picks a different photo (or
   // leaves the screen) meanwhile, the result belongs to a photo that is no
@@ -86,7 +91,7 @@ export default function RemoveBackgroundButton({
     // would be dropped back to the top of the page the moment a removal
     // started. The button stays focusable, says "Removing background", and
     // ignores presses until it is done.
-    if (disabled || busy) return;
+    if (disabled || busy || inFlight.current) return;
 
     if (isRemoved) {
       onRestore();
@@ -97,12 +102,17 @@ export default function RemoveBackgroundButton({
     const startedWith = sourceUri;
     const isStale = () => !isMounted.current || latestSourceUri.current !== startedWith;
 
+    inFlight.current = true;
     setBusy(true);
     onBusyChange?.(true);
     announceStart();
     try {
       const cutoutUri = await removeBackground(startedWith);
-      if (isStale()) return;
+      if (isStale()) {
+        // Nobody will show or revoke this cutout, so free it here (web).
+        revokeIfBlobUrl(cutoutUri);
+        return;
+      }
       onRemoved(cutoutUri);
       showToast('Background removed');
     } catch (err) {
@@ -114,6 +124,7 @@ export default function RemoveBackgroundButton({
           : 'Something went wrong removing the background. Please try again.',
       );
     } finally {
+      inFlight.current = false;
       if (isMounted.current) {
         setBusy(false);
         onBusyChange?.(false);

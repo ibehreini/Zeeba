@@ -1,6 +1,12 @@
 import { Closet_Data } from '@/constants/closetData';
 import { MyOutfits_Data } from '@/constants/MyOutfitsData';
-import { mapCategoryToDefaultItemType, mapItemTypeToCategory, todayDateString } from './dataService.types';
+import {
+  DEFAULT_OUTFIT_LABELS,
+  mapCategoryToDefaultItemType,
+  mapItemTypeToCategory,
+  todayDateString,
+  validateNewOutfitLabel,
+} from './dataService.types';
 import type {
   ActivityLogEntry,
   ClosetItem,
@@ -25,7 +31,7 @@ const PLACEHOLDER_IMAGE = require('../../assets/images/clothes/outfit_preview.jp
 
 const NETWORK_DELAY_MS = 400;
 const PREVIEW_PASS_PHRASE = 'preview-phrase';
-const PREVIEW_CLOSET: OwnCloset = {
+const PREVIEW_CLOSET: Omit<OwnCloset, 'outfit_labels'> = {
   closet_id: 'preview-closet',
   closet_name: 'Preview Closet',
   pass_phrase: PREVIEW_PASS_PHRASE,
@@ -78,6 +84,15 @@ function matchesTarget(note: PreviewVoiceNote, target: VoiceNoteTarget): boolean
 // "Worn today" logs added during a guest session, keyed by outfit id - same
 // session-only lifetime as everything else above.
 const previewWearLogs = new Map<string, { id: string; date: string }[]>();
+
+// Tags edited in Settings > Edit tags during a guest session - same
+// session-only lifetime as everything else above. Starts from the ten every
+// real closet starts with.
+let previewOutfitLabels: string[] = [...DEFAULT_OUTFIT_LABELS];
+
+function previewCloset(): OwnCloset {
+  return { ...PREVIEW_CLOSET, outfit_labels: [...previewOutfitLabels] };
+}
 
 function toClosetItems(): ClosetItem[] {
   const now = new Date().toISOString();
@@ -267,7 +282,7 @@ class PreviewDataService implements IDataService {
       closet_id: input.closetId,
       name: input.name,
       description: input.description,
-      labels: [input.label],
+      labels: input.labels,
       item_ids: input.itemIds,
       compliment_count: 0,
       outfit_img_preview: { img: PLACEHOLDER_IMAGE },
@@ -289,6 +304,7 @@ class PreviewDataService implements IDataService {
       ...previewOutfitOverrides.get(outfitId),
       name: input.name,
       description: input.description,
+      labels: input.labels,
     });
 
     const updated = toOutfits().find(candidate => candidate.outfit_id === outfitId);
@@ -376,13 +392,13 @@ class PreviewDataService implements IDataService {
   }
 
   async getOwnCloset(_userId: string): Promise<OwnCloset> {
-    return delay(PREVIEW_CLOSET);
+    return delay(previewCloset());
   }
 
   // Preview mode always has a closet already, so the creation form never
   // shows - this exists purely for interface parity.
   async createOwnCloset(_userId: string, _closetName: string): Promise<OwnCloset> {
-    return delay(PREVIEW_CLOSET);
+    return delay(previewCloset());
   }
 
   async regeneratePassphrase(_closetId: string): Promise<string> {
@@ -395,7 +411,30 @@ class PreviewDataService implements IDataService {
     if (passphrase !== PREVIEW_PASS_PHRASE) {
       throw new Error('Invalid passphrase');
     }
-    return delay({ closet_id: PREVIEW_CLOSET.closet_id, closet_name: PREVIEW_CLOSET.closet_name });
+    return delay({
+      closet_id: PREVIEW_CLOSET.closet_id,
+      closet_name: PREVIEW_CLOSET.closet_name,
+      outfit_labels: [...previewOutfitLabels],
+    });
+  }
+
+  // Preview mode has one closet, so closetId is accepted for interface
+  // parity but ignored by the three tag methods below.
+  async getClosetOutfitLabels(_closetId: string): Promise<string[]> {
+    return delay([...previewOutfitLabels]);
+  }
+
+  async addClosetOutfitLabel(_closetId: string, label: string, atIndex?: number): Promise<string[]> {
+    const result = validateNewOutfitLabel(label, previewOutfitLabels);
+    if (!result.ok) throw new Error(result.message);
+    const index = Math.min(Math.max(atIndex ?? previewOutfitLabels.length, 0), previewOutfitLabels.length);
+    previewOutfitLabels = [...previewOutfitLabels.slice(0, index), result.label, ...previewOutfitLabels.slice(index)];
+    return delay([...previewOutfitLabels]);
+  }
+
+  async removeClosetOutfitLabel(_closetId: string, label: string): Promise<string[]> {
+    previewOutfitLabels = previewOutfitLabels.filter(candidate => candidate !== label);
+    return delay([...previewOutfitLabels]);
   }
 
   // Preview mode has no real activity_logs table behind it, so guest sessions
