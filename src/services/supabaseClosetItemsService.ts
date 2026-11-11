@@ -100,7 +100,7 @@ export async function updateClosetItem(
   // upload turned the user's own retry into a false "changed by someone else"
   // conflict that also discarded their picked photo.
   if (input.newPrimaryPhotoUri) {
-    await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri);
+    await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri, input.newPrimaryPhotoKeepTransparency);
   }
 
   await updateWithOcc('clothing_items', itemId, expectedUpdatedAt, {

@@ -1,4 +1,4 @@
-import { DEFAULT_COMPRESS_OPTIONS, type CompressImageOptions } from './compressImage.shared';
+import { resolveCompressOptions, type CompressImageOptions } from './compressImage.shared';
 
 export type { CompressImageOptions };
 
@@ -9,11 +9,14 @@ const UNSUPPORTED_FORMAT_MESSAGE =
  * Web counterpart of compressImage.native.ts. react-native-compressor has no
  * web build (it imports react-native's native bridge internals directly and
  * breaks Metro's web bundling), so this re-implements the same downscale +
- * JPEG re-encode with a canvas instead.
+ * JPEG re-encode with a canvas instead. With `keepTransparency` it encodes a
+ * PNG and skips the white fill, so a background-removed cutout stays
+ * transparent.
  *
  * Returns a blob: object URL. uploadPhotoToBucket fetch()es it back into an
- * ArrayBuffer and revokes it, and its extension parser falls back to `jpg`
- * for extensionless URIs - which matches the JPEG this always produces.
+ * ArrayBuffer and revokes it. The URL carries no file extension, so
+ * uploadPhotoToBucket decides jpg vs png from the same `keepTransparency`
+ * flag rather than from the URI.
  *
  * Throws on failure rather than falling back to the original file, so an
  * undecodable format can't sneak an unprocessed upload past callers. Decode
@@ -25,7 +28,7 @@ export async function compressImageForUpload(
   uri: string,
   options: CompressImageOptions = {},
 ): Promise<string> {
-  const { maxWidth, maxHeight, quality } = { ...DEFAULT_COMPRESS_OPTIONS, ...options };
+  const { maxWidth, maxHeight, quality, keepTransparency } = resolveCompressOptions(options);
 
   const image = await decodeImage(uri);
 
@@ -37,16 +40,18 @@ export async function compressImageForUpload(
 
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas 2D context unavailable.');
-    // JPEG has no alpha channel - flatten transparent PNGs onto white so
-    // they don't come out on black.
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    if (!keepTransparency) {
+      // JPEG has no alpha channel - flatten transparent PNGs onto white so
+      // they don't come out on black.
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise<Blob | null>(resolve =>
-      canvas.toBlob(resolve, 'image/jpeg', quality),
+      keepTransparency ? canvas.toBlob(resolve, 'image/png') : canvas.toBlob(resolve, 'image/jpeg', quality),
     );
-    if (!blob) throw new Error('Canvas JPEG encoding failed.');
+    if (!blob) throw new Error('Canvas image encoding failed.');
     return URL.createObjectURL(blob);
   } catch (err) {
     throw new Error('Could not compress image. Please try again.', { cause: err });

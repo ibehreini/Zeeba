@@ -1,4 +1,5 @@
 import NativeSelect from '@/components/NativeSelect';
+import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
 import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,6 +15,7 @@ import {
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { useToast } from '@/components/Toast';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
@@ -44,6 +46,10 @@ export default function EditClothingItemForm({ itemId }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [newPrimaryPhotoUri, setNewPrimaryPhotoUri] = useState<string | null>(null);
+  // The background-removed version of the photo being shown (a newly picked
+  // one, or the item's current photo), when the user asked for one.
+  const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [itemType, setItemType] = useState<ClothingItemType | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -92,9 +98,17 @@ export default function EditClothingItemForm({ itemId }: Props) {
     // On web each pick mints a fresh object URL; free the one it replaces.
     if (uri !== newPrimaryPhotoUri) revokeIfBlobUrl(newPrimaryPhotoUri);
     setNewPrimaryPhotoUri(uri);
+    // A cutout belongs to the photo it was made from.
+    clearCutout();
   };
 
-  const canSubmit = !submitting && !!itemType && name.trim().length > 0 && description.trim().length > 0;
+  const clearCutout = () => {
+    revokeIfBlobUrl(cutoutUri);
+    setCutoutUri(null);
+  };
+
+  const canSubmit =
+    !submitting && !isRemovingBackground && !!itemType && name.trim().length > 0 && description.trim().length > 0;
   const isRecategorizing = !!item && !!itemType && itemType !== item.item_type;
 
   const handleSubmit = async () => {
@@ -113,7 +127,9 @@ export default function EditClothingItemForm({ itemId }: Props) {
         careInstructions: careInstructions.trim() || null,
         brand: brand.trim() || null,
         purchaseUrl: purchaseUrl.trim() || null,
-        newPrimaryPhotoUri,
+        // A cutout replaces the primary photo just like a newly picked one.
+        newPrimaryPhotoUri: cutoutUri ?? newPrimaryPhotoUri,
+        newPrimaryPhotoKeepTransparency: !!cutoutUri,
       });
 
       // The outfits tab caches closet items alongside its outfits, and a new
@@ -164,7 +180,14 @@ export default function EditClothingItemForm({ itemId }: Props) {
     );
   }
 
-  const previewSource = newPrimaryPhotoUri ? { uri: newPrimaryPhotoUri } : toRNImageSource(item.img);
+  const previewUri = cutoutUri ?? newPrimaryPhotoUri;
+  const previewSource = previewUri ? { uri: previewUri } : toRNImageSource(item.img);
+  const showingCutout = !!cutoutUri || (!newPrimaryPhotoUri && isCutoutPhotoUrl(item.img));
+  // What "Remove background" would work on: the newly picked photo, else the
+  // item's current photo - unless that one is already a cutout, or is a
+  // bundled asset (preview mode) rather than a photo with a URL.
+  const removableUri =
+    newPrimaryPhotoUri ?? (typeof item.img === 'string' && !isCutoutPhotoUrl(item.img) ? item.img : null);
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
@@ -173,10 +196,23 @@ export default function EditClothingItemForm({ itemId }: Props) {
           onPress={handlePickPrimaryPhoto}
           style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
           role="button"
-          aria-label="Change primary photo"
+          aria-label={showingCutout ? 'Change primary photo. Background removed.' : 'Change primary photo'}
         >
-          <Image source={previewSource} style={styles.primaryPhotoImage} />
+          <Image
+            source={previewSource}
+            style={styles.primaryPhotoImage}
+            // A cutout is trimmed tight to the garment, so "cover" would crop it.
+            resizeMode={showingCutout ? 'contain' : 'cover'}
+          />
         </Pressable>
+        <RemoveBackgroundButton
+          sourceUri={removableUri}
+          isRemoved={!!cutoutUri}
+          onRemoved={setCutoutUri}
+          onRestore={clearCutout}
+          onBusyChange={setIsRemovingBackground}
+          disabled={submitting}
+        />
       </Field>
 
       <Field label="Type" required>

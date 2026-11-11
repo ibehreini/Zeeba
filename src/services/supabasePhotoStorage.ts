@@ -25,14 +25,17 @@ function contentTypeFromExtension(extension: string): string {
  * prefix, and returns both its storage path (for rollback/removal) and its
  * public URL (for the DB row). The photo is compressed (downscaled,
  * re-encoded as JPEG - this is also what normalizes iPhone HEIC captures)
- * before upload. Throws the underlying Supabase error on upload failure.
+ * before upload. `keepTransparency` is for background-removed cutouts: they
+ * are stored as PNG instead so the transparent background survives. Throws
+ * the underlying Supabase error on upload failure.
  */
 async function uploadPhotoToBucket(
   bucket: string,
   folderId: string,
   uri: string,
+  keepTransparency = false,
 ): Promise<{ path: string; publicUrl: string }> {
-  const compressedUri = await compressImageForUpload(uri);
+  const compressedUri = await compressImageForUpload(uri, { keepTransparency });
 
   let arrayBuffer: ArrayBuffer;
   try {
@@ -44,7 +47,9 @@ async function uploadPhotoToBucket(
     // when the read back fails.
     revokeIfBlobUrl(compressedUri);
   }
-  const extension = extensionFromUri(compressedUri);
+  // The web compressor returns an extensionless blob: URL, so the format
+  // comes from what was asked for, not from the URI, when transparency is kept.
+  const extension = keepTransparency ? 'png' : extensionFromUri(compressedUri);
   const path = `${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
@@ -77,7 +82,12 @@ export async function uploadClosetItemPhoto(
   itemId: string,
   photo: NewClosetItemPhoto,
 ): Promise<{ path: string }> {
-  const { path, publicUrl } = await uploadPhotoToBucket(CLOTHING_ITEM_PHOTO_BUCKET, itemId, photo.uri);
+  const { path, publicUrl } = await uploadPhotoToBucket(
+    CLOTHING_ITEM_PHOTO_BUCKET,
+    itemId,
+    photo.uri,
+    photo.keepTransparency,
+  );
 
   const { error: photoError } = await supabase.from('clothing_item_photos').insert({
     clothing_item_id: itemId,
@@ -126,9 +136,14 @@ export async function uploadSecondaryClosetItemPhoto(itemId: string, uri: string
  * Uploads a replacement primary photo for a closet item, then removes
  * whichever photo(s) were previously marked primary (row + storage object).
  * The new photo is uploaded first so a failed upload leaves the existing
- * primary photo untouched.
+ * primary photo untouched. `keepTransparency` marks a background-removed
+ * cutout (see uploadPhotoToBucket).
  */
-export async function replacePrimaryClosetItemPhoto(itemId: string, uri: string): Promise<void> {
+export async function replacePrimaryClosetItemPhoto(
+  itemId: string,
+  uri: string,
+  keepTransparency = false,
+): Promise<void> {
   const { data: existingPrimaryPhotos, error: fetchError } = await supabase
     .from('clothing_item_photos')
     .select('id, image_url')
@@ -136,7 +151,7 @@ export async function replacePrimaryClosetItemPhoto(itemId: string, uri: string)
     .eq('is_primary', true);
   if (fetchError) throw fetchError;
 
-  await uploadClosetItemPhoto(itemId, { uri, isPrimary: true });
+  await uploadClosetItemPhoto(itemId, { uri, isPrimary: true, keepTransparency });
 
   for (const photo of existingPrimaryPhotos ?? []) {
     await supabase.from('clothing_item_photos').delete().eq('id', photo.id);

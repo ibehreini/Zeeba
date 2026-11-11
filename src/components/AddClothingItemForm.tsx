@@ -1,4 +1,5 @@
 import NativeSelect from '@/components/NativeSelect';
+import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
 import { PendingVoiceNoteField } from '@/components/VoiceNotes';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -34,6 +35,10 @@ export default function AddClothingItemForm() {
   const { activeClosetId } = useCloset();
 
   const [primaryPhotoUri, setPrimaryPhotoUri] = useState<string | null>(null);
+  // The background-removed version of primaryPhotoUri, when the user asked
+  // for one. The original is kept so "Restore original photo" can undo it.
+  const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
 
   const [itemType, setItemType] = useState<ClothingItemType | null>(null);
   const [name, setName] = useState('');
@@ -52,24 +57,40 @@ export default function AddClothingItemForm() {
     // On web each pick mints a fresh object URL; free the one it replaces.
     if (uri !== primaryPhotoUri) revokeIfBlobUrl(primaryPhotoUri);
     setPrimaryPhotoUri(uri);
+    // A cutout belongs to the photo it was made from.
+    clearCutout();
   };
 
+  const clearCutout = () => {
+    revokeIfBlobUrl(cutoutUri);
+    setCutoutUri(null);
+  };
+
+  const displayedPhotoUri = cutoutUri ?? primaryPhotoUri;
+
   const canSubmit =
-    !submitting && !!primaryPhotoUri && !!itemType && name.trim().length > 0 && description.trim().length > 0;
+    !submitting &&
+    !isRemovingBackground &&
+    !!primaryPhotoUri &&
+    !!itemType &&
+    name.trim().length > 0 &&
+    description.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
       showAlert('No closet found', 'You need a closet before you can add items to it.');
       return;
     }
-    if (!primaryPhotoUri || !itemType || !name.trim() || !description.trim()) {
+    if (!displayedPhotoUri || !itemType || !name.trim() || !description.trim()) {
       showAlert('Missing information', 'Type, name, description, and a primary photo are all required.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const photos: NewClosetItemPhoto[] = [{ uri: primaryPhotoUri, isPrimary: true }];
+      const photos: NewClosetItemPhoto[] = [
+        { uri: displayedPhotoUri, isPrimary: true, keepTransparency: !!cutoutUri },
+      ];
 
       const created = await dataService.createClosetItem({
         closetId: activeClosetId,
@@ -123,14 +144,33 @@ export default function AddClothingItemForm() {
           onPress={handlePickPrimaryPhoto}
           style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
           role="button"
-          aria-label={primaryPhotoUri ? 'Change primary photo' : 'Add primary photo, required'}
+          aria-label={
+            !displayedPhotoUri
+              ? 'Add primary photo, required'
+              : cutoutUri
+                ? 'Change primary photo. Background removed.'
+                : 'Change primary photo'
+          }
         >
-          {primaryPhotoUri ? (
-            <Image source={{ uri: primaryPhotoUri }} style={styles.primaryPhotoImage} />
+          {displayedPhotoUri ? (
+            <Image
+              source={{ uri: displayedPhotoUri }}
+              style={styles.primaryPhotoImage}
+              // A cutout is trimmed tight to the garment, so "cover" would crop it.
+              resizeMode={cutoutUri ? 'contain' : 'cover'}
+            />
           ) : (
             <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
           )}
         </Pressable>
+        <RemoveBackgroundButton
+          sourceUri={primaryPhotoUri}
+          isRemoved={!!cutoutUri}
+          onRemoved={setCutoutUri}
+          onRestore={clearCutout}
+          onBusyChange={setIsRemovingBackground}
+          disabled={submitting}
+        />
       </Field>
 
       <Field label="Type" required>

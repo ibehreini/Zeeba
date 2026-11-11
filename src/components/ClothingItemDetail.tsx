@@ -12,6 +12,7 @@ import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image'; // High-perf native component
@@ -193,7 +194,9 @@ export default function ClothingItemDetail({ itemId }: Props) {
           <Image
             source={item.img}
             style={styles.image}
-            contentFit="cover" // Modern prop replacing resizeMode
+            // Background-removed cutouts are trimmed tight to the garment,
+            // so filling the square would crop them; show those whole.
+            contentFit={isCutoutPhotoUrl(item.img) ? 'contain' : 'cover'}
             transition={200}   // Smooth native fade-in in SDK 55
             accessibilityIgnoresInvertColors
           />

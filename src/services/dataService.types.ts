@@ -281,6 +281,8 @@ export interface OwnCloset extends StylistCloset {
 export interface NewClosetItemPhoto {
   uri: string;
   isPrimary: boolean;
+  /** True for a background-removed cutout: it is stored as a PNG so it stays transparent. */
+  keepTransparency?: boolean;
 }
 
 /** Form data for the "add new item" flow. */
@@ -313,6 +315,8 @@ export interface UpdateClosetItemInput {
   brand: string | null;
   purchaseUrl: string | null;
   newPrimaryPhotoUri: string | null;
+  /** True when `newPrimaryPhotoUri` is a background-removed cutout (stored as a transparent PNG). */
+  newPrimaryPhotoKeepTransparency?: boolean;
 }
 
 /** Form data for the "edit outfit" flow. */
