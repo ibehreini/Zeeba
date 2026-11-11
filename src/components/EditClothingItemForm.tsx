@@ -14,7 +14,7 @@ import {
 } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { useToast } from '@/components/Toast';
-import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { pickPhoto } from '@/utils/pickPhoto';
 import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
@@ -93,7 +93,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
   }, [loadItem]);
 
   const handlePickPrimaryPhoto = async () => {
-    const [uri] = await pickLibraryImages(false);
+    const uri = await pickPhoto();
     if (!uri) return;
     // On web each pick mints a fresh object URL; free the one it replaces.
     if (uri !== newPrimaryPhotoUri) revokeIfBlobUrl(newPrimaryPhotoUri);

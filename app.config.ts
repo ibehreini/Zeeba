@@ -117,6 +117,7 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         photosPermission: 'Allow Zeeba to access your photos so you can add pictures of your clothing items.',
+        cameraPermission: 'Allow Zeeba to use the camera so you can take pictures of your clothing items and outfits.',
       },
     ],
     'react-native-compressor',

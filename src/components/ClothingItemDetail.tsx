@@ -11,7 +11,7 @@ import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
-import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { pickPhoto } from '@/utils/pickPhoto';
 import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -131,7 +131,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
   );
 
   const handleAddPhoto = async () => {
-    const [uri] = await pickLibraryImages(false);
+    const uri = await pickPhoto();
     if (!uri) return;
 
     setIsAddingPhoto(true);

@@ -9,7 +9,7 @@ import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
-import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { pickPhoto } from '@/utils/pickPhoto';
 import { showAlert } from '@/utils/alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, useRouter } from 'expo-router';
@@ -139,7 +139,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
   });
 
   const handleAddPhoto = async () => {
-    const [uri] = await pickLibraryImages(false);
+    const uri = await pickPhoto();
     if (!uri) return;
 
     setIsAddingPhoto(true);

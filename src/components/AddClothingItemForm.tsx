@@ -12,7 +12,7 @@ import {
   type ClothingItemType,
   type NewClosetItemPhoto,
 } from '@/services/dataService.types';
-import { pickLibraryImages } from '@/utils/pickLibraryImages';
+import { pickPhoto } from '@/utils/pickPhoto';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
@@ -52,7 +52,7 @@ export default function AddClothingItemForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const handlePickPrimaryPhoto = async () => {
-    const [uri] = await pickLibraryImages(false);
+    const uri = await pickPhoto();
     if (!uri) return;
     // On web each pick mints a fresh object URL; free the one it replaces.
     if (uri !== primaryPhotoUri) revokeIfBlobUrl(primaryPhotoUri);
