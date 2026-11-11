@@ -1,4 +1,5 @@
 import { compressImageForUpload } from '@/utils/compressImage';
+import { TRANSPARENT_FALLBACK_DIMENSIONS, TRANSPARENT_MAX_BYTES } from '@/utils/compressImage.shared';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { supabase } from '@/utils/supabase';
 import type { ClosetItemPhoto, NewClosetItemPhoto, OutfitPhoto } from './dataService.types';
@@ -21,6 +22,20 @@ function contentTypeFromExtension(extension: string): string {
 }
 
 /**
+ * Reads a compressed photo's bytes for upload. The web compressor hands back
+ * a blob: object URL, which stays alive (holding the full image in memory)
+ * until explicitly revoked - so it's revoked here even when the read fails.
+ */
+async function readAndRelease(compressedUri: string): Promise<ArrayBuffer> {
+  try {
+    const response = await fetch(compressedUri);
+    return await response.arrayBuffer();
+  } finally {
+    revokeIfBlobUrl(compressedUri);
+  }
+}
+
+/**
  * Uploads one locally-picked photo into `bucket`, under a `folderId/`
  * prefix, and returns both its storage path (for rollback/removal) and its
  * public URL (for the DB row). The photo is compressed (downscaled,
@@ -35,18 +50,26 @@ async function uploadPhotoToBucket(
   uri: string,
   keepTransparency = false,
 ): Promise<{ path: string; publicUrl: string }> {
-  const compressedUri = await compressImageForUpload(uri, { keepTransparency });
+  let compressedUri = await compressImageForUpload(uri, { keepTransparency });
+  let arrayBuffer = await readAndRelease(compressedUri);
 
-  let arrayBuffer: ArrayBuffer;
-  try {
-    const response = await fetch(compressedUri);
-    arrayBuffer = await response.arrayBuffer();
-  } finally {
-    // The web compressor hands back a blob: object URL, which stays alive
-    // (holding the full image in memory) until explicitly revoked - even
-    // when the read back fails.
-    revokeIfBlobUrl(compressedUri);
+  // Transparent PNGs can't be squeezed with a quality setting, so a
+  // cutout of detailed fabric (a knit sweater) can still be large at the
+  // normal size. Smaller passes keep it under the bucket's upload limit;
+  // the last one is uploaded whatever its size.
+  if (keepTransparency) {
+    for (const dimension of TRANSPARENT_FALLBACK_DIMENSIONS) {
+      if (arrayBuffer.byteLength <= TRANSPARENT_MAX_BYTES) break;
+      if (__DEV__) console.log(`[photo upload] cutout is ${(arrayBuffer.byteLength / 1024).toFixed(0)}KB, retrying at ${dimension}px`);
+      compressedUri = await compressImageForUpload(uri, {
+        keepTransparency,
+        maxWidth: dimension,
+        maxHeight: dimension,
+      });
+      arrayBuffer = await readAndRelease(compressedUri);
+    }
   }
+  if (__DEV__) console.log(`[photo upload] uploading ${(arrayBuffer.byteLength / 1024).toFixed(0)}KB ${keepTransparency ? 'PNG cutout' : 'photo'}`);
   // The web compressor returns an extensionless blob: URL, so the format
   // comes from what was asked for, not from the URI, when transparency is kept.
   const extension = keepTransparency ? 'png' : extensionFromUri(compressedUri);

@@ -25,10 +25,22 @@ export const DEFAULT_COMPRESS_OPTIONS: Required<CompressImageOptions> = {
 
 /**
  * PNG can't trade quality for size the way JPEG does, so cutouts get a
- * smaller pixel budget instead: at 1280px a garment cutout lands around
- * 1-1.5MB, versus ~3MB at the JPEG path's 1920px.
+ * smaller pixel budget instead. 1280px was tried first, but a textured
+ * garment (a knit sweater) came out over the production bucket's upload
+ * limit; at 1024px a cutout is roughly a third smaller and still sharp in
+ * the closet grid and detail view.
  */
-const TRANSPARENT_MAX_DIMENSION = 1280;
+const TRANSPARENT_MAX_DIMENSION = 1024;
+
+/**
+ * Cutouts larger than this after compression are shrunk step by step
+ * (TRANSPARENT_FALLBACK_DIMENSIONS) until they fit. Kept under 1MB, a common
+ * per-bucket upload limit: the production clothing_item_photos bucket
+ * rejected 1024px sweater cutouts ("object exceeded the maximum allowed
+ * size") while ~500KB JPEGs were fine.
+ */
+export const TRANSPARENT_MAX_BYTES = 900 * 1024;
+export const TRANSPARENT_FALLBACK_DIMENSIONS = [768, 640, 512] as const;
 
 /** Fills in defaults, applying the tighter pixel budget when transparency is kept. */
 export function resolveCompressOptions(options: CompressImageOptions): Required<CompressImageOptions> {
