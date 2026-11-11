@@ -54,3 +54,6 @@ supabase/.temp/
 scripts/import_items/.env
 scripts/import_items/.venv/
 scripts/import_items/__pycache__/
+
+# Wrangler local dev state (cloudflare/background-remover)
+.wrangler/

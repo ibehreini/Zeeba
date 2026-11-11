@@ -80,10 +80,13 @@ export default function RemoveBackgroundButton({
   if (!isBackgroundRemovalAvailable()) return null;
   if (!sourceUri) return null;
 
-  const isDisabled = !!disabled || busy;
-
   const handlePress = async () => {
-    if (isDisabled) return;
+    // Busy is handled here rather than by disabling the button: a disabled
+    // element can't hold focus, so on web a keyboard or screen reader user
+    // would be dropped back to the top of the page the moment a removal
+    // started. The button stays focusable, says "Removing background", and
+    // ignores presses until it is done.
+    if (disabled || busy) return;
 
     if (isRemoved) {
       onRestore();
@@ -124,10 +127,10 @@ export default function RemoveBackgroundButton({
     <View style={styles.wrapper}>
       <Pressable
         onPress={handlePress}
-        disabled={isDisabled}
+        disabled={!!disabled}
         role="button"
         aria-label={label}
-        aria-disabled={isDisabled}
+        aria-disabled={!!disabled}
         aria-busy={busy}
         accessibilityHint={
           isRemoved
@@ -137,8 +140,8 @@ export default function RemoveBackgroundButton({
         style={({ pressed }) => [
           styles.button,
           { borderColor: theme.textPrimary },
-          isDisabled && styles.buttonDisabled,
-          pressed && styles.buttonPressed,
+          (disabled || busy) && styles.buttonDisabled,
+          pressed && !busy && styles.buttonPressed,
         ]}
       >
         {busy && <ActivityIndicator color={theme.textPrimary} style={styles.spinner} />}

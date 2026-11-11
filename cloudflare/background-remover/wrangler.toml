@@ -1,0 +1,27 @@
+# Zeeba background remover - a Cloudflare Worker on the Workers Free plan.
+# Deploy from this folder with:  npx wrangler deploy
+# Full setup steps are in README.md next to this file.
+
+name = "zeeba-background-remover"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+# Cloudflare Images does the actual work (transform option segment=foreground).
+# Each removal counts against the free plan's monthly allowance of unique
+# transformations - see README.md.
+[images]
+binding = "IMAGES"
+
+[vars]
+# REQUIRED: your Supabase project URL - the same value as
+# EXPO_PUBLIC_SUPABASE_URL in the app's .env.local. Only people signed in to
+# this Supabase project can use the service.
+SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co"
+
+# Web origins allowed to call the service from a browser, comma-separated.
+# Add your custom domain here when you have one. localhost is for `expo start --web`.
+ALLOWED_ORIGINS = "https://zeeba-5kv.pages.dev,http://localhost:8081"
+
+[observability]
+enabled = true
