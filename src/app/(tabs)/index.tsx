@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Button, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useIsFocused } from 'expo-router';
+import NewClosetForm from '@/components/NewClosetForm';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
@@ -28,7 +29,6 @@ export default function Index() {
     selectStylistCloset,
     needsOwnClosetSetup,
     ownClosetPassphrase,
-    createOwnCloset,
     joinCloset,
   } = useCloset();
 
@@ -134,50 +134,10 @@ export default function Index() {
         </View>
       )}
 
-      {closetMode === 'my-closet' && needsOwnClosetSetup && <NewClosetForm onCreate={createOwnCloset} />}
+      {closetMode === 'my-closet' && needsOwnClosetSetup && <NewClosetForm />}
 
       {closetMode === 'my-closet' && activeClosetName && ownClosetPassphrase && (
         <ClosetPassphraseCard closetName={activeClosetName} passphrase={ownClosetPassphrase} />
-      )}
-    </View>
-  );
-}
-
-function NewClosetForm({ onCreate }: { onCreate: (closetName: string) => Promise<void> }) {
-  const { theme } = useTheme();
-  const [name, setName] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onCreate(name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create closet.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>Name your closet</Text>
-      <TextInput
-        style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
-        placeholderTextColor={theme.textSecondary}
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Ida's Closet"
-        editable={!submitting}
-        autoCapitalize="words"
-      />
-      {error && <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>}
-      {submitting ? (
-        <ActivityIndicator />
-      ) : (
-        <Button title="Create closet" onPress={handleSubmit} />
       )}
     </View>
   );
