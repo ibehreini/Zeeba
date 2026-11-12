@@ -1,6 +1,5 @@
 import NativeSelect from '@/components/NativeSelect';
 import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
-import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -65,9 +64,15 @@ export default function EditClothingItemForm({ itemId }: Props) {
   const [purchaseUrl, setPurchaseUrl] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  // A description is optional once the item has a voice note (added from its page).
+  const [hasVoiceNote, setHasVoiceNote] = useState(false);
 
   const loadItem = useCallback(async () => {
-    const fetchedItem = await dataService.getClosetItemById(itemId);
+    const [fetchedItem, voiceNotes] = await Promise.all([
+      dataService.getClosetItemById(itemId),
+      dataService.getVoiceNotes({ clothingItemId: itemId }).catch(() => []),
+    ]);
+    setHasVoiceNote(voiceNotes.length > 0);
     setItem(fetchedItem);
     if (fetchedItem) {
       setItemType(fetchedItem.item_type);
@@ -113,13 +118,14 @@ export default function EditClothingItemForm({ itemId }: Props) {
     setCutoutUri(null);
   };
 
+  const hasDescriptionOrVoiceNote = description.trim().length > 0 || hasVoiceNote;
   const canSubmit =
-    !submitting && !isRemovingBackground && !!itemType && name.trim().length > 0 && description.trim().length > 0;
+    !submitting && !isRemovingBackground && !!itemType && name.trim().length > 0 && hasDescriptionOrVoiceNote;
   const isRecategorizing = !!item && !!itemType && itemType !== item.item_type;
 
   const handleSubmit = async () => {
-    if (!item || !itemType || !name.trim() || !description.trim()) {
-      showAlert('Missing information', 'Type, name, and description are required.');
+    if (!item || !itemType || !name.trim() || !hasDescriptionOrVoiceNote) {
+      showAlert('Missing information', 'Type and name are required, plus a description or a voice note.');
       return;
     }
 
@@ -251,7 +257,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
       <LabeledTextInput
         label="Description"
-        required
+        required={!hasVoiceNote}
         multiline
         value={description}
         onChangeText={setDescription}
@@ -292,10 +298,6 @@ export default function EditClothingItemForm({ itemId }: Props) {
         autoCapitalize="none"
         maxLength={2048}
       />
-
-      {/* Uploads as soon as a recording stops - independent of Save Changes,
-          which only covers the fields above. */}
-      <VoiceNotesSection target={{ clothingItemId: itemId }} closetId={item.closet_id} canRecord />
 
       <Pressable
         onPress={handleSubmit}

@@ -247,6 +247,12 @@ export default function ClothingItemDetail({ itemId }: Props) {
             ) : null}
           </ScrollView>
 
+          <VoiceNotesSection
+            target={{ clothingItemId: itemId }}
+            closetId={item.closet_id}
+            headingStyle={[styles.sectionLabel, { color: theme.textPrimary }]}
+          />
+
           <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             Item Details
           </Text>
@@ -279,8 +285,6 @@ export default function ClothingItemDetail({ itemId }: Props) {
               </View>
             ))}
           </View>
-
-          <VoiceNotesSection target={{ clothingItemId: itemId }} closetId={item.closet_id} />
 
           <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
             Featured in outfits

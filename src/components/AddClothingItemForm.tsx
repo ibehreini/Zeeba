@@ -80,15 +80,18 @@ export default function AddClothingItemForm() {
     !!primaryPhotoUri &&
     !!itemType &&
     name.trim().length > 0 &&
-    description.trim().length > 0;
+    (description.trim().length > 0 || !!voiceNote);
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
       showAlert('No closet found', 'You need a closet before you can add items to it.');
       return;
     }
-    if (!displayedPhotoUri || !itemType || !name.trim() || !description.trim()) {
-      showAlert('Missing information', 'Type, name, description, and a primary photo are all required.');
+    if (!displayedPhotoUri || !itemType || !name.trim() || (!description.trim() && !voiceNote)) {
+      showAlert(
+        'Missing information',
+        'Type, name, and a primary photo are required, plus a description or a voice note.',
+      );
       return;
     }
 
@@ -202,13 +205,16 @@ export default function AddClothingItemForm() {
 
       <LabeledTextInput
         label="Description"
-        required
         multiline
         value={description}
         onChangeText={setDescription}
-        placeholder="Describe the item"
+        placeholder="Describe the item, or record a voice note below"
         maxLength={1000}
       />
+
+      <Field label="Voice note">
+        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
+      </Field>
 
       <LabeledTextInput
         label="Fit notes"
@@ -244,9 +250,6 @@ export default function AddClothingItemForm() {
         maxLength={2048}
       />
 
-      <Field label="Voice note">
-        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
-      </Field>
 
       <Pressable
         onPress={handleSubmit}

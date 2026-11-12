@@ -142,6 +142,9 @@ export interface OutfitPhoto {
   created_at: string;
 }
 
+/** Voice notes must be at least this long; shorter recordings are refused (the DB check constraint enforces it too). */
+export const MIN_VOICE_NOTE_SECONDS = 3;
+
 /** Voice notes cap out here; the recorder auto-stops and the DB check constraint rejects anything longer. */
 export const MAX_VOICE_NOTE_SECONDS = 30;
 
@@ -292,7 +295,7 @@ export function validateNewOutfitLabel(raw: string, existing: readonly string[])
 }
 
 /**
- * Form data for the "create new outfit" flow. Name, description and at least
+ * Form data for the "create new outfit" flow. Name (plus a description or a voice note) and at least
  * one item are required, plus at least one tag whenever the closet has tags
  * to choose from; item picking rules (one top + one bottom, or one dress,
  * etc.) are enforced by the form, not this type.

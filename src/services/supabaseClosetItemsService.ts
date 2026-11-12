@@ -53,7 +53,7 @@ export async function createClosetItem(input: NewClosetItemInput): Promise<Close
       closet_id: input.closetId,
       item_type: input.itemType,
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       fit_notes: input.fitNotes,
       care_instructions: input.careInstructions,
       brand: input.brand,
@@ -106,7 +106,7 @@ export async function updateClosetItem(
   await updateWithOcc('clothing_items', itemId, expectedUpdatedAt, {
     item_type: input.itemType,
     name: input.name,
-    description: input.description,
+    description: input.description || null,
     fit_notes: input.fitNotes,
     care_instructions: input.careInstructions,
     brand: input.brand,

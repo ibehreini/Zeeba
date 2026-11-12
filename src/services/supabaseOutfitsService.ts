@@ -39,7 +39,7 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
       closet_id: input.closetId,
       created_by_user_id: input.userId,
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       labels: input.labels,
     })
     .select('id')
@@ -76,7 +76,7 @@ export async function updateOutfit(
 ): Promise<Outfit> {
   await updateWithOcc('outfits', outfitId, expectedUpdatedAt, {
     name: input.name,
-    description: input.description,
+    description: input.description || null,
     labels: input.labels,
   });
 

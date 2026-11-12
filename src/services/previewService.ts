@@ -169,7 +169,7 @@ class PreviewDataService implements IDataService {
       item_type: input.itemType,
       category: mapItemTypeToCategory(input.itemType),
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       brand: input.brand,
       fit_notes: input.fitNotes,
       care_instructions: input.careInstructions,
@@ -199,7 +199,7 @@ class PreviewDataService implements IDataService {
       item_type: input.itemType,
       category: mapItemTypeToCategory(input.itemType),
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       fit_notes: input.fitNotes,
       care_instructions: input.careInstructions,
       brand: input.brand,
@@ -281,7 +281,7 @@ class PreviewDataService implements IDataService {
       outfit_id: `preview-outfit-${Date.now()}`,
       closet_id: input.closetId,
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       labels: input.labels,
       item_ids: input.itemIds,
       compliment_count: 0,
@@ -303,7 +303,7 @@ class PreviewDataService implements IDataService {
     previewOutfitOverrides.set(outfitId, {
       ...previewOutfitOverrides.get(outfitId),
       name: input.name,
-      description: input.description,
+      description: input.description || null,
       labels: input.labels,
     });
 

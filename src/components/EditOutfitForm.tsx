@@ -1,5 +1,4 @@
 import OutfitTagPicker from '@/components/OutfitTagPicker';
-import VoiceNotesSection from '@/components/VoiceNotes';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -35,9 +34,15 @@ export default function EditOutfitForm({ outfitId }: Props) {
   const [closetLabels, setClosetLabels] = useState<string[] | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
+  // A description is optional once the outfit has a voice note (added from its page).
+  const [hasVoiceNote, setHasVoiceNote] = useState(false);
 
   const loadOutfit = useCallback(async () => {
-    const fetchedOutfit = await dataService.getOutfitById(outfitId);
+    const [fetchedOutfit, voiceNotes] = await Promise.all([
+      dataService.getOutfitById(outfitId),
+      dataService.getVoiceNotes({ outfitId }).catch(() => []),
+    ]);
+    setHasVoiceNote(voiceNotes.length > 0);
     setOutfit(fetchedOutfit);
     if (fetchedOutfit) {
       setName(fetchedOutfit.name);
@@ -75,11 +80,12 @@ export default function EditOutfitForm({ outfitId }: Props) {
     };
   }, [loadOutfit]);
 
-  const canSubmit = !submitting && name.trim().length > 0 && description.trim().length > 0;
+  const hasDescriptionOrVoiceNote = description.trim().length > 0 || hasVoiceNote;
+  const canSubmit = !submitting && name.trim().length > 0 && hasDescriptionOrVoiceNote;
 
   const handleSubmit = async () => {
-    if (!outfit || !name.trim() || !description.trim()) {
-      showAlert('Missing information', 'Name and description are required.');
+    if (!outfit || !name.trim() || !hasDescriptionOrVoiceNote) {
+      showAlert('Missing information', 'A name is required, plus a description or a voice note.');
       return;
     }
 
@@ -154,7 +160,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
 
       <LabeledTextInput
         label="Description"
-        required
+        required={!hasVoiceNote}
         multiline
         value={description}
         onChangeText={setDescription}
@@ -182,10 +188,6 @@ export default function EditOutfitForm({ outfitId }: Props) {
           groupLabel="Tags"
         />
       </Field>
-
-      {/* Uploads as soon as a recording stops - independent of Save Changes,
-          which only covers the text fields and tags. */}
-      <VoiceNotesSection target={{ outfitId }} closetId={outfit.closet_id} canRecord />
 
       <Pressable
         onPress={handleSubmit}

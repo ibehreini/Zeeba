@@ -180,20 +180,21 @@ export default function CreateOutfitForm() {
   const chosenLabels = pickedLabels.filter(picked => hasOutfitLabel(activeClosetLabels, picked));
   const tagsMissing = hasTags && chosenLabels.length === 0;
 
+  const hasDescriptionOrVoiceNote = description.trim().length > 0 || !!voiceNote;
   const canSubmit =
-    !submitting && name.trim().length > 0 && description.trim().length > 0 && !tagsMissing && selectedItemIds.length > 0;
+    !submitting && name.trim().length > 0 && hasDescriptionOrVoiceNote && !tagsMissing && selectedItemIds.length > 0;
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
       showAlert('No closet found', 'You need a closet before you can create an outfit.');
       return;
     }
-    if (!name.trim() || !description.trim() || tagsMissing || selectedItemIds.length === 0) {
+    if (!name.trim() || !hasDescriptionOrVoiceNote || tagsMissing || selectedItemIds.length === 0) {
       showAlert(
         'Missing information',
         hasTags
-          ? 'Name, description, at least one tag, and at least one clothing item are all required.'
-          : 'Name, description, and at least one clothing item are all required.',
+          ? 'Name, a description or voice note, at least one tag, and at least one clothing item are all required.'
+          : 'Name, a description or voice note, and at least one clothing item are all required.',
       );
       return;
     }
@@ -260,11 +261,10 @@ export default function CreateOutfitForm() {
 
       <LabeledTextInput
         label="Description"
-        required
         multiline
         value={description}
         onChangeText={setDescription}
-        placeholder="Describe the outfit"
+        placeholder="Describe the outfit, or record a voice note below"
         maxLength={1000}
       />
 

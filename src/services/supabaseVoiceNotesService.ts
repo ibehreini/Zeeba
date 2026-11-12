@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { supabase } from '@/utils/supabase';
 import type { Tables } from '@/types/supabase.types';
@@ -32,16 +33,32 @@ function targetColumns(target: VoiceNoteTarget) {
 }
 
 /**
- * iOS/Android recordings are `file://...m4a`; the web recorder hands back a
- * `blob:` URL whose Blob carries the real MIME type (webm or mp4 depending on
- * the browser). Reading the Blob is the one cross-platform way to get both
- * the bytes and the type.
+ * Reads a finished recording into bytes plus its MIME type.
+ *
+ * The bytes go up as an ArrayBuffer, never a Blob: in React Native,
+ * supabase-js uploads a Blob as an empty body (every native voice note was
+ * stored as a 0-byte file that could never play). Photo uploads read an
+ * ArrayBuffer for the same reason - see supabasePhotoStorage.
+ *
+ * iOS/Android recordings are `file://...m4a` (AAC); the web recorder hands
+ * back a `blob:` URL whose Blob carries the real type (webm or mp4 depending
+ * on the browser).
  */
-async function readRecording(uri: string): Promise<{ blob: Blob; extension: string; contentType: string }> {
-  const blob = await fetch(uri).then(response => response.blob());
-  const contentType = blob.type || 'audio/mp4';
+async function readRecording(uri: string): Promise<{ bytes: ArrayBuffer; extension: string; contentType: string }> {
+  const response = await fetch(uri);
+  let bytes: ArrayBuffer;
+  let contentType: string;
+  if (Platform.OS === 'web') {
+    const blob = await response.blob();
+    bytes = await blob.arrayBuffer();
+    contentType = blob.type || 'audio/mp4';
+  } else {
+    bytes = await response.arrayBuffer();
+    contentType = 'audio/mp4';
+  }
+  if (bytes.byteLength === 0) throw new Error('The recording came out empty. Please try recording again.');
   const extension = contentType.includes('webm') ? 'webm' : contentType.includes('ogg') ? 'ogg' : 'm4a';
-  return { blob, extension, contentType };
+  return { bytes, extension, contentType };
 }
 
 /** Voice notes for one outfit or item, oldest first. Throws the Supabase error on failure. */
@@ -71,17 +88,17 @@ export async function addVoiceNote(
 ): Promise<VoiceNote> {
   const { folder, outfit_id, clothing_item_id } = targetColumns(target);
 
-  let blob: Blob;
+  let bytes: ArrayBuffer;
   let extension: string;
   let contentType: string;
   try {
-    ({ blob, extension, contentType } = await readRecording(recording.uri));
+    ({ bytes, extension, contentType } = await readRecording(recording.uri));
   } finally {
     revokeIfBlobUrl(recording.uri);
   }
 
   const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-  const { error: uploadError } = await supabase.storage.from(VOICE_NOTE_BUCKET).upload(path, blob, { contentType });
+  const { error: uploadError } = await supabase.storage.from(VOICE_NOTE_BUCKET).upload(path, bytes, { contentType });
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage.from(VOICE_NOTE_BUCKET).getPublicUrl(path);

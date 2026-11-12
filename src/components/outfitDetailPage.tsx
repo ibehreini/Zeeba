@@ -183,8 +183,6 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
           <Text style={[styles.description, { color: theme.textSecondary }]}>{outfit.description}</Text>
         ) : null}
 
-        <VoiceNotesSection target={{ outfitId: outfit.id }} closetId={outfit.closetId} />
-
         <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
           This outfit has been worn {wearCount} {wearCount === 1 ? 'time' : 'times'}
         </Text>
@@ -310,6 +308,12 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             </Pressable>
           ) : null}
         </View>
+
+        <VoiceNotesSection
+          target={{ outfitId: outfit.id }}
+          closetId={outfit.closetId}
+          headingStyle={[styles.sectionLabel, { color: theme.textPrimary }]}
+        />
 
         <EditButton
           label="Edit outfit"
