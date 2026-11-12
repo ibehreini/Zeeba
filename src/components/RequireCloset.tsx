@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import NewClosetForm from '@/components/NewClosetForm';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,6 +14,10 @@ export default function RequireCloset({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
   const { closetMode, activeClosetId, isLoading, error, needsOwnClosetSetup } = useCloset();
 
+  // Don't show the form until we know whether there's a closet, or it could
+  // get swapped out from under the user mid-typing.
+  if (isLoading) return <ActivityIndicator style={styles.container} aria-label="Loading your closet" />;
+
   if (needsOwnClosetSetup) {
     return (
       <View style={styles.container}>
@@ -22,7 +26,7 @@ export default function RequireCloset({ children }: { children: ReactNode }) {
     );
   }
 
-  if (closetMode === 'stylist' && !isLoading && !error && !activeClosetId) {
+  if (closetMode === 'stylist' && !error && !activeClosetId) {
     return (
       <View style={styles.container}>
         <Text style={[styles.text, { color: theme.textPrimary }]} role="alert">
