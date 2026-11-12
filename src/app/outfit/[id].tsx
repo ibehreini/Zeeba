@@ -1,3 +1,5 @@
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import HeaderBackButton from '@/components/HeaderBackButton';
 import NoAccessScreen from '@/components/NoAccessScreen';
 import ShareLinkButton from '@/components/ShareLinkButton';
@@ -7,7 +9,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage, type ClosetItem, type Outfit } from '@/services/dataService.types';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export default function OutfitDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
@@ -53,13 +55,13 @@ export default function OutfitDetailScreen() {
   if (isLoading) {
     content = (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading outfit" />
       </View>
     );
   } else if (error) {
     content = (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={[styles.notFoundText, { color: theme.textSecondary }]}>{error}</Text>
+        <ErrorText style={[styles.notFoundText, { color: theme.textSecondary }]}>{error}</ErrorText>
       </View>
     );
   } else if (!outfit) {

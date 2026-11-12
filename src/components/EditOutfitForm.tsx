@@ -1,4 +1,8 @@
+import { Field, LabeledTextInput } from '@/components/FormField';
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import OutfitTagPicker from '@/components/OutfitTagPicker';
+import { useOutfitItemPicker } from '@/components/OutfitItemPicker';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -6,9 +10,10 @@ import { ConflictError, getErrorMessage, type Outfit } from '@/services/dataServ
 import { useToast } from '@/components/Toast';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
+import { conflictMessage } from '@/utils/conflictMessage';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   outfitId: string;
@@ -34,6 +39,10 @@ export default function EditOutfitForm({ outfitId }: Props) {
   const [closetLabels, setClosetLabels] = useState<string[] | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
+  // Items come from the outfit's own closet, which for a stylist or an
+  // outfit link may not be the active one.
+  const itemPicker = useOutfitItemPicker(outfit?.closet_id ?? null);
+  const { setSelectedItemIds } = itemPicker;
   // A description is optional once the outfit has a voice note (added from its page).
   const [hasVoiceNote, setHasVoiceNote] = useState(false);
 
@@ -48,6 +57,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
       setName(fetchedOutfit.name);
       setDescription(fetchedOutfit.description ?? '');
       setLabels(fetchedOutfit.labels);
+      setSelectedItemIds(fetchedOutfit.item_ids);
 
       const ticket = startLabelsRequest();
       try {
@@ -61,7 +71,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
       }
     }
     return fetchedOutfit;
-  }, [outfitId, dataService, applyClosetLabels, startLabelsRequest]);
+  }, [outfitId, dataService, applyClosetLabels, startLabelsRequest, setSelectedItemIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +91,17 @@ export default function EditOutfitForm({ outfitId }: Props) {
   }, [loadOutfit]);
 
   const hasDescriptionOrVoiceNote = description.trim().length > 0 || hasVoiceNote;
-  const canSubmit = !submitting && name.trim().length > 0 && hasDescriptionOrVoiceNote;
+  // Save stays pressable while fields are missing (only dimmed), so pressing
+  // it says what is still needed instead of being a silent "dimmed" button.
+  const missing = [
+    !name.trim() && 'a name',
+    !hasDescriptionOrVoiceNote && 'a description or a voice note',
+    itemPicker.missing,
+  ].filter(Boolean);
 
   const handleSubmit = async () => {
-    if (!outfit || !name.trim() || !hasDescriptionOrVoiceNote) {
-      showAlert('Missing information', 'A name is required, plus a description or a voice note.');
+    if (!outfit || missing.length > 0) {
+      showAlert('Missing information', `Still needed: ${missing.join(', ')}.`);
       return;
     }
 
@@ -95,6 +111,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
         name: name.trim(),
         description: description.trim(),
         labels,
+        itemIds: itemPicker.selectedItemIds,
       });
 
       markOutfitsDirty();
@@ -114,7 +131,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
           showAlert(
             fresh ? 'Someone else saved changes' : 'Outfit deleted',
             fresh
-              ? 'This outfit was changed while you were editing. Your edits are still in the form - review them and press Save Changes again to apply.'
+              ? conflictMessage(outfit, fresh, { name: 'name', description: 'description', labels: 'tags', item_ids: 'items' })
               : 'This outfit was deleted while you were editing.',
           );
         } catch {
@@ -122,6 +139,9 @@ export default function EditOutfitForm({ outfitId }: Props) {
         }
       } else {
         showAlert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
+        // A picked item may have just been deleted by someone else: drop it
+        // from the picks, so Save can simply be pressed again.
+        itemPicker.reloadItems();
       }
     } finally {
       setSubmitting(false);
@@ -131,7 +151,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
   if (isLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading outfit" />
       </View>
     );
   }
@@ -139,7 +159,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
   if (loadError || !outfit) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Outfit not found.'}</Text>
+        <ErrorText style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Outfit not found.'}</ErrorText>
       </View>
     );
   }
@@ -189,18 +209,21 @@ export default function EditOutfitForm({ outfitId }: Props) {
         />
       </Field>
 
+      {itemPicker.field}
+
       <Pressable
         onPress={handleSubmit}
-        disabled={!canSubmit}
+        disabled={submitting}
         style={({ pressed }) => [
           styles.submitButton,
           { backgroundColor: theme.accent },
-          !canSubmit && { backgroundColor: theme.textSecondary },
+          (submitting || missing.length > 0) && { backgroundColor: theme.textSecondary },
           pressed && styles.submitButtonPressed,
         ]}
         role="button"
         aria-label="Save changes"
-        aria-disabled={!canSubmit}
+        aria-disabled={submitting}
+        aria-busy={submitting}
       >
         {submitting ? (
           <ActivityIndicator color={theme.onAccent} />
@@ -209,67 +232,6 @@ export default function EditOutfitForm({ outfitId }: Props) {
         )}
       </Pressable>
     </ScrollView>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-};
-
-function Field({ label, required, children }: FieldProps) {
-  const { theme } = useTheme();
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
-        {label}
-        {required && <Text style={{ color: theme.danger }}> *</Text>}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-type LabeledTextInputProps = {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  multiline?: boolean;
-  maxLength?: number;
-};
-
-function LabeledTextInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  required,
-  multiline,
-  maxLength,
-}: LabeledTextInputProps) {
-  const { theme } = useTheme();
-  const themedInput = {
-    backgroundColor: theme.surfaceAlt,
-    borderColor: theme.border,
-    color: theme.textPrimary,
-  };
-  return (
-    <Field label={label} required={required}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        multiline={multiline}
-        numberOfLines={multiline ? 4 : undefined}
-        maxLength={maxLength}
-        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
-        aria-label={required ? `${label}, required` : label}
-      />
-    </Field>
   );
 }
 
@@ -289,26 +251,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 48,
-  },
-  field: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  textInput: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  multilineInput: {
-    minHeight: 96,
-    textAlignVertical: 'top',
   },
   submitButton: {
     marginTop: 12,

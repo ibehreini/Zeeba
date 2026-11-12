@@ -1,4 +1,6 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+
+type Props = { label: string; color?: string; style?: StyleProp<ViewStyle> };
 
 /**
  * A spinner with a spoken name ("Loading tags"). The native ActivityIndicator
@@ -8,10 +10,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
  * therefore goes on an accessible wrapper; on web the wrapper is the named
  * progressbar and the inner spinner is hidden so it isn't read twice.
  */
-export default function LoadingIndicator({ label }: { label: string }) {
+export default function LoadingIndicator({ label, color, style }: Props) {
   return (
-    <View accessible role="progressbar" aria-label={label} style={styles.centered}>
-      <ActivityIndicator aria-hidden />
+    <View accessible role="progressbar" aria-label={label} style={[styles.centered, style]}>
+      <ActivityIndicator aria-hidden color={color} />
     </View>
   );
 }

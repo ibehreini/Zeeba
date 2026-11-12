@@ -1,5 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { announceForScreenReader } from '@/utils/announce';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 type Props<T extends string> = {
   options: readonly T[];
@@ -8,6 +10,8 @@ type Props<T extends string> = {
   allLabel?: string;
   /** Display text for an option; defaults to the option value itself. */
   getLabel?: (option: T) => string;
+  /** What the filter now shows ("Showing 4 items in Jackets"); spoken after the user changes the selection. */
+  resultSummary?: string;
 };
 
 export default function FilterPills<T extends string>({
@@ -16,33 +20,55 @@ export default function FilterPills<T extends string>({
   onSelect,
   allLabel = 'All',
   getLabel = option => option,
+  resultSummary,
 }: Props<T>) {
+  // Only after a press: not on first render or when the data refreshes.
+  const pressedRef = useRef(false);
+  const [spoken, setSpoken] = useState('');
+  useEffect(() => {
+    if (!pressedRef.current || !resultSummary) return;
+    pressedRef.current = false;
+    announceForScreenReader(resultSummary);
+    setSpoken(resultSummary); // for the web live region below
+  }, [selected, resultSummary]);
+  const select = (value: T | null) => {
+    pressedRef.current = value !== selected;
+    onSelect(value);
+  };
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      // ScrollView defaults to flexGrow: 1 AND flexShrink: 1, so the pills
-      // row absorbed leftover vertical space (stretching the pills) when the
-      // grid below was short, and got crushed to a sliver when the grid
-      // overflowed. Pinning both keeps it at its natural content height.
-      style={styles.scroll}
-      contentContainerStyle={styles.row}
-      accessibilityRole="tablist"
-    >
-      <Pill
-        label={allLabel}
-        isSelected={selected === null}
-        onPress={() => onSelect(null)}
-      />
-      {options.map(option => (
+    <>
+      {Platform.OS === 'web' && (
+        <Text role="status" aria-live="polite" style={styles.srOnly}>
+          {spoken}
+        </Text>
+      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        // ScrollView defaults to flexGrow: 1 AND flexShrink: 1, so the pills
+        // row absorbed leftover vertical space (stretching the pills) when the
+        // grid below was short, and got crushed to a sliver when the grid
+        // overflowed. Pinning both keeps it at its natural content height.
+        style={styles.scroll}
+        contentContainerStyle={styles.row}
+        accessibilityRole="tablist"
+      >
         <Pill
-          key={option}
-          label={getLabel(option)}
-          isSelected={selected === option}
-          onPress={() => onSelect(selected === option ? null : option)}
+          label={allLabel}
+          isSelected={selected === null}
+          onPress={() => select(null)}
         />
-      ))}
-    </ScrollView>
+        {options.map(option => (
+          <Pill
+            key={option}
+            label={getLabel(option)}
+            isSelected={selected === option}
+            onPress={() => select(selected === option ? null : option)}
+          />
+        ))}
+      </ScrollView>
+    </>
   );
 }
 
@@ -92,6 +118,14 @@ function Pill({ label, isSelected, onPress }: PillProps) {
 }
 
 const styles = StyleSheet.create({
+  // Visually hidden but still read by screen readers.
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    opacity: 0,
+  },
   scroll: {
     flexGrow: 0,
     flexShrink: 0,

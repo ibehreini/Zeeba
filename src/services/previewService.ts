@@ -305,6 +305,7 @@ class PreviewDataService implements IDataService {
       name: input.name,
       description: input.description || null,
       labels: input.labels,
+      item_ids: input.itemIds,
     });
 
     const updated = toOutfits().find(candidate => candidate.outfit_id === outfitId);
@@ -399,10 +400,6 @@ class PreviewDataService implements IDataService {
   // shows - this exists purely for interface parity.
   async createOwnCloset(_userId: string, _closetName: string): Promise<OwnCloset> {
     return delay(previewCloset());
-  }
-
-  async regeneratePassphrase(_closetId: string): Promise<string> {
-    return delay(PREVIEW_PASS_PHRASE);
   }
 
   // Preview mode has one hardcoded closet, so this just checks the guess

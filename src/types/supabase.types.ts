@@ -520,6 +520,17 @@ export type Database = {
         Args: { target_closet_id: string; target_label: string }
         Returns: string[]
       }
+      update_outfit_with_items: {
+        Args: {
+          p_description: string | null
+          p_expected_updated_at: string
+          p_item_ids: string[]
+          p_labels: string[]
+          p_name: string
+          p_outfit_id: string
+        }
+        Returns: string | null
+      }
     }
     Enums: {
       [_ in never]: never

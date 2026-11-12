@@ -1,5 +1,5 @@
 import { supabase } from '@/utils/supabase';
-import type { NewOutfitInput, Outfit, OutfitPhoto, UpdateOutfitInput } from './dataService.types';
+import { ConflictError, type NewOutfitInput, type Outfit, type OutfitPhoto, type UpdateOutfitInput } from './dataService.types';
 import { deleteWithOcc, updateWithOcc } from './occConcurrency';
 import { deleteOutfitPhotoObject, uploadOutfitPhoto } from './supabasePhotoStorage';
 import { mapOutfitRow, OUTFIT_SELECT, type OutfitQueryRow } from './supabaseRowMappers';
@@ -25,6 +25,11 @@ export async function getOutfitById(outfitId: string): Promise<Outfit | null> {
   if (error) throw error;
   return data ? mapOutfitRow(data) : null;
 }
+
+// foreign_key_violation: a picked item was deleted (e.g. by another closet
+// member) after the picker loaded.
+const DELETED_ITEM_CODE = '23503';
+const DELETED_ITEM_MESSAGE = 'One of the items you picked was just deleted. Please refresh and pick again.';
 
 /**
  * Creates an outfit row, then links each picked closet item via the
@@ -54,6 +59,7 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
       .insert(input.itemIds.map(itemId => ({ outfit_id: outfitId, clothing_item_id: itemId })));
     if (itemsError) {
       await supabase.from('outfits').delete().eq('id', outfitId);
+      if (itemsError.code === DELETED_ITEM_CODE) throw new Error(DELETED_ITEM_MESSAGE);
       throw itemsError;
     }
   }
@@ -64,21 +70,43 @@ export async function createOutfit(input: NewOutfitInput): Promise<Outfit> {
 }
 
 /**
- * Updates an outfit's name, description and tags. `expectedUpdatedAt` must
- * match the row's current `updated_at` (i.e. what a stylist or the closet
- * owner last read) or this throws `ConflictError` without writing - see
- * occConcurrency.ts. Throws the Supabase error on any other failure.
+ * Updates an outfit's name, description, tags and item list in one
+ * transaction (the `update_outfit_with_items` RPC), so the row and its
+ * outfit_items can't be half-written or interleaved with someone else's save.
+ * `expectedUpdatedAt` must match the row's current `updated_at` (i.e. what a
+ * stylist or the closet owner last read) or this throws `ConflictError`
+ * without writing - same contract as occConcurrency.ts. Throws the Supabase
+ * error on any other failure.
  */
 export async function updateOutfit(
   outfitId: string,
   expectedUpdatedAt: string,
   input: UpdateOutfitInput,
 ): Promise<Outfit> {
-  await updateWithOcc('outfits', outfitId, expectedUpdatedAt, {
-    name: input.name,
-    description: input.description || null,
-    labels: input.labels,
+  const description = input.description || null;
+  const { data, error } = await supabase.rpc('update_outfit_with_items', {
+    p_outfit_id: outfitId,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_name: input.name,
+    p_description: description,
+    p_labels: input.labels,
+    p_item_ids: input.itemIds,
   });
+  if (error?.code === DELETED_ITEM_CODE) throw new Error(DELETED_ITEM_MESSAGE);
+  if (error?.code === 'PGRST202') {
+    // The database predates the RPC's migration. Keep name/description/tag
+    // edits working the old way; an item change can't be saved safely.
+    const current = await getOutfitById(outfitId);
+    if (!current) throw new ConflictError();
+    if ([...current.item_ids].sort().join() !== [...input.itemIds].sort().join()) {
+      throw new Error('Changing an outfit’s items isn’t available yet. Undo the item changes to save the rest.');
+    }
+    await updateWithOcc('outfits', outfitId, expectedUpdatedAt, { name: input.name, description, labels: input.labels });
+  } else if (error) {
+    throw error;
+  } else if (!data) {
+    throw new ConflictError();
+  }
 
   const updated = await getOutfitById(outfitId);
   if (!updated) throw new Error('Failed to load the updated outfit.');

@@ -400,6 +400,8 @@ export interface UpdateOutfitInput {
    * it can be unticked) - outfits.labels is free text.
    */
   labels: string[];
+  /** The outfit's full item list after the edit (at least one). */
+  itemIds: string[];
 }
 
 /**
@@ -443,7 +445,8 @@ export interface IDataService {
   /** Creates an outfit from picked closet items. */
   createOutfit(input: NewOutfitInput): Promise<Outfit>;
   /**
-   * Updates an outfit's name, description and tags. `expectedUpdatedAt` must match
+   * Updates an outfit's name, description, tags and items in one atomic
+   * write. `expectedUpdatedAt` must match
    * the row's current `updated_at` or this throws `ConflictError` instead of
    * applying the write.
    */
@@ -478,8 +481,6 @@ export interface IDataService {
   getOwnCloset(userId: string): Promise<OwnCloset | null>;
   /** Creates `userId`'s own closet with a user-chosen name; the passphrase is always server-generated. */
   createOwnCloset(userId: string, closetName: string): Promise<OwnCloset>;
-  /** Replaces a closet's passphrase and returns the new value. Caller must own the closet. */
-  regeneratePassphrase(closetId: string): Promise<string>;
   /** Joins the caller to the closet matching `passphrase` as a stylist/collaborator. Throws if the passphrase is invalid or belongs to a closet the caller already owns. */
   joinClosetByPassphrase(passphrase: string): Promise<StylistCloset>;
   /** A closet's current outfit tags, in display order. Any member can read them; used to pick up edits made by the owner or on another device. */

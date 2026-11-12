@@ -1,3 +1,4 @@
+import LoadingIndicator from '@/components/LoadingIndicator';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
@@ -72,6 +73,9 @@ function formatRecordedDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+// How long a pressed note may stay silent (loading) before it counts as failed.
+const PLAY_START_TIMEOUT_MS = 8000;
 
 // Only one voice note plays at a time: starting one pauses whichever was playing.
 let activePlayer: AudioPlayer | null = null;
@@ -301,11 +305,14 @@ export function VoiceRecorder({ onRecorded, disabled, busyLabel }: VoiceRecorder
     [],
   );
 
-  const isActive = phase === 'starting' || phase === 'recording';
   const isDisabled = phase === 'stopping' || (phase === 'idle' && !!disabled);
-  const label = isActive
-    ? 'Stop recording'
-    : phase === 'stopping'
+  // "Cancel recording" while getting ready, so the spoken name contains the
+  // visible "Cancel" (WCAG 2.5.3: Voice Control users say what they see).
+  const label = phase === 'starting'
+    ? 'Cancel recording'
+    : phase === 'recording'
+      ? 'Stop recording'
+      : phase === 'stopping'
       ? 'Finishing recording'
       : disabled && busyLabel
         ? busyLabel
@@ -403,6 +410,7 @@ export function VoiceNotePlayer({ uri, recordedBy, durationSeconds, recordedAt, 
   const { theme } = useTheme();
   const player = useAudioPlayer(uri, { ...PLAYER_OPTIONS, updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
+  const { showToast } = useToast();
 
   useEffect(
     () => () => {
@@ -410,6 +418,37 @@ export function VoiceNotePlayer({ uri, recordedBy, durationSeconds, recordedAt, 
     },
     [player],
   );
+
+  // `status.playing` only turns true once audio is actually coming out - a
+  // remote note can buffer for a second or two first. Without remembering the
+  // request, the button kept saying "Play" through that gap, so a VoiceOver
+  // user who heard nothing pressed again and (once playback had started)
+  // paused it. The request is dropped whenever playback stops by itself
+  // (finished, another note started, an interruption).
+  // The ref mirrors the state so `play` can see a pause pressed while it awaits.
+  const [wantsToPlay, setWantsToPlayState] = useState(false);
+  const wantsToPlayRef = useRef(false);
+  const setWantsToPlay = (wants: boolean) => {
+    wantsToPlayRef.current = wants;
+    setWantsToPlayState(wants);
+  };
+  const wasPlayingRef = useRef(false);
+  useEffect(() => {
+    if (wasPlayingRef.current && !status.playing) setWantsToPlay(false);
+    wasPlayingRef.current = status.playing;
+  }, [status.playing]);
+  const isPlaying = status.playing || wantsToPlay;
+
+  // A note whose audio never loads would otherwise sit on "Pause" in silence.
+  useEffect(() => {
+    if (!wantsToPlay || status.playing) return;
+    const timer = setTimeout(() => {
+      setWantsToPlay(false);
+      player.pause();
+      showToast("Couldn't play this voice note.");
+    }, PLAY_START_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [wantsToPlay, status.playing, player, showToast]);
 
   const total = status.duration > 0 && Number.isFinite(status.duration) ? status.duration : durationSeconds;
   const atEnd = status.didJustFinish || (status.currentTime > 0 && status.currentTime >= total - 0.25);
@@ -432,26 +471,31 @@ export function VoiceNotePlayer({ uri, recordedBy, durationSeconds, recordedAt, 
     try {
       await setAudioModeAsync(audioMode(false));
       if (atEnd) await player.seekTo(0);
+      // Paused while the audio session was being set up.
+      if (!wantsToPlayRef.current) return;
       player.play();
     } catch (err) {
+      setWantsToPlay(false);
       showAlert("Couldn't play voice note", getErrorMessage(err, 'Something went wrong. Please try again.'));
     }
   };
 
   const toggle = () => {
-    if (status.playing) {
+    if (isPlaying) {
+      setWantsToPlay(false);
       player.pause();
       return;
     }
+    setWantsToPlay(true);
     void play();
   };
 
   const which = position ? `voice note ${position.index} of ${position.total}` : 'voice note';
   const date = recordedAt ? formatRecordedDate(recordedAt) : '';
-  const label = status.playing
+  const label = isPlaying
     ? `Pause ${which}`
     : `Play ${which}, by ${recordedBy}${date ? `, ${date}` : ''}, ${spokenDuration(durationSeconds)}`;
-  const showProgress = status.playing || (status.currentTime > 0 && !atEnd);
+  const showProgress = isPlaying || (status.currentTime > 0 && !atEnd);
 
   return (
     <Pressable
@@ -466,7 +510,7 @@ export function VoiceNotePlayer({ uri, recordedBy, durationSeconds, recordedAt, 
       ]}
     >
       <View style={styles.playButtonInner} aria-hidden>
-        <Text style={[styles.playIcon, { color: theme.accent }]}>{status.playing ? '❚❚' : '▶'}</Text>
+        <Text style={[styles.playIcon, { color: theme.accent }]}>{isPlaying ? '❚❚' : '▶'}</Text>
         <View style={styles.playMeta}>
           <Text style={[styles.playButtonText, { color: theme.textPrimary }]} numberOfLines={1}>
             {recordedBy}
@@ -643,9 +687,9 @@ export default function VoiceNotesSection({ target, closetId, headingStyle }: Vo
       </Text>
 
       {error ? (
-        <Text style={[styles.emptyText, { color: theme.danger }]}>{error}</Text>
+        <Text role="alert" style={[styles.emptyText, { color: theme.danger }]}>{error}</Text>
       ) : notes === null ? (
-        <ActivityIndicator style={styles.loading} aria-label="Loading voice notes" />
+        <LoadingIndicator label="Loading voice notes" />
       ) : notes.length === 0 ? (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
           No voice notes yet. Record one to talk through how it fits, feels or styles.
@@ -699,10 +743,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 12,
-  },
-  loading: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',

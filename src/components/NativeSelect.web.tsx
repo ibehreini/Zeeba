@@ -44,7 +44,7 @@ export default function NativeSelect<T extends string>({
     borderRadius: 10,
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: theme.border,
+    borderColor: theme.controlBorder,
     backgroundColor: theme.surfaceAlt,
     color: value ? theme.textPrimary : theme.textSecondary,
     fontFamily: 'inherit',

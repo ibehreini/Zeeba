@@ -28,7 +28,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       // always-mounted aria-live Text below.
       announceForScreenReader(text);
 
-      setMessage(text);
+      if (Platform.OS === 'web') {
+        // A live region only speaks when its text changes, so empty it first
+        // or the same message twice in a row is read only once.
+        setMessage('');
+        setTimeout(() => setMessage(text), 100);
+      } else {
+        setMessage(text);
+      }
       Animated.timing(opacity, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
 
       hideTimer.current = setTimeout(() => {

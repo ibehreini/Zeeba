@@ -330,7 +330,7 @@ export default function TagEditor() {
           accessibilityHint={`Up to ${MAX_OUTFIT_LABEL_LENGTH} characters`}
           style={[
             styles.input,
-            { backgroundColor: theme.surfaceAlt, borderColor: inputError ? theme.danger : theme.border, color: theme.textPrimary },
+            { backgroundColor: theme.surfaceAlt, borderColor: inputError ? theme.danger : theme.controlBorder, color: theme.textPrimary },
           ]}
           {...webInputAria}
         />

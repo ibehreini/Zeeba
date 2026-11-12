@@ -12,6 +12,8 @@ type OwnClosetRow = Pick<Tables<'closets'>, 'id' | 'closet_name' | 'pass_phrase'
 
 /** Postgres undefined_column - what PostgREST returns while closets.outfit_labels does not exist yet. */
 const UNDEFINED_COLUMN = '42703';
+/** Postgres unique_violation - e.g. a second closet for the same owner. */
+const UNIQUE_VIOLATION = '23505';
 /** PostgREST "function not found" - what an RPC returns while its migration has not been applied. */
 const UNDEFINED_FUNCTION = 'PGRST202';
 
@@ -96,7 +98,9 @@ export async function getOwnCloset(userId: string): Promise<OwnCloset | null> {
  * collide with the column's unique constraint. outfit_labels is omitted too:
  * its column default is the starting tag list. (A missing-column error fails
  * the whole INSERT ... RETURNING, so the fallback retry can't create a second
- * closet.) Throws the Supabase error on failure.
+ * closet.) A user owns at most one closet (closets_owner_id_key): if
+ * another device created it first, that closet is returned instead. Throws
+ * the Supabase error on failure.
  */
 export async function createOwnCloset(userId: string, closetName: string): Promise<OwnCloset> {
   const { data, error } = await selectWithLabelsFallback(withLabels =>
@@ -107,21 +111,12 @@ export async function createOwnCloset(userId: string, closetName: string): Promi
       .returns<OwnClosetRow[]>()
       .single(),
   );
+  if (error?.code === UNIQUE_VIOLATION) {
+    const existing = await getOwnCloset(userId);
+    if (existing) return existing;
+  }
   if (error) throw error;
   return toOwnCloset(data);
-}
-
-/**
- * Replaces a closet's passphrase and returns the new value. Caller must own
- * the closet - enforced server-side by the `regenerate_closet_passphrase` RPC,
- * not re-checked here. Throws the Supabase error on failure.
- */
-export async function regeneratePassphrase(closetId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('regenerate_closet_passphrase', {
-    target_closet_id: closetId,
-  });
-  if (error) throw error;
-  return data;
 }
 
 /**

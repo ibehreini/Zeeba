@@ -30,6 +30,23 @@ export async function updateWithOcc(
   if (!data) throw new ConflictError();
 }
 
+/**
+ * Throws `ConflictError` if the row's `updated_at` no longer equals
+ * `expectedUpdatedAt` (or the row is gone). Read-only: lets a caller bail
+ * out before a side effect the OCC write can't roll back, e.g. replacing a
+ * photo - the write itself still re-checks.
+ */
+export async function assertUnchanged(table: OccTable, id: string, expectedUpdatedAt: string): Promise<void> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('id')
+    .eq('id', id)
+    .eq('updated_at', expectedUpdatedAt)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new ConflictError();
+}
+
 /** Same idea as {@link updateWithOcc}, but for deletes. */
 export async function deleteWithOcc(table: OccTable, id: string, expectedUpdatedAt: string): Promise<void> {
   const { data, error } = await supabase

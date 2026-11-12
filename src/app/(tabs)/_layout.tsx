@@ -2,10 +2,12 @@ import { Tabs } from 'expo-router';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HeaderBanner from '@/components/HeaderBanner';
+import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 
 export default function TabLayout() {
   const { theme } = useTheme();
+  const { closetMode } = useCloset();
 
   return (
     <Tabs
@@ -31,7 +33,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="closet"
         options={{
-          title: 'My Closet',
+          // Not "My" while styling someone else's closet; the stack header
+          // inside says whose it is.
+          title: closetMode === 'stylist' ? 'Closet' : 'My Closet',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'shirt' : 'shirt-outline'} color={color} size={24} />

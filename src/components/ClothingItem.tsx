@@ -21,9 +21,12 @@ export default function ClothingItem({ source, ariaLabel, onPress, selected }: P
   return (
     <Pressable
       onPress={onPress}
-      role="button"
+      // In the outfit picker each card is a checkbox ("Blue jeans, checkbox,
+      // checked"), as in OutfitTagPicker: aria-selected is dropped on a web
+      // button, so the picked state was never announced there.
+      role={selected === undefined ? 'button' : 'checkbox'}
       aria-label={ariaLabel}
-      aria-selected={selected}
+      aria-checked={selected}
       style={({ pressed }) => [
         styles.container,
         selected && [styles.containerSelected, { borderColor: theme.accent }],

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
@@ -6,22 +7,32 @@ import { getErrorMessage, type OwnCloset, type StylistCloset } from '@/services/
 export type ClosetMode = 'stylist' | 'my-closet';
 
 type ClosetContextValue = {
+  /** Derived from the selection: 'my-closet' while the user's own closet is selected, else 'stylist'. */
   closetMode: ClosetMode;
-  setClosetMode: (mode: ClosetMode) => void;
-  /** The closet the Closet/Outfits tabs should display, resolved from closetMode. */
+  /** Selects a closet the user styles by id, or their own closet with null. */
+  selectCloset: (stylistClosetId: string | null) => void;
+  /** The closet the Closet/Outfits tabs should display. */
   activeClosetId: string | null;
   activeClosetName: string | null;
+  /** The user's own closet's name, whichever closet is selected - null while loading or not set up. */
+  ownClosetName: string | null;
   stylistClosets: StylistCloset[] | null;
-  selectStylistCloset: (closetId: string) => void;
+  /** The selected closet is still loading. */
   isLoading: boolean;
+  /** Why the selected closet couldn't load. */
   error: string | null;
-  /** True once the user's own-closet lookup has finished and come back empty - show the creation form. */
+  /** Either closet list (own or styled) is still loading - for Home, which lists both. */
+  isLoadingClosets: boolean;
+  /** Why either closet list couldn't load - for Home, which lists both. */
+  closetsError: string | null;
+  /** Re-reads both closet lists in the background (Home calls this on focus); failures keep the last good data. */
+  refreshClosets: () => void;
+  /** True once the user's own-closet lookup came back empty, whichever closet is selected - with closetMode 'my-closet', show the creation form. */
   needsOwnClosetSetup: boolean;
   /** Only ever set once the user owns a closet - null while loading or mid-setup. */
   ownClosetPassphrase: string | null;
   createOwnCloset: (closetName: string) => Promise<void>;
-  regeneratePassphrase: () => Promise<void>;
-  /** Joins a closet by passphrase (stylist flow) and makes it the active stylist closet. Returns its name, or throws on an invalid passphrase. */
+  /** Joins a closet by passphrase (stylist flow) and selects it. Returns its name, or throws on an invalid passphrase. */
   joinCloset: (passphrase: string) => Promise<string>;
   /** Outfit tags of the active closet, in display order - what the Outfits filter and the outfit forms offer. Stylists get the owner's list read-only. Empty while no closet is active. */
   activeClosetLabels: readonly string[];
@@ -50,22 +61,26 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
   const { dataService, mode } = useDataMode();
   const { session, initializing } = useAuth();
   const userId = session?.user.id ?? '';
+  // Per user, so a shared device doesn't hand one account's choice to another.
+  const storageKey = `zeeba.closet-selection.${userId || 'guest'}`;
+  // Which key's saved choice has been read back. Nothing is fetched or saved
+  // until it matches, so a restored stylist closet never flashes My Closet.
+  const [restoredKey, setRestoredKey] = useState<string | null>(null);
+  const restored = restoredKey === storageKey;
   // 'live' mode needs a real signed-in user id before it can query Supabase;
   // 'preview' mode (guests) ignores the id entirely, so it's never blocked.
-  const waitingForSession = mode === 'live' && (initializing || !session);
+  // Both also wait for the saved closet choice to be read back.
+  const waitingForSession = (mode === 'live' && (initializing || !session)) || !restored;
 
-  const [closetMode, setClosetMode] = useState<ClosetMode>('my-closet');
-
-  const [myCloset, setMyCloset] = useState<OwnCloset | null>(null);
-  // Distinguishes "still loading" (myCloset null, not checked yet) from
-  // "loaded but the user has no closet yet" (myCloset null, checked) - the
-  // latter is what should show the creation form instead of a spinner.
-  const [myClosetChecked, setMyClosetChecked] = useState(false);
+  // undefined = not checked yet, null = checked and the user has no closet.
+  const [myCloset, setMyCloset] = useState<OwnCloset | null | undefined>(undefined);
   const [myClosetError, setMyClosetError] = useState<string | null>(null);
-
   const [stylistClosets, setStylistClosets] = useState<StylistCloset[] | null>(null);
   const [stylistError, setStylistError] = useState<string | null>(null);
+  // null = the user's own closet.
   const [selectedStylistClosetId, setSelectedStylistClosetId] = useState<string | null>(null);
+  // Bumped when the user or data source changes, so their in-flight loads are dropped.
+  const generation = useRef(0);
 
   // Latest known tag list per closet id. Closet loads, tag refreshes and tag
   // edits all land here, and each carries a ticket: a read takes one when it
@@ -86,69 +101,106 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // A different user or data source: forget the previous one's closets and
+  // restore this user's last selection (same best-effort AsyncStorage pattern
+  // as ThemeContext). The older { mode, stylistClosetId } shape still reads.
+  // A saved closet the user has since lost access to falls back to their own
+  // (see closetMode below).
   useEffect(() => {
-    if (closetMode !== 'my-closet' || waitingForSession) return;
-
     let cancelled = false;
-    setMyCloset(null);
-    setMyClosetChecked(false);
+    generation.current++;
+    setRestoredKey(null);
+    setMyCloset(undefined);
     setMyClosetError(null);
-    const ticket = startLabelsRequest();
-
-    dataService
-      .getOwnCloset(userId)
-      .then(closet => {
-        if (cancelled) return;
-        setMyCloset(closet);
-        setMyClosetChecked(true);
-        if (closet) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
-      })
-      .catch(err => {
-        if (cancelled) return;
-        setMyClosetError(getErrorMessage(err, 'Failed to load your closet.'));
-        setMyClosetChecked(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [closetMode, dataService, userId, waitingForSession, startLabelsRequest, applyClosetLabels]);
-
-  useEffect(() => {
-    if (closetMode !== 'stylist' || waitingForSession) return;
-
-    let cancelled = false;
     setStylistClosets(null);
     setStylistError(null);
     setSelectedStylistClosetId(null);
-    const ticket = startLabelsRequest();
-
-    dataService
-      .getStylistClosets(userId)
-      .then(closets => {
-        if (cancelled) return;
-        setStylistClosets(closets);
-        for (const closet of closets) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
+    AsyncStorage.getItem(storageKey)
+      .then(raw => {
+        const saved = raw ? JSON.parse(raw) : null;
+        if (cancelled || saved?.mode === 'my-closet') return;
+        if (typeof saved?.stylistClosetId === 'string') setSelectedStylistClosetId(saved.stylistClosetId);
       })
-      .catch(err => {
-        if (!cancelled) setStylistError(getErrorMessage(err, 'Failed to load closets.'));
+      .catch(() => {
+        // Unreadable storage just means starting on My Closet.
+      })
+      .finally(() => {
+        if (!cancelled) setRestoredKey(storageKey);
       });
-
     return () => {
       cancelled = true;
     };
-  }, [closetMode, dataService, userId, waitingForSession, startLabelsRequest, applyClosetLabels]);
+  }, [storageKey, dataService]);
 
-  // Defaults to the first stylist closet until one is explicitly selected.
-  const activeCloset =
-    closetMode === 'my-closet'
-      ? myCloset
-      : (stylistClosets?.find(closet => closet.closet_id === selectedStylistClosetId) ?? stylistClosets?.[0] ?? null);
+  useEffect(() => {
+    if (!restored) return;
+    AsyncStorage.setItem(storageKey, JSON.stringify({ stylistClosetId: selectedStylistClosetId })).catch(() => {
+      // Best-effort; the in-memory choice already applied.
+    });
+  }, [restored, storageKey, selectedStylistClosetId]);
 
-  const needsOwnClosetSetup = closetMode === 'my-closet' && myClosetChecked && !myCloset && !myClosetError;
+  // Loads both lists, so Home can list every closet and switching between
+  // them never waits. A quiet (background) refresh that fails keeps whatever
+  // was there - data or the earlier error - instead of blocking the screens.
+  const loadClosets = useCallback(
+    (quiet: boolean) => {
+      const loadGeneration = generation.current;
+      const stale = () => loadGeneration !== generation.current;
+      const ticket = startLabelsRequest();
+
+      dataService.getOwnCloset(userId).then(
+        closet => {
+          if (stale()) return;
+          setMyCloset(closet);
+          setMyClosetError(null);
+          if (closet) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
+        },
+        err => {
+          if (!stale() && !quiet) setMyClosetError(getErrorMessage(err, 'Failed to load your closet.'));
+        },
+      );
+
+      dataService.getStylistClosets(userId).then(
+        closets => {
+          if (stale()) return;
+          setStylistClosets(closets);
+          setStylistError(null);
+          for (const closet of closets) applyClosetLabels(closet.closet_id, closet.outfit_labels, ticket);
+        },
+        err => {
+          if (!stale() && !quiet) setStylistError(getErrorMessage(err, 'Failed to load closets you style.'));
+        },
+      );
+    },
+    [dataService, userId, startLabelsRequest, applyClosetLabels],
+  );
+
+  useEffect(() => {
+    if (!waitingForSession) loadClosets(false);
+  }, [waitingForSession, loadClosets]);
+
+  const refreshClosets = useCallback(() => {
+    if (!waitingForSession) loadClosets(true);
+  }, [waitingForSession, loadClosets]);
+
+  const selectedStylistCloset = selectedStylistClosetId
+    ? stylistClosets?.find(closet => closet.closet_id === selectedStylistClosetId)
+    : undefined;
+  // A selected stylist closet stays selected while its list loads (or failed
+  // to load); once loaded, one the user is no longer on falls back to their own.
+  const closetMode: ClosetMode =
+    selectedStylistCloset || (selectedStylistClosetId && !stylistClosets) ? 'stylist' : 'my-closet';
+  const activeCloset = (closetMode === 'my-closet' ? myCloset : selectedStylistCloset) ?? null;
+
+  const needsOwnClosetSetup = myCloset === null;
   const activeClosetId = activeCloset?.closet_id ?? null;
   const activeClosetLabels =
     (activeClosetId ? labelsByCloset[activeClosetId]?.labels : null) ?? activeCloset?.outfit_labels ?? NO_LABELS;
+
+  const ownLoading = myCloset === undefined && !myClosetError;
+  const stylistLoading = !stylistClosets && !stylistError;
+  const closetsError =
+    [...new Set([myClosetError, stylistError].filter((message): message is string => !!message))].join(' ') || null;
 
   const refreshActiveClosetLabels = useCallback(() => {
     if (!activeClosetId) return;
@@ -167,14 +219,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     const created = await dataService.createOwnCloset(userId, trimmed);
     setMyCloset(created);
     applyClosetLabels(created.closet_id, created.outfit_labels);
-    setMyClosetChecked(true);
     setMyClosetError(null);
-  };
-
-  const regeneratePassphrase = async () => {
-    if (!myCloset) return;
-    const newPhrase = await dataService.regeneratePassphrase(myCloset.closet_id);
-    setMyCloset({ ...myCloset, pass_phrase: newPhrase });
   };
 
   const joinCloset = async (passphrase: string): Promise<string> => {
@@ -185,6 +230,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       const existing = prev ?? [];
       return existing.some(closet => closet.closet_id === joined.closet_id) ? existing : [...existing, joined];
     });
+    setStylistError(null);
     applyClosetLabels(joined.closet_id, joined.outfit_labels);
     setSelectedStylistClosetId(joined.closet_id);
     return joined.closet_name;
@@ -193,18 +239,19 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ClosetContextValue>(
     () => ({
       closetMode,
-      setClosetMode,
+      selectCloset: setSelectedStylistClosetId,
       activeClosetId,
       activeClosetName: activeCloset?.closet_name ?? null,
+      ownClosetName: myCloset?.closet_name ?? null,
       stylistClosets,
-      selectStylistCloset: setSelectedStylistClosetId,
-      isLoading:
-        closetMode === 'my-closet' ? !myClosetChecked && !myClosetError : !stylistClosets && !stylistError,
+      isLoading: closetMode === 'my-closet' ? ownLoading : stylistLoading,
       error: closetMode === 'my-closet' ? myClosetError : stylistError,
+      isLoadingClosets: ownLoading || stylistLoading,
+      closetsError,
+      refreshClosets,
       needsOwnClosetSetup,
       ownClosetPassphrase: myCloset?.pass_phrase ?? null,
       createOwnCloset,
-      regeneratePassphrase,
       joinCloset,
       activeClosetLabels,
       applyClosetLabels,
@@ -219,11 +266,14 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       applyClosetLabels,
       startLabelsRequest,
       refreshActiveClosetLabels,
+      refreshClosets,
       stylistClosets,
       myCloset,
-      myClosetChecked,
       myClosetError,
       stylistError,
+      ownLoading,
+      stylistLoading,
+      closetsError,
       needsOwnClosetSetup,
       userId,
       dataService,

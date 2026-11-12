@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, Share } from 'react-native';
+import { useToast } from '@/components/Toast';
 import { useTheme } from '@/context/ThemeContext';
 
 // Native builds can't read window.location, so they need the site's origin
@@ -17,6 +18,7 @@ type Props = {
 
 export default function ShareLinkButton({ path, title }: Props) {
   const { theme } = useTheme();
+  const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -43,6 +45,8 @@ export default function ShareLinkButton({ path, title }: Props) {
       } else {
         await Clipboard.setStringAsync(url);
         setCopied(true);
+        // The icon swap alone is silent to screen readers.
+        showToast('Link copied');
       }
       return;
     }
@@ -59,7 +63,7 @@ export default function ShareLinkButton({ path, title }: Props) {
     <Pressable
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={copied ? 'Link copied' : 'Share link'}
+      accessibilityLabel={title ? `Share link to ${title}` : 'Share link'}
       hitSlop={10}
     >
       <Ionicons

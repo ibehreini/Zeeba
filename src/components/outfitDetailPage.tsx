@@ -1,23 +1,22 @@
 import DeleteButton from '@/components/DeleteButton';
 import EditButton from '@/components/EditButton';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import PhotoPreviewModal from '@/components/PhotoPreviewModal';
 import VoiceNotesSection from '@/components/VoiceNotes';
 import { useAuth } from '@/context/AuthContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
-import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, toRNImageSource, type ClosetItem, type OutfitPhoto } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickPhoto } from '@/utils/pickPhoto';
 import { showAlert } from '@/utils/alert';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { announceForScreenReader } from '@/utils/announce';
 import { Link, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -64,8 +63,6 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
   const [viewingPhoto, setViewingPhoto] = useState<OutfitPhoto | null>(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
-  useWebModalBackHandler(viewingPhoto !== null, () => setViewingPhoto(null));
-
   const [wearCount, setWearCount] = useState(0);
   const [todayWearLogId, setTodayWearLogId] = useState<string | null>(null);
   const [isClosetOwner, setIsClosetOwner] = useState(false);
@@ -103,10 +100,12 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         await dataService.deleteWearLog(todayWearLogId);
         setTodayWearLogId(null);
         setWearCount(prev => Math.max(0, prev - 1));
+        announceForScreenReader('No longer marked as worn today.');
       } else {
         const newLogId = await dataService.logOutfitWornToday(outfit.closetId, outfit.id, userId);
         setTodayWearLogId(newLogId);
         setWearCount(prev => prev + 1);
+        announceForScreenReader('Marked as worn today.');
       }
     } catch (err) {
       showAlert("Couldn't update", getErrorMessage(err, 'Something went wrong. Please try again.'));
@@ -120,6 +119,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
     try {
       const newCount = await dataService.logCompliment(outfit.id);
       setComplimentCount(newCount);
+      announceForScreenReader(`Compliment logged. ${newCount} ${newCount === 1 ? 'compliment' : 'compliments'} in total.`);
     } catch (err) {
       showAlert("Couldn't log compliment", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
@@ -131,11 +131,13 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
     confirmTitle: 'Delete outfit',
     confirmMessage: `Delete "${outfit.name ?? 'this outfit'}"? This can't be undone.`,
     errorTitle: "Couldn't delete outfit",
+    successMessage: 'Outfit deleted',
     onDelete: async () => {
       await dataService.deleteOutfit(outfit.id, outfit.updatedAt);
       markOutfitsDirty();
     },
     onConflict,
+    isGone: async () => !(await dataService.getOutfitById(outfit.id)),
   });
 
   const handleAddPhoto = async () => {
@@ -146,6 +148,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
     try {
       const photo = await dataService.addOutfitPhoto(outfit.id, uri);
       setPhotos(prev => [...prev, photo]);
+      announceForScreenReader('Photo added.');
     } catch (err) {
       showAlert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
@@ -162,6 +165,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
       await dataService.deleteOutfitPhoto(photo);
       setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
       setViewingPhoto(null);
+      announceForScreenReader('Photo deleted.');
     } catch (err) {
       showAlert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
@@ -171,10 +175,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}>
-      <View
-        aria-hidden={true}
-        style={styles.flatLayWrapper}
-      >
+      <View style={styles.flatLayWrapper}>
         <OutfitFlatLay itemIds={outfit.itemIds} closetItems={closetItems} />
       </View>
 
@@ -194,6 +195,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             role="button"
             aria-label={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
             aria-disabled={isTogglingWorn}
+            aria-busy={isTogglingWorn}
             style={({ pressed }) => [
               styles.wornTodayButton,
               todayWearLogId
@@ -228,6 +230,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
           role="button"
           aria-label="Log compliment"
           aria-disabled={isLoggingCompliment}
+          aria-busy={isLoggingCompliment}
           style={({ pressed }) => [
             styles.logComplimentButton,
             { borderColor: theme.accent },
@@ -259,7 +262,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
                   style={styles.pieceBox}
                 >
                   <Image source={toRNImageSource(item.img)} style={styles.pieceImage} resizeMode="contain" />
-                  <Text style={[styles.pieceLabel, { color: theme.textPrimary }]} numberOfLines={1}>
+                  <Text style={[styles.pieceLabel, { color: theme.textPrimary }]} numberOfLines={2}>
                     {item.name}
                   </Text>
                 </Pressable>
@@ -296,6 +299,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
               role="button"
               aria-label="Add a worn-in-the-wild photo"
               aria-disabled={isAddingPhoto}
+              aria-busy={isAddingPhoto}
               style={[
                 styles.pieceBox,
                 styles.addPhotoBox,
@@ -322,44 +326,13 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         <DeleteButton label="Delete outfit" onPress={confirmAndDelete} isDeleting={isDeleting} />
       </View>
 
-      <Modal
-        visible={viewingPhoto !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewingPhoto(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          {viewingPhoto && (
-            <Image
-              source={toRNImageSource(viewingPhoto.image_url)}
-              style={styles.modalImage}
-              resizeMode="contain"
-            />
-          )}
-
-          <View style={styles.modalActions}>
-            <Pressable
-              style={styles.deleteImageButton}
-              onPress={handleDeletePhoto}
-              disabled={isDeletingPhoto}
-              role="button"
-              aria-label="delete image"
-              aria-disabled={isDeletingPhoto}
-            >
-              <Ionicons name="trash-outline" size={22} color="#fff" />
-            </Pressable>
-
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => setViewingPhoto(null)}
-              role="button"
-              aria-label="Close image preview"
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <PhotoPreviewModal
+        source={viewingPhoto?.image_url ?? null}
+        label={`Worn in the wild photo ${viewingPhoto ? photos.indexOf(viewingPhoto) + 1 : 0} of ${photos.length}`}
+        onClose={() => setViewingPhoto(null)}
+        onDelete={handleDeletePhoto}
+        isDeleting={isDeletingPhoto}
+      />
     </ScrollView>
   );
 }
@@ -472,40 +445,5 @@ const styles = StyleSheet.create({
   },
   addPhotoBoxText: {
     fontSize: 28,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalImage: {
-    width: '90%',
-    height: '70%',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 24,
-  },
-  deleteImageButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: '#fff',
-  },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f1111',
   },
 });

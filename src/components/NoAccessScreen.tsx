@@ -16,7 +16,7 @@ export default function NoAccessScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Ionicons name="lock-closed-outline" size={48} color={theme.textSecondary} />
+      <Ionicons aria-hidden name="lock-closed-outline" size={48} color={theme.textSecondary} />
       <Text role="heading" style={[styles.title, { color: theme.textPrimary }]}>
         You don&apos;t have permission to view this closet
       </Text>
@@ -26,7 +26,7 @@ export default function NoAccessScreen() {
       <Pressable
         onPress={() => router.replace('/')}
         accessibilityRole="button"
-        style={[styles.button, { backgroundColor: theme.accent }]}
+        style={[styles.button, styles.buttonSize, { backgroundColor: theme.accent }]}
       >
         <Text style={[styles.buttonText, { color: theme.onAccent }]}>Go to Home</Text>
       </Pressable>
@@ -57,6 +57,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 24,
+  },
+  buttonSize: {
+    minHeight: 48,
+    justifyContent: 'center',
   },
   buttonText: {
     fontSize: 16,

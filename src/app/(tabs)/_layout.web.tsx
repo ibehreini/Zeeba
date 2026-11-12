@@ -3,6 +3,7 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import HeaderBanner from '@/components/HeaderBanner';
+import { useCloset } from '@/context/ClosetContext';
 
 /**
  * Web version of the tab layout. The bottom tab bar is native chrome that has
@@ -15,6 +16,8 @@ import HeaderBanner from '@/components/HeaderBanner';
  * would only ship dead weight to the browser bundle.
  */
 export default function TabLayout() {
+  const { closetMode } = useCloset();
+
   return (
     <Tabs
       tabBar={() => null}
@@ -28,7 +31,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="closet" options={{ title: 'My Closet', headerShown: false }} />
+      <Tabs.Screen name="closet" options={{ title: closetMode === 'stylist' ? 'Closet' : 'My Closet', headerShown: false }} />
       <Tabs.Screen name="outfits" options={{ title: 'Outfits', headerShown: false }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', headerShown: false, popToTopOnBlur: true }} />
     </Tabs>

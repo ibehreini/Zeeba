@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import ErrorText from '@/components/ErrorText';
+import FormButton from '@/components/FormButton';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -8,7 +11,7 @@ import { useTheme } from '@/context/ThemeContext';
  * (the home tab, and the add-item screen). Creating it updates ClosetContext,
  * so the caller re-renders with an active closet and this form disappears.
  */
-export default function NewClosetForm() {
+export default function NewClosetForm({ style }: { style?: StyleProp<ViewStyle> }) {
   const { theme } = useTheme();
   const { createOwnCloset } = useCloset();
   const [name, setName] = useState('');
@@ -28,12 +31,12 @@ export default function NewClosetForm() {
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.cardTitle, { color: theme.textPrimary }]} role="heading">
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }, style]}>
+      <Text style={[styles.cardTitle, { color: theme.textPrimary }]} role="heading" aria-level={2}>
         No closet yet - name one to get started
       </Text>
       <TextInput
-        style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
+        style={[styles.input, { borderColor: theme.controlBorder, color: theme.textPrimary }]}
         placeholderTextColor={theme.textSecondary}
         value={name}
         onChangeText={setName}
@@ -43,14 +46,12 @@ export default function NewClosetForm() {
         autoCapitalize="words"
       />
       {error && (
-        <Text style={[styles.errorText, { color: theme.danger }]} role="alert">
-          {error}
-        </Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{error}</ErrorText>
       )}
       {submitting ? (
-        <ActivityIndicator aria-label="Creating closet" />
+        <LoadingIndicator label="Creating closet" />
       ) : (
-        <Button title="Create closet" onPress={handleSubmit} />
+        <FormButton title="Create closet" onPress={handleSubmit} />
       )}
     </View>
   );
@@ -59,11 +60,12 @@ export default function NewClosetForm() {
 const styles = StyleSheet.create({
   card: {
     width: '85%',
+    maxWidth: 560,
     alignSelf: 'center',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
-    gap: 8,
+    gap: 12,
   },
   cardTitle: {
     fontSize: 16,
@@ -71,9 +73,10 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    fontSize: 16,
   },
   errorText: {
     fontSize: 14,

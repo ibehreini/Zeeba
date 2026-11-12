@@ -26,6 +26,10 @@ export default function ClosetList({ items, onItemPress }: Props) {
     selectedCategory && categories.includes(selectedCategory)
       ? items.filter(section => section.category === selectedCategory)
       : items;
+  const visibleCount = visibleSections.reduce((count, section) => count + section.data.length, 0);
+  const resultSummary = `Showing ${visibleCount} ${visibleCount === 1 ? 'item' : 'items'}${
+    visibleSections === items ? '' : ` in ${getCategoryTitle(selectedCategory!)}`
+  }`;
 
   return (
     <View style={styles.container}>
@@ -35,6 +39,7 @@ export default function ClosetList({ items, onItemPress }: Props) {
           selected={selectedCategory}
           onSelect={setSelectedCategory}
           getLabel={getCategoryTitle}
+          resultSummary={resultSummary}
         />
       )}
       <ScrollView contentContainerStyle={styles.listPadding}>

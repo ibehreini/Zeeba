@@ -1,7 +1,6 @@
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import { TEST_ACCOUNTS } from '@/constants/testAccounts';
 import { isTestAuthEnabled, useAuth } from '@/context/AuthContext';
 import { showAlert } from '@/utils/alert';
@@ -28,6 +28,14 @@ export default function SignInScreen() {
     }
   };
 
+  // Every screen needs a heading; without it VoiceOver users landed on a
+  // lone, unexplained "Sign in" button.
+  const appTitle = (
+    <Text role="heading" style={styles.title}>
+      Zeeba
+    </Text>
+  );
+
   // Pointed at local Supabase docker (EXPO_PUBLIC_ENABLE_TEST_AUTH=true): neither
   // Google nor Apple's OAuth redirect can complete against a non-public local URL,
   // so swap in a list of seeded test accounts (supabase/seed.sql) instead of the
@@ -36,10 +44,10 @@ export default function SignInScreen() {
     return (
       <View style={styles.container}>
         {isSigningIn ? (
-          <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
+          <LoadingIndicator label="Signing in" color="#fff" style={styles.spinner} />
         ) : (
           <ScrollView contentContainerStyle={styles.testAccountList}>
-            <Text style={styles.testAccountHeading}>Sign in as a test account</Text>
+            <Text role="heading" style={styles.testAccountHeading}>Sign in as a test account</Text>
             {TEST_ACCOUNTS.map(account => (
               <Pressable
                 key={account.email}
@@ -64,8 +72,9 @@ export default function SignInScreen() {
   if (Platform.OS === 'web') {
     return (
       <View style={styles.container}>
+        {appTitle}
         {isSigningIn ? (
-          <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
+          <LoadingIndicator label="Signing in" color="#fff" style={styles.spinner} />
         ) : (
           <Pressable
             onPress={() => handleSignIn(signInWithGoogle)}
@@ -82,8 +91,9 @@ export default function SignInScreen() {
 
   return (
     <View style={styles.container}>
+      {appTitle}
       {isSigningIn ? (
-        <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
+        <LoadingIndicator label="Signing in" color="#fff" style={styles.spinner} />
       ) : (
         <>
           <GoogleSigninButton
@@ -123,11 +133,17 @@ const styles = StyleSheet.create({
     height: 48,
   },
   spinner: {
-    height: 48,
+    flex: 0,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 16,
   },
   webGoogleButton: {
     width: 240,
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
@@ -181,7 +197,7 @@ const styles = StyleSheet.create({
   },
   previewButton: {
     width: 240,
-    height: 48,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,

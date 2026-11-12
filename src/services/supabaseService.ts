@@ -7,7 +7,6 @@ import {
   getOwnCloset,
   getStylistClosets,
   joinClosetByPassphrase,
-  regeneratePassphrase,
   removeClosetOutfitLabel,
 } from './supabaseClosetsService';
 import {
@@ -67,7 +66,6 @@ export const supabaseService: IDataService = {
   getStylistClosets,
   getOwnCloset,
   createOwnCloset,
-  regeneratePassphrase,
   joinClosetByPassphrase,
   getClosetOutfitLabels,
   addClosetOutfitLabel,

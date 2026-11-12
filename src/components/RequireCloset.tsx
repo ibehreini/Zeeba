@@ -1,37 +1,27 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import NewClosetForm from '@/components/NewClosetForm';
 import { useCloset } from '@/context/ClosetContext';
-import { useTheme } from '@/context/ThemeContext';
 
 /**
  * Wraps the add-item / create-outfit forms so the user is stopped up front
  * when there's no closet to add to, instead of filling in the whole form and
- * only failing on save. Owners get the create-closet form; stylists can't
- * create one, so they're told to join one instead.
+ * only failing on save: owners without one get the create-closet form.
  */
 export default function RequireCloset({ children }: { children: ReactNode }) {
-  const { theme } = useTheme();
-  const { closetMode, activeClosetId, isLoading, error, needsOwnClosetSetup } = useCloset();
+  const { closetMode, isLoading, needsOwnClosetSetup } = useCloset();
 
   // Don't show the form until we know whether there's a closet, or it could
   // get swapped out from under the user mid-typing.
-  if (isLoading) return <ActivityIndicator style={styles.container} aria-label="Loading your closet" />;
+  if (isLoading) return <LoadingIndicator label="Loading your closet" />;
 
-  if (needsOwnClosetSetup) {
+  // A stylist closet is only ever selected once it's in the loaded list, so
+  // only the user's own closet can be missing.
+  if (closetMode === 'my-closet' && needsOwnClosetSetup) {
     return (
       <View style={styles.container}>
         <NewClosetForm />
-      </View>
-    );
-  }
-
-  if (closetMode === 'stylist' && !error && !activeClosetId) {
-    return (
-      <View style={styles.container}>
-        <Text style={[styles.text, { color: theme.textPrimary }]} role="alert">
-          You aren&apos;t a stylist on any closets yet. Join one from the Home tab first.
-        </Text>
       </View>
     );
   }
@@ -42,10 +32,5 @@ export default function RequireCloset({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   container: {
     paddingTop: 24,
-  },
-  text: {
-    fontSize: 15,
-    textAlign: 'center',
-    paddingHorizontal: 24,
   },
 });

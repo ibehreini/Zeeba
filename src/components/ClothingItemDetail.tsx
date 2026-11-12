@@ -1,27 +1,27 @@
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import DeleteButton from '@/components/DeleteButton';
 import EditButton from '@/components/EditButton';
 import HeaderBackButton from '@/components/HeaderBackButton';
 import NoAccessScreen from '@/components/NoAccessScreen';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
+import PhotoPreviewModal from '@/components/PhotoPreviewModal';
 import ShareLinkButton from '@/components/ShareLinkButton';
 import VoiceNotesSection from '@/components/VoiceNotes';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
-import { useWebModalBackHandler } from '@/hooks/useWebModalBackHandler';
 import { getErrorMessage, type ClosetItem, type ClosetItemPhoto, type Outfit } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickPhoto } from '@/utils/pickPhoto';
 import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { showAlert } from '@/utils/alert';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { announceForScreenReader } from '@/utils/announce';
 import { Image } from 'expo-image'; // High-perf native component
 import { Link, Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Linking,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -65,8 +65,9 @@ export default function ClothingItemDetail({ itemId }: Props) {
 
   const { confirmAndDelete, isDeleting } = useDeleteConfirm({
     confirmTitle: 'Delete item',
-    confirmMessage: `Delete "${item?.name ?? 'this item'}"? This will remove the item from every outfit it is currently a part of, but the outfits will otherwise remain.  this can't be undone.`,
+    confirmMessage: `Delete "${item?.name ?? 'this item'}"? This will remove the item from every outfit it is currently a part of, but the outfits will otherwise remain. This can't be undone.`,
     errorTitle: "Couldn't delete item",
+    successMessage: 'Item deleted',
     onDelete: async () => {
       await dataService.deleteClosetItem(itemId, item!.updated_at);
       // outfit_items rows cascade-delete in the DB, but the outfits tab caches
@@ -74,12 +75,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
       markOutfitsDirty();
     },
     onConflict: () => setRefreshKey(key => key + 1),
+    isGone: async () => !(await dataService.getClosetItemById(itemId)),
   });
-
-  // Web-only: the browser back gesture closes the photo preview instead of
-  // navigating the route underneath it away (parity with the app's other
-  // modals - see outfitDetailPage and NativeSelect).
-  useWebModalBackHandler(previewIndex !== null, () => setPreviewIndex(null));
 
   // Focus-based rather than mount-only: returning here after deleting an
   // outfit deeper in the stack must refresh "Featured in outfits", or the
@@ -138,6 +135,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
     try {
       const photo = await dataService.addClosetItemPhoto(itemId, uri);
       setPhotos(prev => [...prev, photo]);
+      announceForScreenReader('Photo added.');
     } catch (err) {
       showAlert("Couldn't add photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
@@ -155,6 +153,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
       await dataService.deleteClosetItemPhoto(photo);
       setPhotos(prev => prev.filter(candidate => candidate.id !== photo.id));
       setPreviewIndex(null);
+      announceForScreenReader('Photo deleted.');
     } catch (err) {
       showAlert("Couldn't delete photo", getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
@@ -171,13 +170,13 @@ export default function ClothingItemDetail({ itemId }: Props) {
   if (isLoading && !item) {
     content = (
       <View style={[styles.container, screen]}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading item" />
       </View>
     );
   } else if (error) {
     content = (
       <View style={[styles.container, screen]}>
-        <Text style={[styles.text, { color: theme.textPrimary }]}>{error}</Text>
+        <ErrorText style={[styles.text, { color: theme.textPrimary }]}>{error}</ErrorText>
       </View>
     );
   } else if (!item) {
@@ -199,6 +198,8 @@ export default function ClothingItemDetail({ itemId }: Props) {
             contentFit={isCutoutPhotoUrl(item.img) ? 'contain' : 'cover'}
             transition={200}   // Smooth native fade-in in SDK 55
             accessibilityIgnoresInvertColors
+            accessible
+            alt={`Photo of ${item.name}`}
           />
         </View>
         <View style={styles.contentContainer}>
@@ -239,6 +240,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
                 role="button"
                 aria-label="Add a photo"
                 aria-disabled={isAddingPhoto}
+                aria-busy={isAddingPhoto}
               >
                 <Text style={[styles.addPhotoThumbText, { color: theme.textSecondary }]}>
                   {isAddingPhoto ? '…' : '+'}
@@ -317,45 +319,13 @@ export default function ClothingItemDetail({ itemId }: Props) {
           <DeleteButton label="Delete item" onPress={confirmAndDelete} isDeleting={isDeleting} />
         </View>
 
-        <Modal
-          visible={previewIndex !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPreviewIndex(null)}
-        >
-          <View style={styles.modalBackdrop}>
-            {previewIndex !== null && (
-              <Image
-                source={secondaryPhotos[previewIndex].image_url}
-                style={styles.modalImage}
-                contentFit="contain"
-                aria-label={`Photo ${previewIndex + 1} of ${secondaryPhotos.length}`}
-              />
-            )}
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={styles.deleteImageButton}
-                onPress={handleDeletePhoto}
-                disabled={isDeletingPhoto}
-                role="button"
-                aria-label="Delete photo"
-                aria-disabled={isDeletingPhoto}
-              >
-                <Ionicons name="trash-outline" size={22} color="#fff" />
-              </Pressable>
-
-              <Pressable
-                style={styles.closeButton}
-                onPress={() => setPreviewIndex(null)}
-                role="button"
-                aria-label="Close image preview"
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        <PhotoPreviewModal
+          source={previewIndex !== null ? secondaryPhotos[previewIndex].image_url : null}
+          label={`Photo ${(previewIndex ?? 0) + 1} of ${secondaryPhotos.length}`}
+          onClose={() => setPreviewIndex(null)}
+          onDelete={handleDeletePhoto}
+          isDeleting={isDeletingPhoto}
+        />
       </ScrollView>
     );
   }
@@ -462,40 +432,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalImage: {
-    width: '90%',
-    height: '70%',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 24,
-  },
-  deleteImageButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: '#fff',
-  },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f1111',
   },
 });

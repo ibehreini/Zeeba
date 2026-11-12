@@ -73,26 +73,56 @@ async function uploadPhotoToBucket(
   // The web compressor returns an extensionless blob: URL, so the format
   // comes from what was asked for, not from the URI, when transparency is kept.
   const extension = keepTransparency ? 'png' : extensionFromUri(compressedUri);
-  const path = `${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(path, arrayBuffer, { contentType: contentTypeFromExtension(extension) });
-  if (uploadError) throw uploadError;
-
-  const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(path);
-  return { path, publicUrl: publicUrlData.publicUrl };
+  return uploadBytesToBucket(bucket, folderId, arrayBuffer, extension, contentTypeFromExtension(extension));
 }
 
 /**
- * Parses the bucket-relative storage path back out of a public URL produced
- * by `uploadPhotoToBucket`. Returns null if the URL doesn't match the
- * expected `.../object/public/<bucket>/<path>` shape.
+ * Uploads raw bytes into `bucket` under a unique `folderId/` path and returns
+ * that path plus its public URL. Shared by photo and voice note uploads.
+ * Throws the Supabase error on failure.
  */
-function storagePathFromPublicUrl(bucket: string, publicUrl: string): string | null {
+export async function uploadBytesToBucket(
+  bucket: string,
+  folderId: string,
+  bytes: ArrayBuffer,
+  extension: string,
+  contentType: string,
+): Promise<{ path: string; publicUrl: string }> {
+  const path = `${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, bytes, { contentType });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return { path, publicUrl: data.publicUrl };
+}
+
+/**
+ * Best-effort removal of the storage object behind a public URL produced by
+ * `uploadBytesToBucket`. Does nothing for anything else (a non-string preview
+ * asset, or a URL not shaped `.../object/public/<bucket>/<path>`); the
+ * removal result is intentionally not checked.
+ */
+export async function removeObjectByPublicUrl(bucket: string, publicUrl: unknown): Promise<void> {
+  if (typeof publicUrl !== 'string') return;
   const marker = `/object/public/${bucket}/`;
   const index = publicUrl.indexOf(marker);
-  return index === -1 ? null : publicUrl.slice(index + marker.length);
+  if (index !== -1) await supabase.storage.from(bucket).remove([publicUrl.slice(index + marker.length)]);
+}
+
+/**
+ * Uploads a picked photo that its caller won't reuse, then frees its URI.
+ * On web the picked uri is an object URL pinning the original file in
+ * memory (expo-image-picker never revokes it). These flows' callers drop the
+ * uri once the call settles (a retry re-picks), so it's freed here.
+ * Deliberately NOT used by uploadClosetItemPhoto: the add/edit forms keep
+ * their picked uri alive for previews and conflict retries.
+ */
+async function uploadSingleUsePhoto(bucket: string, folderId: string, uri: string) {
+  try {
+    return await uploadPhotoToBucket(bucket, folderId, uri);
+  } finally {
+    revokeIfBlobUrl(uri);
+  }
 }
 
 /**
@@ -104,7 +134,7 @@ function storagePathFromPublicUrl(bucket: string, publicUrl: string): string | n
 export async function uploadClosetItemPhoto(
   itemId: string,
   photo: NewClosetItemPhoto,
-): Promise<{ path: string }> {
+): Promise<{ path: string; createdAt: string }> {
   const { path, publicUrl } = await uploadPhotoToBucket(
     CLOTHING_ITEM_PHOTO_BUCKET,
     itemId,
@@ -112,14 +142,18 @@ export async function uploadClosetItemPhoto(
     photo.keepTransparency,
   );
 
-  const { error: photoError } = await supabase.from('clothing_item_photos').insert({
-    clothing_item_id: itemId,
-    image_url: publicUrl,
-    is_primary: photo.isPrimary,
-  });
+  const { data, error: photoError } = await supabase
+    .from('clothing_item_photos')
+    .insert({
+      clothing_item_id: itemId,
+      image_url: publicUrl,
+      is_primary: photo.isPrimary,
+    })
+    .select('created_at')
+    .single();
   if (photoError) throw photoError;
 
-  return { path };
+  return { path, createdAt: data.created_at };
 }
 
 /**
@@ -129,18 +163,7 @@ export async function uploadClosetItemPhoto(
  * either step.
  */
 export async function uploadSecondaryClosetItemPhoto(itemId: string, uri: string): Promise<ClosetItemPhoto> {
-  let path: string;
-  let publicUrl: string;
-  try {
-    ({ path, publicUrl } = await uploadPhotoToBucket(CLOTHING_ITEM_PHOTO_BUCKET, itemId, uri));
-  } finally {
-    // On web the picked uri is an object URL pinning the original file in
-    // memory (expo-image-picker never revokes it). This flow's callers drop
-    // the uri once the call settles (a retry re-picks), so free it here.
-    // Deliberately NOT done in uploadClosetItemPhoto: the add/edit forms
-    // keep their picked uri alive for previews and conflict retries.
-    revokeIfBlobUrl(uri);
-  }
+  const { path, publicUrl } = await uploadSingleUsePhoto(CLOTHING_ITEM_PHOTO_BUCKET, itemId, uri);
 
   const { data, error } = await supabase
     .from('clothing_item_photos')
@@ -156,31 +179,32 @@ export async function uploadSecondaryClosetItemPhoto(itemId: string, uri: string
 }
 
 /**
- * Uploads a replacement primary photo for a closet item, then removes
- * whichever photo(s) were previously marked primary (row + storage object).
- * The new photo is uploaded first so a failed upload leaves the existing
- * primary photo untouched. `keepTransparency` marks a background-removed
- * cutout (see uploadPhotoToBucket).
+ * Uploads a replacement primary photo for a closet item, then removes every
+ * primary photo older than it (row + storage object). The new photo is
+ * uploaded first so a failed upload leaves the existing primary photo
+ * untouched. "Older than the new one" rather than "the ones read before the
+ * upload": when two people replace the photo at once, the old way left both
+ * new photos marked primary; this way the newest one wins and the item keeps
+ * exactly one. `keepTransparency` marks a background-removed cutout (see
+ * uploadPhotoToBucket).
  */
 export async function replacePrimaryClosetItemPhoto(
   itemId: string,
   uri: string,
   keepTransparency = false,
 ): Promise<void> {
-  const { data: existingPrimaryPhotos, error: fetchError } = await supabase
+  const { createdAt } = await uploadClosetItemPhoto(itemId, { uri, isPrimary: true, keepTransparency });
+
+  const { data: replacedPhotos } = await supabase
     .from('clothing_item_photos')
-    .select('id, image_url')
+    .delete()
     .eq('clothing_item_id', itemId)
-    .eq('is_primary', true);
-  if (fetchError) throw fetchError;
+    .eq('is_primary', true)
+    .lt('created_at', createdAt)
+    .select('image_url');
 
-  await uploadClosetItemPhoto(itemId, { uri, isPrimary: true, keepTransparency });
-
-  for (const photo of existingPrimaryPhotos ?? []) {
-    await supabase.from('clothing_item_photos').delete().eq('id', photo.id);
-    const path =
-      typeof photo.image_url === 'string' ? storagePathFromPublicUrl(CLOTHING_ITEM_PHOTO_BUCKET, photo.image_url) : null;
-    if (path) await supabase.storage.from(CLOTHING_ITEM_PHOTO_BUCKET).remove([path]);
+  for (const photo of replacedPhotos ?? []) {
+    await removeObjectByPublicUrl(CLOTHING_ITEM_PHOTO_BUCKET, photo.image_url);
   }
 }
 
@@ -192,12 +216,7 @@ export async function replacePrimaryClosetItemPhoto(
 export async function deleteClosetItemPhotoObject(photo: ClosetItemPhoto): Promise<void> {
   const { error } = await supabase.from('clothing_item_photos').delete().eq('id', photo.id);
   if (error) throw error;
-
-  const path =
-    typeof photo.image_url === 'string'
-      ? storagePathFromPublicUrl(CLOTHING_ITEM_PHOTO_BUCKET, photo.image_url)
-      : null;
-  if (path) await supabase.storage.from(CLOTHING_ITEM_PHOTO_BUCKET).remove([path]);
+  await removeObjectByPublicUrl(CLOTHING_ITEM_PHOTO_BUCKET, photo.image_url);
 }
 
 /**
@@ -206,14 +225,7 @@ export async function deleteClosetItemPhotoObject(photo: ClosetItemPhoto): Promi
  * fails. Throws the underlying Supabase error on either step.
  */
 export async function uploadOutfitPhoto(outfitId: string, uri: string): Promise<OutfitPhoto> {
-  let path: string;
-  let publicUrl: string;
-  try {
-    ({ path, publicUrl } = await uploadPhotoToBucket(OUTFIT_PHOTO_BUCKET, outfitId, uri));
-  } finally {
-    // See uploadSecondaryClosetItemPhoto - same single-use picked uri.
-    revokeIfBlobUrl(uri);
-  }
+  const { path, publicUrl } = await uploadSingleUsePhoto(OUTFIT_PHOTO_BUCKET, outfitId, uri);
 
   const { data, error } = await supabase
     .from('outfit_photos')
@@ -237,12 +249,7 @@ export async function uploadOutfitPhoto(outfitId: string, uri: string): Promise<
 export async function deleteOutfitPhotoObject(photo: OutfitPhoto): Promise<void> {
   const { error } = await supabase.from('outfit_photos').delete().eq('id', photo.id);
   if (error) throw error;
-
-  const path =
-    typeof photo.image_url === 'string'
-      ? storagePathFromPublicUrl(OUTFIT_PHOTO_BUCKET, photo.image_url)
-      : null;
-  if (path) await supabase.storage.from(OUTFIT_PHOTO_BUCKET).remove([path]);
+  await removeObjectByPublicUrl(OUTFIT_PHOTO_BUCKET, photo.image_url);
 }
 
 /**

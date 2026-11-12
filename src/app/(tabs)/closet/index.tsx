@@ -1,3 +1,5 @@
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import ClosetList from '@/components/ClosetList';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
@@ -6,7 +8,7 @@ import { getErrorMessage, groupClosetItemsBySection, type ClosetItem } from '@/s
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 export default function Index() {
   // See src/app/(tabs)/index.tsx - the web tab view keeps inactive tabs
@@ -25,7 +27,8 @@ export default function Index() {
   } = useCloset();
 
   const closetLabel = activeClosetName ?? 'Closet';
-  const title = closetMode === 'stylist' ? `Styling for ${closetLabel}` : closetLabel;
+  // Parentheses rather than a symbol: VoiceOver skips them but keeps the pause.
+  const title = closetMode === 'stylist' ? `${closetLabel} (stylist)` : closetLabel;
 
   // The last successful load, tagged with the closet it came from. Keeping it
   // across refetches (instead of clearing to null) is what makes reopening
@@ -91,33 +94,33 @@ export default function Index() {
   if (closetLoading) {
     content = (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading closet" />
       </View>
     );
   } else if (closetError) {
     content = (
       <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>{closetError}</Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{closetError}</ErrorText>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>
           {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
-        </Text>
+        </ErrorText>
       </View>
     );
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{error}</ErrorText>
       </View>
     );
   } else if (!sections) {
     content = (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading closet" />
       </View>
     );
   } else {

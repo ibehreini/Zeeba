@@ -3,6 +3,7 @@ import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { supabase } from '@/utils/supabase';
 import type { Tables } from '@/types/supabase.types';
 import type { PendingVoiceNote, VoiceNote, VoiceNoteTarget } from './dataService.types';
+import { removeObjectByPublicUrl, uploadBytesToBucket } from './supabasePhotoStorage';
 
 const VOICE_NOTE_BUCKET = 'voice_notes';
 
@@ -97,11 +98,7 @@ export async function addVoiceNote(
     revokeIfBlobUrl(recording.uri);
   }
 
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-  const { error: uploadError } = await supabase.storage.from(VOICE_NOTE_BUCKET).upload(path, bytes, { contentType });
-  if (uploadError) throw uploadError;
-
-  const { data: publicUrlData } = supabase.storage.from(VOICE_NOTE_BUCKET).getPublicUrl(path);
+  const { path, publicUrl } = await uploadBytesToBucket(VOICE_NOTE_BUCKET, folder, bytes, extension, contentType);
 
   const { data, error } = await supabase
     .from('voice_notes')
@@ -109,7 +106,7 @@ export async function addVoiceNote(
       closet_id: closetId,
       outfit_id,
       clothing_item_id,
-      audio_url: publicUrlData.publicUrl,
+      audio_url: publicUrl,
       duration_seconds: recording.durationSeconds,
     })
     .select(VOICE_NOTE_SELECT)
@@ -132,10 +129,5 @@ export async function deleteVoiceNote(note: VoiceNote): Promise<void> {
   const { data, error } = await supabase.from('voice_notes').delete().eq('id', note.id).select('id').maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("You can only delete voice notes you recorded, or any note on a closet you own.");
-
-  const marker = `/object/public/${VOICE_NOTE_BUCKET}/`;
-  const index = note.audio_url.indexOf(marker);
-  if (index !== -1) {
-    await supabase.storage.from(VOICE_NOTE_BUCKET).remove([note.audio_url.slice(index + marker.length)]);
-  }
+  await removeObjectByPublicUrl(VOICE_NOTE_BUCKET, note.audio_url);
 }

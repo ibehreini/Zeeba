@@ -1,3 +1,5 @@
+import { Field, LabeledTextInput } from '@/components/FormField';
+import ErrorText from '@/components/ErrorText';
 import NativeSelect from '@/components/NativeSelect';
 import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
 import { useDataMode } from '@/context/DataModeContext';
@@ -17,8 +19,11 @@ import { pickPhoto } from '@/utils/pickPhoto';
 import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { revokeIfBlobUrl } from '@/utils/revokeIfBlobUrl';
 import { showAlert } from '@/utils/alert';
+import { conflictMessage } from '@/utils/conflictMessage';
+import { announceForScreenReader } from '@/utils/announce';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -26,7 +31,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -119,13 +123,24 @@ export default function EditClothingItemForm({ itemId }: Props) {
   };
 
   const hasDescriptionOrVoiceNote = description.trim().length > 0 || hasVoiceNote;
-  const canSubmit =
-    !submitting && !isRemovingBackground && !!itemType && name.trim().length > 0 && hasDescriptionOrVoiceNote;
+  // Save stays pressable while fields are missing (only dimmed), so pressing
+  // it says what is still needed instead of being a silent "dimmed" button.
+  const missing = [
+    !itemType && 'a type',
+    !name.trim() && 'a name',
+    !hasDescriptionOrVoiceNote && 'a description or a voice note',
+  ].filter(Boolean);
+  const isBusy = submitting || isRemovingBackground;
   const isRecategorizing = !!item && !!itemType && itemType !== item.item_type;
 
+  // role="status" below is a live region on web only; iOS needs to be told.
+  useEffect(() => {
+    if (isRecategorizing) announceForScreenReader("This item stays in every outfit it's part of and will show there under its new type.");
+  }, [isRecategorizing]);
+
   const handleSubmit = async () => {
-    if (!item || !itemType || !name.trim() || !hasDescriptionOrVoiceNote) {
-      showAlert('Missing information', 'Type and name are required, plus a description or a voice note.');
+    if (!item || !itemType || missing.length > 0) {
+      showAlert('Missing information', `Still needed: ${missing.join(', ')}.`);
       return;
     }
 
@@ -162,7 +177,16 @@ export default function EditClothingItemForm({ itemId }: Props) {
           showAlert(
             fresh ? 'Someone else saved changes' : 'Item deleted',
             fresh
-              ? 'This item was changed while you were editing. Your edits are still in the form - review them and press Save Changes again to apply.'
+              ? conflictMessage(item, fresh, {
+                  img: 'photo',
+                  item_type: 'type',
+                  name: 'name',
+                  description: 'description',
+                  fit_notes: 'fit notes',
+                  care_instructions: 'care instructions',
+                  brand: 'brand',
+                  purchase_url: 'purchase URL',
+                })
               : 'This item was deleted while you were editing.',
           );
         } catch {
@@ -179,7 +203,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
   if (isLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading item" />
       </View>
     );
   }
@@ -187,7 +211,7 @@ export default function EditClothingItemForm({ itemId }: Props) {
   if (loadError || !item) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Item not found.'}</Text>
+        <ErrorText style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Item not found.'}</ErrorText>
       </View>
     );
   }
@@ -301,11 +325,12 @@ export default function EditClothingItemForm({ itemId }: Props) {
 
       <Pressable
         onPress={handleSubmit}
-        disabled={!canSubmit}
-        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, !canSubmit && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
+        disabled={isBusy}
+        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, (isBusy || missing.length > 0) && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
         role="button"
         aria-label="Save changes"
-        aria-disabled={!canSubmit}
+        aria-disabled={isBusy}
+        aria-busy={submitting}
       >
         {submitting ? (
           <ActivityIndicator color={theme.onAccent} />
@@ -314,69 +339,6 @@ export default function EditClothingItemForm({ itemId }: Props) {
         )}
       </Pressable>
     </ScrollView>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-};
-
-function Field({ label, required, children }: FieldProps) {
-  const { theme } = useTheme();
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
-        {label}
-        {required && <Text style={{ color: theme.danger }}> *</Text>}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-type LabeledTextInputProps = {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  multiline?: boolean;
-  keyboardType?: 'default' | 'url';
-  autoCapitalize?: 'none' | 'sentences';
-  maxLength?: number;
-};
-
-function LabeledTextInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  required,
-  multiline,
-  keyboardType,
-  autoCapitalize,
-  maxLength,
-}: LabeledTextInputProps) {
-  const { theme } = useTheme();
-  const themedInput = { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.textPrimary };
-  return (
-    <Field label={label} required={required}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        multiline={multiline}
-        numberOfLines={multiline ? 4 : undefined}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        maxLength={maxLength}
-        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
-        aria-label={required ? `${label}, required` : label}
-      />
-    </Field>
   );
 }
 
@@ -393,29 +355,9 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 48,
   },
-  field: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
   helperText: {
     fontSize: 14,
     marginTop: 8,
-  },
-  textInput: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  multilineInput: {
-    minHeight: 96,
-    textAlignVertical: 'top',
   },
   primaryPhotoBox: {
     width: 160,

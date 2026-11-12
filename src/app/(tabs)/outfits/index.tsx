@@ -1,10 +1,12 @@
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 export default function Index() {
   // See src/app/(tabs)/index.tsx - the web tab view keeps inactive tabs
@@ -25,7 +27,7 @@ export default function Index() {
   );
 
   const closetLabel = activeClosetName ?? 'Closet';
-  const title = closetMode === 'stylist' ? `Styling for ${closetLabel} outfits` : `${closetLabel} outfits`;
+  const title = closetMode === 'stylist' ? `${closetLabel} outfits (stylist)` : `${closetLabel} outfits`;
 
   const handleNavigation = (id: string) => {
     router.push({
@@ -52,21 +54,21 @@ export default function Index() {
   if (isLoading) {
     content = (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <LoadingIndicator label="Loading outfits" />
       </View>
     );
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{error}</ErrorText>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>
           {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
-        </Text>
+        </ErrorText>
       </View>
     );
   } else {

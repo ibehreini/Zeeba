@@ -1,6 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import type { ClosetItem, ClosetItemPhoto, NewClosetItemInput, UpdateClosetItemInput } from './dataService.types';
-import { deleteWithOcc, updateWithOcc } from './occConcurrency';
+import { assertUnchanged, deleteWithOcc, updateWithOcc } from './occConcurrency';
 import {
   deleteClosetItemPhotoObject,
   removeClosetItemPhotoObjects,
@@ -98,8 +98,11 @@ export async function updateClosetItem(
   // trigger, so this order can't invalidate expectedUpdatedAt - whereas the
   // old order (fields first) bumped updated_at before the upload, so a failed
   // upload turned the user's own retry into a false "changed by someone else"
-  // conflict that also discarded their picked photo.
+  // conflict that also discarded their picked photo. The token is checked
+  // before the upload, so a form left open while someone else saved fails
+  // here instead of swapping the photo and then reporting a conflict.
   if (input.newPrimaryPhotoUri) {
+    await assertUnchanged('clothing_items', itemId, expectedUpdatedAt);
     await replacePrimaryClosetItemPhoto(itemId, input.newPrimaryPhotoUri, input.newPrimaryPhotoKeepTransparency);
   }
 

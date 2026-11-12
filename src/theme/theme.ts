@@ -26,8 +26,14 @@ export interface ThemeColors {
   textPrimary: string;
   /** Secondary copy (hints, timestamps) on `background`/`surface`. */
   textSecondary: string;
-  /** Hairlines and input borders. */
+  /** Hairlines, card and pill outlines (decorative - no contrast minimum). */
   border: string;
+  /**
+   * Outline of text inputs and select fields, whose edge is the only thing
+   * that shows where the control is: >= 3:1 against background and surface
+   * (WCAG 1.4.11).
+   */
+  controlBorder: string;
   /**
    * Interactive tint: active tab, selected toggle, filled buttons. Ink in
    * light mode - the brand yellow #ffd33d is only 1.6:1 on white, so it is
@@ -44,7 +50,7 @@ export interface ThemeColors {
   overlay: string;
   /** Stylist-mode banner fill (existing brand colour, same in both themes). */
   stylist: string;
-  /** Text on the stylist banner. */
+  /** Text on the stylist banner. Dark: the light-blue fill is too pale for white text. */
   onStylist: string;
 }
 
@@ -55,13 +61,14 @@ export const lightTheme: ThemeColors = {
   textPrimary: '#25292e', // 14.9:1 on #ffffff
   textSecondary: '#595f68', // 6.6:1 on #ffffff
   border: '#cccccc',
+  controlBorder: '#8a8f96', // 3.3:1 on #ffffff
   accent: '#25292e',
   onAccent: '#ffffff',
   link: '#0b57d0', // 6.8:1 on #ffffff
   danger: '#cc0000', // 5.9:1 on #ffffff
   overlay: 'rgba(0, 0, 0, 0.5)',
   stylist: '#38bdf8',
-  onStylist: '#ffffff',
+  onStylist: '#25292e', // 6.8:1 on #38bdf8 (white was 2.1:1)
 };
 
 export const darkTheme: ThemeColors = {
@@ -71,13 +78,14 @@ export const darkTheme: ThemeColors = {
   textPrimary: '#ecedee', // 15.5:1 on #151718
   textSecondary: '#a4abb3', // 7.3:1 on #151718
   border: '#3a3f45',
+  controlBorder: '#6b7178', // 3.7:1 on #151718, 3.3:1 on #1e2126
   accent: '#ffd33d', // 11.3:1 on #151718
   onAccent: '#25292e',
   link: '#8ab4f8', // 7.6:1 on #151718
   danger: '#ff6b6b', // 5.6:1 on #151718
   overlay: 'rgba(0, 0, 0, 0.6)',
   stylist: '#38bdf8',
-  onStylist: '#ffffff',
+  onStylist: '#25292e', // 6.8:1 on #38bdf8 (white was 2.1:1)
 };
 
 /**

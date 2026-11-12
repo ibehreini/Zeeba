@@ -23,7 +23,8 @@ export default function DeleteButton({ label, onPress, isDeleting }: Props) {
       ]}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: isDeleting }}
+      aria-disabled={isDeleting}
+      aria-busy={isDeleting}
     >
       {isDeleting ? (
         <ActivityIndicator color={theme.danger} />

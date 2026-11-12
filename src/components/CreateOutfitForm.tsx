@@ -1,68 +1,23 @@
-import ClosetRow from '@/components/ClosetRow';
+import { Field, LabeledTextInput } from '@/components/FormField';
 import OutfitTagPicker from '@/components/OutfitTagPicker';
+import { useOutfitItemPicker } from '@/components/OutfitItemPicker';
 import { PendingVoiceNoteField } from '@/components/VoiceNotes';
-import type { ClothingCategory } from '@/constants/closetData';
 import { useAuth } from '@/context/AuthContext';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
-import {
-  CATEGORY_TITLES,
-  getErrorMessage,
-  groupClosetItemsByAllCategories,
-  hasOutfitLabel,
-  type ClosetItem,
-  type PendingVoiceNote,
-} from '@/services/dataService.types';
+import { getErrorMessage, hasOutfitLabel, type PendingVoiceNote } from '@/services/dataService.types';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  View,
 } from 'react-native';
-
-/**
- * Max picks per clothing category, mirroring how an outfit is actually worn.
- * Upper-body layers each allow a pair (tee + tank, two sweaters, cardigan +
- * cardigan, vest + coat), bottoms allow a pair for tights/leggings under a
- * skirt, and accessories commonly stack a few (necklace + earrings +
- * bracelet). Dress, shoes, and bag are one-at-a-time; a dress also replaces
- * any top/bottom picks (and vice versa), while sweaters and cardigans still
- * layer over a dress. OutfitFlatLay lays every multi-pick group out as a
- * grid, so these can grow without the preview breaking.
- */
-const CATEGORY_SELECTION_LIMITS: Record<ClothingCategory, number> = {
-  top: 2,
-  sweater: 2,
-  cardigan: 2,
-  bottom: 2,
-  dress: 1,
-  shoes: 1,
-  jacket: 2,
-  bag: 1,
-  accessory: 3,
-};
-
-type SelectionByCategory = Record<ClothingCategory, string[]>;
-
-const EMPTY_SELECTION: SelectionByCategory = {
-  top: [],
-  sweater: [],
-  cardigan: [],
-  bottom: [],
-  dress: [],
-  shoes: [],
-  jacket: [],
-  bag: [],
-  accessory: [],
-};
 
 export default function CreateOutfitForm() {
   const { theme } = useTheme();
@@ -76,93 +31,8 @@ export default function CreateOutfitForm() {
   const [description, setDescription] = useState('');
   const [pickedLabels, setPickedLabels] = useState<string[]>([]);
   const [voiceNote, setVoiceNote] = useState<PendingVoiceNote | null>(null);
-  const [selectedByCategory, setSelectedByCategory] = useState<SelectionByCategory>(EMPTY_SELECTION);
-
-  const [closetItems, setClosetItems] = useState<ClosetItem[] | null>(null);
-  const [itemsError, setItemsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<ClothingCategory | null>(null);
-
-  // Loads the active closet's items once so the picker below has something to
-  // render - the same data the Closet tab shows, grouped the same way.
-  useEffect(() => {
-    if (!activeClosetId) return;
-    let cancelled = false;
-
-    dataService
-      .getClosetItems(activeClosetId)
-      .then(items => {
-        if (!cancelled) setClosetItems(items);
-      })
-      .catch(err => {
-        if (!cancelled) setItemsError(getErrorMessage(err, 'Failed to load closet items.'));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dataService, activeClosetId]);
-
-  const closetSections = useMemo(
-    () => (closetItems ? groupClosetItemsByAllCategories(closetItems) : []),
-    [closetItems],
-  );
-
-  // Picks the initial tab once items load: the first category that actually
-  // has items, or "Tops" if the closet is entirely empty. Every category tab
-  // is always shown (even empty ones) so the picker's layout is stable.
-  useEffect(() => {
-    if (!closetItems || activeCategory) return;
-    const firstWithItems = closetSections.find(section => section.data.length > 0);
-    setActiveCategory((firstWithItems ?? closetSections[0])?.category ?? null);
-  }, [closetItems, closetSections, activeCategory]);
-
-  const activeSection = closetSections.find(section => section.category === activeCategory) ?? null;
-
-  const selectedItemIds = Object.values(selectedByCategory).flat();
-
-  /**
-   * Tapping an item toggles it on/off. Single-select categories (dress,
-   * shoes, bag) swap in the new pick instead of requiring the old one to be
-   * manually deselected first. Picking a dress clears any picked top/bottom
-   * (and vice versa), since an outfit is one or the other, not both.
-   * Multi-select categories (tops, bottoms, jackets, accessories) stack up to
-   * their limit; tapping past it just shows a message instead of silently
-   * dropping an old pick.
-   */
-  const handleToggleItem = (item: ClosetItem) => {
-    const { category } = item;
-    const limit = CATEGORY_SELECTION_LIMITS[category];
-    const current = selectedByCategory[category];
-
-    if (current.includes(item.item_id)) {
-      setSelectedByCategory(prev => ({
-        ...prev,
-        [category]: prev[category].filter(id => id !== item.item_id),
-      }));
-      return;
-    }
-
-    if (current.length >= limit) {
-      if (limit === 1) {
-        setSelectedByCategory(prev => ({ ...prev, [category]: [item.item_id] }));
-      } else {
-        showAlert('Limit reached', `You can pick up to ${limit} ${CATEGORY_TITLES[category].toLowerCase()} per outfit.`);
-      }
-      return;
-    }
-
-    setSelectedByCategory(prev => {
-      const next: SelectionByCategory = { ...prev, [category]: [...prev[category], item.item_id] };
-      if (category === 'dress') {
-        next.top = [];
-        next.bottom = [];
-      } else if (category === 'top' || category === 'bottom') {
-        next.dress = [];
-      }
-      return next;
-    });
-  };
+  const itemPicker = useOutfitItemPicker(activeClosetId);
 
   // Picks up tag edits made in Settings or by the closet owner on another
   // device while this form wasn't showing.
@@ -181,21 +51,22 @@ export default function CreateOutfitForm() {
   const tagsMissing = hasTags && chosenLabels.length === 0;
 
   const hasDescriptionOrVoiceNote = description.trim().length > 0 || !!voiceNote;
-  const canSubmit =
-    !submitting && name.trim().length > 0 && hasDescriptionOrVoiceNote && !tagsMissing && selectedItemIds.length > 0;
+  // Save stays pressable while fields are missing (only dimmed), so pressing
+  // it says what is still needed instead of being a silent "dimmed" button.
+  const missing = [
+    !name.trim() && 'a name',
+    !hasDescriptionOrVoiceNote && 'a description or a voice note',
+    tagsMissing && 'at least one tag',
+    itemPicker.missing,
+  ].filter(Boolean);
 
   const handleSubmit = async () => {
     if (!activeClosetId) {
       showAlert('No closet found', 'You need a closet before you can create an outfit.');
       return;
     }
-    if (!name.trim() || !hasDescriptionOrVoiceNote || tagsMissing || selectedItemIds.length === 0) {
-      showAlert(
-        'Missing information',
-        hasTags
-          ? 'Name, a description or voice note, at least one tag, and at least one clothing item are all required.'
-          : 'Name, a description or voice note, and at least one clothing item are all required.',
-      );
+    if (missing.length > 0) {
+      showAlert('Missing information', `Still needed: ${missing.join(', ')}.`);
       return;
     }
 
@@ -207,7 +78,7 @@ export default function CreateOutfitForm() {
         name: name.trim(),
         description: description.trim(),
         labels: chosenLabels,
-        itemIds: selectedItemIds,
+        itemIds: itemPicker.selectedItemIds,
       });
 
       markOutfitsDirty();
@@ -240,6 +111,9 @@ export default function CreateOutfitForm() {
       ]);
     } catch (err) {
       showAlert('Couldn’t create outfit', getErrorMessage(err, 'Something went wrong. Please try again.'));
+      // A picked item may have just been deleted by someone else: reload the
+      // items and drop picks that are gone, so Save can simply be pressed again.
+      itemPicker.reloadItems();
     } finally {
       setSubmitting(false);
     }
@@ -293,78 +167,21 @@ export default function CreateOutfitForm() {
         </Field>
       )}
 
-      <Field label="Items" required>
-        {itemsError ? (
-          <Text style={[styles.errorText, { color: theme.danger }]}>{itemsError}</Text>
-        ) : !closetItems ? (
-          <ActivityIndicator style={styles.itemsLoading} />
-        ) : closetItems.length === 0 ? (
-          <Text style={[styles.errorText, { color: theme.danger }]}>No items in this closet yet.</Text>
-        ) : (
-          <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.tabRow}
-              role="tablist"
-            >
-              {closetSections.map(section => {
-                const isActive = section.category === activeCategory;
-                return (
-                  <Pressable
-                    key={section.category}
-                    onPress={() => setActiveCategory(section.category)}
-                    role="tab"
-                    aria-label={section.title}
-                    aria-selected={isActive}
-                    style={({ pressed }) => [
-                      styles.tab,
-                      { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
-                      isActive && { backgroundColor: theme.accent, borderColor: theme.accent },
-                      pressed && styles.tabPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        { color: theme.textPrimary },
-                        isActive && { color: theme.onAccent },
-                      ]}
-                    >{section.title}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            {activeSection && activeSection.data.length === 0 ? (
-              <Text style={[styles.emptyTabText, { color: theme.textSecondary }]}>No {activeSection.title.toLowerCase()} in this closet yet.</Text>
-            ) : (
-              activeSection && (
-                <ClosetRow
-                  items={activeSection.data}
-                  onItemPress={id => {
-                    const item = activeSection.data.find(candidate => candidate.item_id === id);
-                    if (item) handleToggleItem(item);
-                  }}
-                  isItemSelected={id => selectedItemIds.includes(id)}
-                />
-              )
-            )}
-          </>
-        )}
-      </Field>
+      {itemPicker.field}
 
       <Pressable
         onPress={handleSubmit}
-        disabled={!canSubmit}
+        disabled={submitting}
         style={({ pressed }) => [
           styles.submitButton,
           { backgroundColor: theme.accent },
-          !canSubmit && { backgroundColor: theme.textSecondary },
+          (submitting || missing.length > 0) && { backgroundColor: theme.textSecondary },
           pressed && styles.submitButtonPressed,
         ]}
         role="button"
         aria-label="Save outfit"
-        aria-disabled={!canSubmit}
+        aria-disabled={submitting}
+        aria-busy={submitting}
       >
         {submitting ? (
           <ActivityIndicator color={theme.onAccent} />
@@ -376,120 +193,13 @@ export default function CreateOutfitForm() {
   );
 }
 
-type FieldProps = {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-};
-
-function Field({ label, required, children }: FieldProps) {
-  const { theme } = useTheme();
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>
-        {label}
-        {required && <Text style={{ color: theme.danger }}> *</Text>}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-type LabeledTextInputProps = {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  multiline?: boolean;
-  maxLength?: number;
-};
-
-function LabeledTextInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  required,
-  multiline,
-  maxLength,
-}: LabeledTextInputProps) {
-  const { theme } = useTheme();
-  const themedInput = {
-    backgroundColor: theme.surfaceAlt,
-    borderColor: theme.border,
-    color: theme.textPrimary,
-  };
-  return (
-    <Field label={label} required={required}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        multiline={multiline}
-        numberOfLines={multiline ? 4 : undefined}
-        maxLength={maxLength}
-        style={multiline ? [styles.textInput, themedInput, styles.multilineInput] : [styles.textInput, themedInput]}
-        aria-label={required ? `${label}, required` : label}
-      />
-    </Field>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 48,
   },
-  field: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  textInput: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  multilineInput: {
-    minHeight: 96,
-    textAlignVertical: 'top',
-  },
-  itemsLoading: {
-    marginTop: 12,
-  },
-  tabRow: {
-    gap: 8,
-    paddingBottom: 12,
-  },
-  tab: {
-    minHeight: 40,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  tabPressed: {
-    opacity: 0.8,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   errorText: {
     fontSize: 15,
-  },
-  emptyTabText: {
-    fontSize: 15,
-    paddingHorizontal: 10,
   },
   submitButton: {
     marginTop: 12,

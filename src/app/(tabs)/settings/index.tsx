@@ -47,12 +47,13 @@ export default function SettingsScreen() {
             Account
           </Text>
   
-          <View style={styles.row}>
+          {/* One VoiceOver stop per row ("Name, Ava") instead of two. */}
+          <View style={styles.row} accessible>
             <Text style={[styles.rowLabel, label]}>Name</Text>
             <Text style={[styles.rowValue, value]}>{name ?? '—'}</Text>
           </View>
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          <View style={styles.row}>
+          <View style={styles.row} accessible>
             <Text style={[styles.rowLabel, label]}>Email</Text>
             <Text style={[styles.rowValue, value]}>
               {email ?? (isGuest ? 'Browsing as guest' : '—')}
@@ -98,7 +99,7 @@ export default function SettingsScreen() {
           </Text>
   
           <View
-            style={[styles.segmented, { borderColor: theme.border }]}
+            style={[styles.segmented, { borderColor: theme.controlBorder }]}
             role="radiogroup"
             aria-label="Theme"
           >
@@ -211,8 +212,10 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentText: {
     fontSize: 15,

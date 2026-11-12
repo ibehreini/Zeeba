@@ -29,7 +29,8 @@ export default function NativeSelect<T extends string>({
   const openPicker = () => {
     if (Platform.OS === 'ios') {
       const clearOption = allowClear && value ? ['Clear selection'] : [];
-      const optionLabels = options.map(formatLabel);
+      // The action sheet has no checked state, so the current choice says so in its text.
+      const optionLabels = options.map(option => (option === value ? `${formatLabel(option)}, selected` : formatLabel(option)));
       const buttons = [...optionLabels, ...clearOption, 'Cancel'];
       const cancelButtonIndex = buttons.length - 1;
       const clearButtonIndex = allowClear && value ? buttons.length - 2 : undefined;
@@ -60,11 +61,11 @@ export default function NativeSelect<T extends string>({
     <View>
       <Pressable
         onPress={openPicker}
-        style={({ pressed }) => [styles.field, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }, pressed && styles.fieldPressed]}
+        style={({ pressed }) => [styles.field, { backgroundColor: theme.surfaceAlt, borderColor: theme.controlBorder }, pressed && styles.fieldPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${label}${required ? ', required' : ''}`}
         accessibilityValue={{ text: value ? formatLabel(value) : 'Not selected' }}
-        accessibilityHint="Double tap to change selection"
+        accessibilityHint="Opens a list of choices"
       >
         <Text style={[styles.fieldText, { color: value ? theme.textPrimary : theme.textSecondary }]}>{displayValue}</Text>
         <Text style={[styles.chevron, { color: theme.textSecondary }]}>›</Text>

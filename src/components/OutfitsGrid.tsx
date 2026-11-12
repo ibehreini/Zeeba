@@ -1,3 +1,5 @@
+import ErrorText from '@/components/ErrorText';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import FilterPills from '@/components/FilterPills';
 import OutfitFlatLay from '@/components/OutfitFlatLay';
 import { useDataMode } from '@/context/DataModeContext';
@@ -11,7 +13,7 @@ import {
 import { consumeOutfitsDirty } from '@/state/outfitsRefresh';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   onOutfitPress?: (id: string) => void;
@@ -78,9 +80,22 @@ export default function OutfitsGrid({ onOutfitPress, closetId, labels = NO_LABEL
 
   // Case- and space-insensitive, so outfits tagged "Date Night" still match a
   // pill re-added as "Date night" after the original was removed.
+  // One VoiceOver stop per card that says what's in it, since the flat lay
+  // picture is all a sighted user needs but says nothing to a screen reader.
+  const namesById = new Map(closetItems.map(item => [item.item_id, item.name]));
+  const cardLabel = (outfit: Outfit) => {
+    const pieces = outfit.item_ids.map(id => namesById.get(id)).filter(Boolean);
+    return `${outfit.name}: ${pieces.length > 0 ? pieces.join(', ') : 'no items'}`;
+  };
+
   const visibleOutfits = activeLabel
     ? (outfits ?? []).filter(outfit => hasOutfitLabel(outfit.labels, activeLabel))
     : (outfits ?? []);
+  const resultSummary = !outfits
+    ? undefined
+    : visibleOutfits.length === 0
+      ? 'No outfits match this filter'
+      : `Showing ${visibleOutfits.length} ${visibleOutfits.length === 1 ? 'outfit' : 'outfits'}${activeLabel ? ` tagged ${activeLabel}` : ''}`;
 
   return (
     <View style={styles.container}>
@@ -90,12 +105,12 @@ export default function OutfitsGrid({ onOutfitPress, closetId, labels = NO_LABEL
 
       {/* An "All"-only row would filter nothing, so it's left out entirely
           when the closet has no tags. */}
-      {labels.length > 0 && <FilterPills options={labels} selected={activeLabel} onSelect={setSelectedLabel} />}
+      {labels.length > 0 && <FilterPills options={labels} selected={activeLabel} onSelect={setSelectedLabel} resultSummary={resultSummary} />}
 
       {error ? (
-        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{error}</Text>
+        <ErrorText style={[styles.emptyText, { color: theme.textSecondary }]}>{error}</ErrorText>
       ) : !outfits ? (
-        <ActivityIndicator style={styles.loading} />
+        <LoadingIndicator label="Loading outfits" />
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {visibleOutfits.length > 0 ? (
@@ -106,10 +121,10 @@ export default function OutfitsGrid({ onOutfitPress, closetId, labels = NO_LABEL
                   style={styles.card}
                   onPress={() => onOutfitPress?.(outfit.outfit_id)}
                   role="button"
-                  aria-label={outfit.name}
+                  aria-label={cardLabel(outfit)}
                 >
                   <OutfitFlatLay itemIds={outfit.item_ids} closetItems={closetItems} />
-                  <Text style={[styles.cardLabel, { color: theme.textPrimary }]} numberOfLines={1}>
+                  <Text style={[styles.cardLabel, { color: theme.textPrimary }]} numberOfLines={2}>
                     {outfit.name}
                   </Text>
                 </Pressable>
@@ -162,9 +177,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     textAlign: 'center',
-    marginTop: 24,
-  },
-  loading: {
     marginTop: 24,
   },
 });

@@ -1,5 +1,6 @@
 import { Link, usePathname } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useCloset } from '@/context/ClosetContext';
 import { useTheme } from '@/context/ThemeContext';
 
 type NavItem = {
@@ -42,6 +43,7 @@ function ariaCurrentPage(active: boolean): Record<string, string> {
 export default function HeaderNav() {
   const pathname = usePathname();
   const { theme } = useTheme();
+  const { closetMode } = useCloset();
 
   return (
     <View
@@ -54,6 +56,8 @@ export default function HeaderNav() {
         <View role="navigation" aria-label="Primary" style={styles.nav}>
           {NAV_ITEMS.map(item => {
             const active = isActive(pathname, item.href);
+            // Not "My" while styling someone else's closet.
+            const label = item.href === '/closet' && closetMode === 'stylist' ? 'Closet' : item.label;
             return (
               <Link
                 key={item.href}
@@ -67,7 +71,7 @@ export default function HeaderNav() {
                 ]}
                 {...ariaCurrentPage(active)}
               >
-                {item.label}
+                {label}
               </Link>
             );
           })}

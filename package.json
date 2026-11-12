@@ -4,13 +4,13 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export -p web && node scripts/post-export.js",
     "icons:pwa": "node scripts/generate-pwa-icons.js",
     "lint": "expo lint",
+    "test:db": "node --test scripts/tests/concurrency.test.mjs",
     "env:docker": "node scripts/use-env.js docker",
     "env:remote": "node scripts/use-env.js remote"
   },

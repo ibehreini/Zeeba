@@ -2,7 +2,9 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "moduleSuffixes": [".ios", ".android", ".native", ".web", ""],
+    // "" before ".web": otherwise tsc picks libraries' web stubs (e.g. google-signin's
+    // GoogleSignin.web.d.ts) for native code. ".web" stays for web-only files like HeaderNav.
+    "moduleSuffixes": [".ios", ".android", ".native", "", ".web"],
     "paths": {
       "@/*": [
         "./src/*"
