@@ -1,4 +1,5 @@
 import { Field, LabeledTextInput } from '@/components/FormField';
+import FormSubmitFooter from '@/components/FormSubmitFooter';
 import OutfitTagPicker from '@/components/OutfitTagPicker';
 import { useOutfitItemPicker } from '@/components/OutfitItemPicker';
 import { PendingVoiceNoteField } from '@/components/VoiceNotes';
@@ -11,13 +12,7 @@ import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function CreateOutfitForm() {
   const { theme } = useTheme();
@@ -120,99 +115,82 @@ export default function CreateOutfitForm() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <LabeledTextInput
-        label="Name"
-        required
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Sunday Brunch"
-        maxLength={100}
-      />
-
-      <LabeledTextInput
-        label="Description"
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe the outfit, or record a voice note below"
-        maxLength={1000}
-      />
-
-      <Field label="Voice note">
-        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
-      </Field>
-
-      {/* Only once a closet is active: before that the list is empty because
-          nothing has loaded, not because the closet has no tags. */}
-      {activeClosetId && (
-        <Field label="Tags" required={hasTags}>
-          {hasTags ? (
-            <OutfitTagPicker
-              options={activeClosetLabels}
-              value={chosenLabels}
-              onChange={setPickedLabels}
-              groupLabel="Tags, required, choose at least one"
-            />
-          ) : (
-            <Text style={[styles.errorText, { color: theme.textSecondary }]}>
-              {closetMode === 'stylist'
-                ? 'This closet has no tags, so this outfit will be saved without one. Only the closet’s owner can add tags.'
-                : 'You have no tags, so this outfit will be saved without one. To add tags, go to Settings, then Edit tags.'}
-            </Text>
-          )}
-        </Field>
-      )}
-
-      {itemPicker.field}
-
-      <Pressable
-        onPress={handleSubmit}
-        disabled={submitting}
-        style={({ pressed }) => [
-          styles.submitButton,
-          { backgroundColor: theme.accent },
-          (submitting || missing.length > 0) && { backgroundColor: theme.textSecondary },
-          pressed && styles.submitButtonPressed,
-        ]}
-        role="button"
-        aria-label="Save outfit"
-        aria-disabled={submitting}
-        aria-busy={submitting}
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
+        keyboardShouldPersistTaps="handled"
       >
-        {submitting ? (
-          <ActivityIndicator color={theme.onAccent} />
-        ) : (
-          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Outfit</Text>
+        <LabeledTextInput
+          label="Name"
+          required
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Sunday Brunch"
+          maxLength={100}
+        />
+
+        <LabeledTextInput
+          label="Description"
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the outfit, or record a voice note below"
+          maxLength={1000}
+        />
+
+        <Field label="Voice note">
+          <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
+        </Field>
+
+        {/* Only once a closet is active: before that the list is empty because
+            nothing has loaded, not because the closet has no tags. */}
+        {activeClosetId && (
+          <Field label="Tags" required={hasTags}>
+            {hasTags ? (
+              <OutfitTagPicker
+                options={activeClosetLabels}
+                value={chosenLabels}
+                onChange={setPickedLabels}
+                groupLabel="Tags, required, choose at least one"
+              />
+            ) : (
+              <Text style={[styles.errorText, { color: theme.textSecondary }]}>
+                {closetMode === 'stylist'
+                  ? 'This closet has no tags, so this outfit will be saved without one. Only the closet’s owner can add tags.'
+                  : 'You have no tags, so this outfit will be saved without one. To add tags, go to Settings, then Edit tags.'}
+              </Text>
+            )}
+          </Field>
         )}
-      </Pressable>
-    </ScrollView>
+
+        {itemPicker.field}
+      </ScrollView>
+
+      {/* No bottom inset: this screen sits above the tab bar, which covers it. */}
+      <FormSubmitFooter
+        label="Save Outfit"
+        ariaLabel="Save outfit"
+        onPress={handleSubmit}
+        submitting={submitting}
+        incomplete={missing.length > 0}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: 20,
-    paddingBottom: 48,
+    paddingBottom: 24,
   },
   errorText: {
     fontSize: 15,
-  },
-  submitButton: {
-    marginTop: 12,
-    minHeight: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitButtonPressed: {
-    opacity: 0.85,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

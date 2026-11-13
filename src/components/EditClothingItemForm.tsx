@@ -1,5 +1,6 @@
 import { Field, LabeledTextInput } from '@/components/FormField';
 import ErrorText from '@/components/ErrorText';
+import FormSubmitFooter from '@/components/FormSubmitFooter';
 import NativeSelect from '@/components/NativeSelect';
 import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
 import { useDataMode } from '@/context/DataModeContext';
@@ -25,7 +26,6 @@ import LoadingIndicator from '@/components/LoadingIndicator';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -226,119 +226,116 @@ export default function EditClothingItemForm({ itemId }: Props) {
     newPrimaryPhotoUri ?? (typeof item.img === 'string' && !isCutoutPhotoUrl(item.img) ? item.img : null);
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
-      <Field label="Primary photo">
-        <Pressable
-          onPress={handlePickPrimaryPhoto}
-          style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
-          role="button"
-          aria-label={showingCutout ? 'Change primary photo. Background removed.' : 'Change primary photo'}
-        >
-          <Image
-            source={previewSource}
-            style={styles.primaryPhotoImage}
-            // A cutout is trimmed tight to the garment, so "cover" would crop it.
-            resizeMode={showingCutout ? 'contain' : 'cover'}
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
+        <Field label="Primary photo">
+          <Pressable
+            onPress={handlePickPrimaryPhoto}
+            style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
+            role="button"
+            aria-label={showingCutout ? 'Change primary photo. Background removed.' : 'Change primary photo'}
+          >
+            <Image
+              source={previewSource}
+              style={styles.primaryPhotoImage}
+              // A cutout is trimmed tight to the garment, so "cover" would crop it.
+              resizeMode={showingCutout ? 'contain' : 'cover'}
+            />
+          </Pressable>
+          <RemoveBackgroundButton
+            sourceUri={removableUri}
+            isRemoved={!!cutoutUri}
+            onRemoved={setCutoutUri}
+            onRestore={clearCutout}
+            onBusyChange={setIsRemovingBackground}
+            disabled={submitting}
           />
-        </Pressable>
-        <RemoveBackgroundButton
-          sourceUri={removableUri}
-          isRemoved={!!cutoutUri}
-          onRemoved={setCutoutUri}
-          onRestore={clearCutout}
-          onBusyChange={setIsRemovingBackground}
-          disabled={submitting}
-        />
-      </Field>
+        </Field>
 
-      <Field label="Type" required>
-        <NativeSelect
-          label="Type"
-          options={CLOTHING_ITEM_TYPES}
-          value={itemType}
-          onChange={setItemType}
-          placeholder="Select a type"
-          formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
+        <Field label="Type" required>
+          <NativeSelect
+            label="Type"
+            options={CLOTHING_ITEM_TYPES}
+            value={itemType}
+            onChange={setItemType}
+            placeholder="Select a type"
+            formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
+            required
+          />
+          {/* A live region so a screen reader hears the consequence of the
+              change at the moment it's made, without a modal interrupting. */}
+          {isRecategorizing && (
+            <Text role="status" style={[styles.helperText, { color: theme.textSecondary }]}>
+              This item stays in every outfit it's part of and will show there under its new type.
+            </Text>
+          )}
+        </Field>
+
+        <LabeledTextInput
+          label="Name"
           required
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Black Silk Tank"
+          maxLength={100}
         />
-        {/* A live region so a screen reader hears the consequence of the
-            change at the moment it's made, without a modal interrupting. */}
-        {isRecategorizing && (
-          <Text role="status" style={[styles.helperText, { color: theme.textSecondary }]}>
-            This item stays in every outfit it's part of and will show there under its new type.
-          </Text>
-        )}
-      </Field>
 
-      <LabeledTextInput
-        label="Name"
-        required
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Black Silk Tank"
-        maxLength={100}
-      />
+        <LabeledTextInput
+          label="Description"
+          required={!hasVoiceNote}
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the item"
+          maxLength={1000}
+        />
 
-      <LabeledTextInput
-        label="Description"
-        required={!hasVoiceNote}
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe the item"
-        maxLength={1000}
-      />
+        <LabeledTextInput
+          label="Fit notes"
+          value={fitNotes}
+          onChangeText={setFitNotes}
+          placeholder="e.g. Runs small"
+          maxLength={500}
+        />
 
-      <LabeledTextInput
-        label="Fit notes"
-        value={fitNotes}
-        onChangeText={setFitNotes}
-        placeholder="e.g. Runs small"
-        maxLength={500}
-      />
+        <LabeledTextInput
+          label="Care instructions"
+          value={careInstructions}
+          onChangeText={setCareInstructions}
+          placeholder="e.g. Dry clean only"
+          maxLength={500}
+        />
 
-      <LabeledTextInput
-        label="Care instructions"
-        value={careInstructions}
-        onChangeText={setCareInstructions}
-        placeholder="e.g. Dry clean only"
-        maxLength={500}
-      />
+        <LabeledTextInput
+          label="Brand"
+          value={brand}
+          onChangeText={setBrand}
+          placeholder="e.g. Everlane"
+          maxLength={100}
+        />
 
-      <LabeledTextInput
-        label="Brand"
-        value={brand}
-        onChangeText={setBrand}
-        placeholder="e.g. Everlane"
-        maxLength={100}
-      />
+        <LabeledTextInput
+          label="Purchase URL"
+          value={purchaseUrl}
+          onChangeText={setPurchaseUrl}
+          placeholder="https://..."
+          keyboardType="url"
+          autoCapitalize="none"
+          maxLength={2048}
+        />
+      </ScrollView>
 
-      <LabeledTextInput
-        label="Purchase URL"
-        value={purchaseUrl}
-        onChangeText={setPurchaseUrl}
-        placeholder="https://..."
-        keyboardType="url"
-        autoCapitalize="none"
-        maxLength={2048}
-      />
-
-      <Pressable
+      {/* A stack screen outside the tabs, so nothing else covers the home indicator. */}
+      <FormSubmitFooter
+        label="Save Changes"
+        ariaLabel="Save changes"
         onPress={handleSubmit}
+        submitting={submitting}
         disabled={isBusy}
-        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, (isBusy || missing.length > 0) && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
-        role="button"
-        aria-label="Save changes"
-        aria-disabled={isBusy}
-        aria-busy={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={theme.onAccent} />
-        ) : (
-          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Changes</Text>
-        )}
-      </Pressable>
-    </ScrollView>
+        incomplete={missing.length > 0}
+        insetBottom
+      />
+    </View>
   );
 }
 
@@ -351,9 +348,15 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
   },
+  screen: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: 20,
-    paddingBottom: 48,
+    paddingBottom: 24,
   },
   helperText: {
     fontSize: 14,
@@ -373,19 +376,5 @@ const styles = StyleSheet.create({
   primaryPhotoImage: {
     width: '100%',
     height: '100%',
-  },
-  submitButton: {
-    marginTop: 12,
-    minHeight: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitButtonPressed: {
-    opacity: 0.85,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

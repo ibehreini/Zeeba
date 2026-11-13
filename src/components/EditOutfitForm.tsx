@@ -1,5 +1,6 @@
 import { Field, LabeledTextInput } from '@/components/FormField';
 import ErrorText from '@/components/ErrorText';
+import FormSubmitFooter from '@/components/FormSubmitFooter';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import OutfitTagPicker from '@/components/OutfitTagPicker';
 import { useOutfitItemPicker } from '@/components/OutfitItemPicker';
@@ -13,7 +14,7 @@ import { showAlert } from '@/utils/alert';
 import { conflictMessage } from '@/utils/conflictMessage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   outfitId: string;
@@ -165,73 +166,65 @@ export default function EditOutfitForm({ outfitId }: Props) {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <LabeledTextInput
-        label="Name"
-        required
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Sunday Brunch"
-        maxLength={100}
-      />
-
-      <LabeledTextInput
-        label="Description"
-        required={!hasVoiceNote}
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe the outfit"
-        maxLength={1000}
-      />
-
-      {/* Optional here even though Create outfit asks for one: an edit
-          shouldn't be blocked by a rule the outfit may predate (one saved
-          while the closet had no tags). Saved with Save Changes. */}
-      <Field label="Tags">
-        {closetLabels === null ? (
-          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
-            Couldn’t load this closet’s tags. You can still untick the tags this outfit already has.
-          </Text>
-        ) : closetLabels.length === 0 && labels.length === 0 ? (
-          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
-            This closet has no tags yet. The closet’s owner can add them in Settings, then Edit tags.
-          </Text>
-        ) : null}
-        <OutfitTagPicker
-          options={closetLabels ?? outfit.labels}
-          value={labels}
-          onChange={setLabels}
-          groupLabel="Tags"
-        />
-      </Field>
-
-      {itemPicker.field}
-
-      <Pressable
-        onPress={handleSubmit}
-        disabled={submitting}
-        style={({ pressed }) => [
-          styles.submitButton,
-          { backgroundColor: theme.accent },
-          (submitting || missing.length > 0) && { backgroundColor: theme.textSecondary },
-          pressed && styles.submitButtonPressed,
-        ]}
-        role="button"
-        aria-label="Save changes"
-        aria-disabled={submitting}
-        aria-busy={submitting}
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
+        keyboardShouldPersistTaps="handled"
       >
-        {submitting ? (
-          <ActivityIndicator color={theme.onAccent} />
-        ) : (
-          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Changes</Text>
-        )}
-      </Pressable>
-    </ScrollView>
+        <LabeledTextInput
+          label="Name"
+          required
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Sunday Brunch"
+          maxLength={100}
+        />
+
+        <LabeledTextInput
+          label="Description"
+          required={!hasVoiceNote}
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the outfit"
+          maxLength={1000}
+        />
+
+        {/* Optional here even though Create outfit asks for one: an edit
+            shouldn't be blocked by a rule the outfit may predate (one saved
+            while the closet had no tags). Saved with Save Changes. */}
+        <Field label="Tags">
+          {closetLabels === null ? (
+            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+              Couldn’t load this closet’s tags. You can still untick the tags this outfit already has.
+            </Text>
+          ) : closetLabels.length === 0 && labels.length === 0 ? (
+            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+              This closet has no tags yet. The closet’s owner can add them in Settings, then Edit tags.
+            </Text>
+          ) : null}
+          <OutfitTagPicker
+            options={closetLabels ?? outfit.labels}
+            value={labels}
+            onChange={setLabels}
+            groupLabel="Tags"
+          />
+        </Field>
+
+        {itemPicker.field}
+      </ScrollView>
+
+      {/* A stack screen outside the tabs, so nothing else covers the home indicator. */}
+      <FormSubmitFooter
+        label="Save Changes"
+        ariaLabel="Save changes"
+        onPress={handleSubmit}
+        submitting={submitting}
+        incomplete={missing.length > 0}
+        insetBottom
+      />
+    </View>
   );
 }
 
@@ -248,22 +241,14 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
   },
+  screen: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: 20,
-    paddingBottom: 48,
-  },
-  submitButton: {
-    marginTop: 12,
-    minHeight: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitButtonPressed: {
-    opacity: 0.85,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    paddingBottom: 24,
   },
 });

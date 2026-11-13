@@ -1,4 +1,5 @@
 import { Field, LabeledTextInput } from '@/components/FormField';
+import FormSubmitFooter from '@/components/FormSubmitFooter';
 import NativeSelect from '@/components/NativeSelect';
 import RemoveBackgroundButton from '@/components/RemoveBackgroundButton';
 import { PendingVoiceNoteField } from '@/components/VoiceNotes';
@@ -19,12 +20,12 @@ import { showAlert } from '@/utils/alert';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from 'react-native';
 
 export default function AddClothingItemForm() {
@@ -146,133 +147,134 @@ export default function AddClothingItemForm() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
-      <Field label="Primary photo" required>
-        <Pressable
-          onPress={handlePickPrimaryPhoto}
-          style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
-          role="button"
-          aria-label={
-            !displayedPhotoUri
-              ? 'Add primary photo, required'
-              : cutoutUri
-                ? 'Change primary photo. Background removed.'
-                : 'Change primary photo'
-          }
-        >
-          {displayedPhotoUri ? (
-            <Image
-              source={{ uri: displayedPhotoUri }}
-              style={styles.primaryPhotoImage}
-              // A cutout is trimmed tight to the garment, so "cover" would crop it.
-              resizeMode={cutoutUri ? 'contain' : 'cover'}
-            />
-          ) : (
-            <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
-          )}
-        </Pressable>
-        <RemoveBackgroundButton
-          sourceUri={primaryPhotoUri}
-          isRemoved={!!cutoutUri}
-          onRemoved={setCutoutUri}
-          onRestore={clearCutout}
-          onBusyChange={setIsRemovingBackground}
-          disabled={submitting}
-        />
-      </Field>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, { backgroundColor: theme.background }]} keyboardShouldPersistTaps="handled">
+        <Field label="Primary photo" required>
+          <Pressable
+            onPress={handlePickPrimaryPhoto}
+            style={[styles.primaryPhotoBox, { borderColor: theme.border }]}
+            role="button"
+            aria-label={
+              !displayedPhotoUri
+                ? 'Add primary photo, required'
+                : cutoutUri
+                  ? 'Change primary photo. Background removed.'
+                  : 'Change primary photo'
+            }
+          >
+            {displayedPhotoUri ? (
+              <Image
+                source={{ uri: displayedPhotoUri }}
+                style={styles.primaryPhotoImage}
+                // A cutout is trimmed tight to the garment, so "cover" would crop it.
+                resizeMode={cutoutUri ? 'contain' : 'cover'}
+              />
+            ) : (
+              <Text style={styles.primaryPhotoPlaceholder}>+ Add Photo</Text>
+            )}
+          </Pressable>
+          <RemoveBackgroundButton
+            sourceUri={primaryPhotoUri}
+            isRemoved={!!cutoutUri}
+            onRemoved={setCutoutUri}
+            onRestore={clearCutout}
+            onBusyChange={setIsRemovingBackground}
+            disabled={submitting}
+          />
+        </Field>
 
-      <Field label="Type" required>
-        <NativeSelect
-          label="Type"
-          options={CLOTHING_ITEM_TYPES}
-          value={itemType}
-          onChange={value => setItemType(value)}
-          placeholder="Select a type"
-          formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
+        <Field label="Type" required>
+          <NativeSelect
+            label="Type"
+            options={CLOTHING_ITEM_TYPES}
+            value={itemType}
+            onChange={value => setItemType(value)}
+            placeholder="Select a type"
+            formatLabel={value => CLOTHING_ITEM_TYPE_LABELS[value]}
+            required
+          />
+        </Field>
+
+        <LabeledTextInput
+          label="Name"
           required
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Black Silk Tank"
+          maxLength={100}
         />
-      </Field>
 
-      <LabeledTextInput
-        label="Name"
-        required
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Black Silk Tank"
-        maxLength={100}
-      />
+        <LabeledTextInput
+          label="Description"
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the item, or record a voice note below"
+          maxLength={1000}
+        />
 
-      <LabeledTextInput
-        label="Description"
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe the item, or record a voice note below"
-        maxLength={1000}
-      />
+        <Field label="Voice note">
+          <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
+        </Field>
 
-      <Field label="Voice note">
-        <PendingVoiceNoteField value={voiceNote} onChange={setVoiceNote} disabled={submitting} />
-      </Field>
+        <LabeledTextInput
+          label="Fit notes"
+          value={fitNotes ?? ''}
+          onChangeText={text => setFitNotes(text || null)}
+          placeholder="e.g. Runs small"
+          maxLength={500}
+        />
 
-      <LabeledTextInput
-        label="Fit notes"
-        value={fitNotes ?? ''}
-        onChangeText={text => setFitNotes(text || null)}
-        placeholder="e.g. Runs small"
-        maxLength={500}
-      />
+        <LabeledTextInput
+          label="Care instructions"
+          value={careInstructions}
+          onChangeText={setCareInstructions}
+          placeholder="e.g. Dry clean only"
+          maxLength={500}
+        />
 
-      <LabeledTextInput
-        label="Care instructions"
-        value={careInstructions}
-        onChangeText={setCareInstructions}
-        placeholder="e.g. Dry clean only"
-        maxLength={500}
-      />
+        <LabeledTextInput
+          label="Brand"
+          value={brand}
+          onChangeText={setBrand}
+          placeholder="e.g. Everlane"
+          maxLength={100}
+        />
 
-      <LabeledTextInput
-        label="Brand"
-        value={brand}
-        onChangeText={setBrand}
-        placeholder="e.g. Everlane"
-        maxLength={100}
-      />
+        <LabeledTextInput
+          label="Purchase URL"
+          value={purchaseUrl}
+          onChangeText={setPurchaseUrl}
+          placeholder="https://..."
+          keyboardType="url"
+          autoCapitalize="none"
+          maxLength={2048}
+        />
+      </ScrollView>
 
-      <LabeledTextInput
-        label="Purchase URL"
-        value={purchaseUrl}
-        onChangeText={setPurchaseUrl}
-        placeholder="https://..."
-        keyboardType="url"
-        autoCapitalize="none"
-        maxLength={2048}
-      />
-
-
-      <Pressable
+      {/* No bottom inset: this screen sits above the tab bar, which covers it. */}
+      <FormSubmitFooter
+        label="Save Item"
+        ariaLabel="Save item"
         onPress={handleSubmit}
+        submitting={submitting}
         disabled={isBusy}
-        style={({ pressed }) => [styles.submitButton, { backgroundColor: theme.accent }, (isBusy || missing.length > 0) && { backgroundColor: theme.textSecondary }, pressed && styles.submitButtonPressed]}
-        role="button"
-        aria-label="Save item"
-        aria-disabled={isBusy}
-        aria-busy={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={theme.onAccent} />
-        ) : (
-          <Text style={[styles.submitButtonText, { color: theme.onAccent }]}>Save Item</Text>
-        )}
-      </Pressable>
-    </ScrollView>
+        incomplete={missing.length > 0}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: 20,
-    paddingBottom: 48,
+    paddingBottom: 24,
   },
   primaryPhotoBox: {
     width: 160,
@@ -294,19 +296,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     // Sits on the hardcoded-light photo well, so it stays a fixed grey in both themes.
     color: '#666666', // 5.5:1 on #fafafa (#999 was 2.7:1)
-  },
-  submitButton: {
-    marginTop: 12,
-    minHeight: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitButtonPressed: {
-    opacity: 0.85,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
