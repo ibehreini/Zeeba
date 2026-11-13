@@ -35,7 +35,7 @@ export default function TabLayout() {
         options={{
           // Not "My" while styling someone else's closet; the stack header
           // inside says whose it is.
-          title: closetMode === 'stylist' ? 'Closet' : 'My Closet',
+          title: closetMode === 'stylist' ? 'Closet' : 'My closet',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'shirt' : 'shirt-outline'} color={color} size={24} />

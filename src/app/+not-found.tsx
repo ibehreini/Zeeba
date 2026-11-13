@@ -6,11 +6,11 @@ export default function NotFoundScreen() {
   const { theme } = useTheme();
   return (
     <>
-      <Stack.Screen options={{ title: 'Oops! Not Found' }} />
+      {/* The header title is the page's heading (an h1 on web), so the body
+          explains instead of repeating it. */}
+      <Stack.Screen options={{ title: 'Page not found' }} />
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text role="heading" style={[styles.text, { color: theme.textPrimary }]}>
-          Oops, page not found
-        </Text>
+        <Text style={[styles.text, { color: theme.textPrimary }]}>This page doesn’t exist or has moved.</Text>
         <Link href="/" style={[styles.link, { color: theme.link }]}>
           Go to Home
         </Link>

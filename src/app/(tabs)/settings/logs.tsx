@@ -1,3 +1,4 @@
+import ErrorText from '@/components/ErrorText';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
@@ -78,17 +79,15 @@ export default function LogsScreen() {
   } else if (closetError) {
     content = (
       <View style={styles.centered}>
-        <Text role="alert" style={[styles.errorText, { color: theme.danger }]}>
-          {closetError}
-        </Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{closetError}</ErrorText>
       </View>
     );
   } else if (!activeClosetId) {
     content = (
       <View style={styles.centered}>
-        <Text role="alert" style={[styles.errorText, { color: theme.danger }]}>
-          {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
-        </Text>
+        <ErrorText style={[styles.errorText, { color: theme.danger }]}>
+          {closetMode === 'stylist' ? 'You aren’t a stylist on any closets yet.' : 'No closet found.'}
+        </ErrorText>
       </View>
     );
   } else if (error && !entries) {

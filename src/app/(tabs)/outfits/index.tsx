@@ -1,4 +1,4 @@
-import ErrorText from '@/components/ErrorText';
+import CenteredError from '@/components/CenteredError';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import OutfitsGrid from '@/components/OutfitsGrid';
 import { useCloset } from '@/context/ClosetContext';
@@ -58,18 +58,12 @@ export default function Index() {
       </View>
     );
   } else if (error) {
-    content = (
-      <View style={styles.centered}>
-        <ErrorText style={[styles.errorText, { color: theme.danger }]}>{error}</ErrorText>
-      </View>
-    );
+    content = <CenteredError message={error} />;
   } else if (!activeClosetId) {
     content = (
-      <View style={styles.centered}>
-        <ErrorText style={[styles.errorText, { color: theme.danger }]}>
-          {closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
-        </ErrorText>
-      </View>
+      <CenteredError
+        message={closetMode === 'stylist' ? "You aren't a stylist on any closets yet." : 'No closet found.'}
+      />
     );
   } else {
     content = (
@@ -101,11 +95,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 15,
-    textAlign: 'center',
-    paddingHorizontal: 24,
   },
   addButton: {
     paddingHorizontal: 4,

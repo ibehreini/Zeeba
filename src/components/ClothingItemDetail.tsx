@@ -17,6 +17,7 @@ import { pickPhoto } from '@/utils/pickPhoto';
 import { isCutoutPhotoUrl } from '@/utils/removeBackground';
 import { showAlert } from '@/utils/alert';
 import { announceForScreenReader } from '@/utils/announce';
+import { formatWornCount } from '@/utils/wornCount';
 import { Image } from 'expo-image'; // High-perf native component
 import { Link, Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -36,7 +37,7 @@ type Props = {
 // Up to this many secondary photos are shown below the primary image.
 const MAX_SECONDARY_PHOTOS = 3;
 
-/** Rows shown in the "Item Details" section, in display order. */
+/** Rows shown in the "Item details" section, in display order. */
 function getDetailFields(item: ClosetItem): { label: string; value: string | null; isLink?: boolean }[] {
   return [
     { label: 'Description', value: item.description },
@@ -204,7 +205,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
         </View>
         <View style={styles.contentContainer}>
           <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
-            You have worn this item {wearCount} {wearCount === 1 ? 'time' : 'times'}
+            {formatWornCount(wearCount, 'You have worn this item')}
           </Text>
 
           <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
@@ -256,7 +257,7 @@ export default function ClothingItemDetail({ itemId }: Props) {
           />
 
           <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
-            Item Details
+            Item details
           </Text>
           <View style={styles.detailsList}>
             {detailFields.map(({ label, value, isLink }) => (

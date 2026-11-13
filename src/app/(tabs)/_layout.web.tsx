@@ -31,7 +31,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="closet" options={{ title: closetMode === 'stylist' ? 'Closet' : 'My Closet', headerShown: false }} />
+      <Tabs.Screen name="closet" options={{ title: closetMode === 'stylist' ? 'Closet' : 'My closet', headerShown: false }} />
       <Tabs.Screen name="outfits" options={{ title: 'Outfits', headerShown: false }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', headerShown: false, popToTopOnBlur: true }} />
     </Tabs>

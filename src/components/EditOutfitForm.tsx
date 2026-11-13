@@ -1,20 +1,19 @@
 import { Field, LabeledTextInput } from '@/components/FormField';
-import ErrorText from '@/components/ErrorText';
-import FormSubmitFooter from '@/components/FormSubmitFooter';
-import LoadingIndicator from '@/components/LoadingIndicator';
+import FormScreen, { FormErrorView, FormLoadingView } from '@/components/FormScreen';
 import OutfitTagPicker from '@/components/OutfitTagPicker';
 import { useOutfitItemPicker } from '@/components/OutfitItemPicker';
 import { useCloset } from '@/context/ClosetContext';
 import { useDataMode } from '@/context/DataModeContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useFormLoad } from '@/hooks/useFormLoad';
 import { ConflictError, getErrorMessage, type Outfit } from '@/services/dataService.types';
 import { useToast } from '@/components/Toast';
 import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { showAlert } from '@/utils/alert';
-import { conflictMessage } from '@/utils/conflictMessage';
+import { handleSaveConflict } from '@/utils/conflictMessage';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 
 type Props = {
   outfitId: string;
@@ -27,8 +26,6 @@ export default function EditOutfitForm({ outfitId }: Props) {
   const { showToast } = useToast();
 
   const [outfit, setOutfit] = useState<Outfit | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { applyClosetLabels, startLabelsRequest } = useCloset();
 
@@ -74,22 +71,7 @@ export default function EditOutfitForm({ outfitId }: Props) {
     return fetchedOutfit;
   }, [outfitId, dataService, applyClosetLabels, startLabelsRequest, setSelectedItemIds]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-
-    loadOutfit()
-      .catch(err => {
-        if (!cancelled) setLoadError(getErrorMessage(err, 'Failed to load outfit.'));
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loadOutfit]);
+  const { isLoading, loadError } = useFormLoad(loadOutfit, 'Failed to load outfit.');
 
   const hasDescriptionOrVoiceNote = description.trim().length > 0 || hasVoiceNote;
   // Save stays pressable while fields are missing (only dimmed), so pressing
@@ -120,24 +102,13 @@ export default function EditOutfitForm({ outfitId }: Props) {
       router.dismissTo('/outfits');
     } catch (err) {
       if (err instanceof ConflictError) {
-        // Refresh only the OCC baseline (updated_at) - deliberately NOT the
-        // text fields, so the user's in-progress edits survive the conflict
-        // and pressing Save again applies them, now against the fresh token.
-        // This also self-heals the lost-response case: a save that reached
-        // the server but never answered comes back here as a false conflict,
-        // and the retry simply succeeds.
-        try {
-          const fresh = await dataService.getOutfitById(outfitId);
-          setOutfit(fresh);
-          showAlert(
-            fresh ? 'Someone else saved changes' : 'Outfit deleted',
-            fresh
-              ? conflictMessage(outfit, fresh, { name: 'name', description: 'description', labels: 'tags', item_ids: 'items' })
-              : 'This outfit was deleted while you were editing.',
-          );
-        } catch {
-          showAlert('Couldn’t save changes', 'Please check your connection and try again.');
-        }
+        await handleSaveConflict({
+          before: outfit,
+          fetchFresh: () => dataService.getOutfitById(outfitId),
+          setFresh: setOutfit,
+          fieldLabels: { name: 'name', description: 'description', labels: 'tags', item_ids: 'items' },
+          noun: 'outfit',
+        });
       } else {
         showAlert('Couldn’t save changes', getErrorMessage(err, 'Something went wrong. Please try again.'));
         // A picked item may have just been deleted by someone else: drop it
@@ -149,106 +120,68 @@ export default function EditOutfitForm({ outfitId }: Props) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <LoadingIndicator label="Loading outfit" />
-      </View>
-    );
-  }
+  if (isLoading) return <FormLoadingView label="Loading outfit" />;
 
-  if (loadError || !outfit) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ErrorText style={[styles.errorText, { color: theme.textSecondary }]}>{loadError ?? 'Outfit not found.'}</ErrorText>
-      </View>
-    );
-  }
+  if (loadError || !outfit) return <FormErrorView message={loadError ?? 'Outfit not found.'} />;
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <LabeledTextInput
-          label="Name"
-          required
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Sunday Brunch"
-          maxLength={100}
-        />
-
-        <LabeledTextInput
-          label="Description"
-          required={!hasVoiceNote}
-          multiline
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe the outfit"
-          maxLength={1000}
-        />
-
-        {/* Optional here even though Create outfit asks for one: an edit
-            shouldn't be blocked by a rule the outfit may predate (one saved
-            while the closet had no tags). Saved with Save Changes. */}
-        <Field label="Tags">
-          {closetLabels === null ? (
-            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
-              Couldn’t load this closet’s tags. You can still untick the tags this outfit already has.
-            </Text>
-          ) : closetLabels.length === 0 && labels.length === 0 ? (
-            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
-              This closet has no tags yet. The closet’s owner can add them in Settings, then Edit tags.
-            </Text>
-          ) : null}
-          <OutfitTagPicker
-            options={closetLabels ?? outfit.labels}
-            value={labels}
-            onChange={setLabels}
-            groupLabel="Tags"
-          />
-        </Field>
-
-        {itemPicker.field}
-      </ScrollView>
-
-      {/* A stack screen outside the tabs, so nothing else covers the home indicator. */}
-      <FormSubmitFooter
-        label="Save Changes"
-        ariaLabel="Save changes"
-        onPress={handleSubmit}
-        submitting={submitting}
-        incomplete={missing.length > 0}
-        insetBottom
+    // A stack screen outside the tabs, so nothing else covers the home indicator.
+    <FormScreen
+      label="Save changes"
+      ariaLabel="Save changes"
+      onPress={handleSubmit}
+      submitting={submitting}
+      incomplete={missing.length > 0}
+      insetBottom
+    >
+      <LabeledTextInput
+        label="Name"
+        required
+        value={name}
+        onChangeText={setName}
+        placeholder="e.g. Sunday Brunch"
+        maxLength={100}
       />
-    </View>
+
+      <LabeledTextInput
+        label="Description"
+        required={!hasVoiceNote}
+        multiline
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Describe the outfit"
+        maxLength={1000}
+      />
+
+      {/* Optional here even though Create outfit asks for one: an edit
+          shouldn't be blocked by a rule the outfit may predate (one saved
+          while the closet had no tags). Saved with Save changes. */}
+      <Field label="Tags">
+        {closetLabels === null ? (
+          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+            Couldn’t load this closet’s tags. You can still untick the tags this outfit already has.
+          </Text>
+        ) : closetLabels.length === 0 && labels.length === 0 ? (
+          <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+            This closet has no tags yet. The closet’s owner can add them in Settings, then Edit tags.
+          </Text>
+        ) : null}
+        <OutfitTagPicker
+          options={closetLabels ?? outfit.labels}
+          value={labels}
+          onChange={setLabels}
+          groupLabel="Tags"
+        />
+      </Field>
+
+      {itemPicker.field}
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   hintText: {
     fontSize: 15,
     marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 16,
-  },
-  screen: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 24,
   },
 });

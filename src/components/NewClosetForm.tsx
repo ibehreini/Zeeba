@@ -8,7 +8,7 @@ import { useTheme } from '@/context/ThemeContext';
 
 /**
  * Shown wherever the user needs their own closet but hasn't made one yet
- * (the home tab, and the add-item screen). Creating it updates ClosetContext,
+ * (the home tab, and the add-item and create-outfit screens via RequireCloset). Creating it updates ClosetContext,
  * so the caller re-renders with an active closet and this form disappears.
  */
 export default function NewClosetForm({ style }: { style?: StyleProp<ViewStyle> }) {

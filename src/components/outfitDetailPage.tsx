@@ -12,6 +12,7 @@ import { markOutfitsDirty } from '@/state/outfitsRefresh';
 import { pickPhoto } from '@/utils/pickPhoto';
 import { showAlert } from '@/utils/alert';
 import { announceForScreenReader } from '@/utils/announce';
+import { formatWornCount } from '@/utils/wornCount';
 import { Link, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -185,7 +186,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         ) : null}
 
         <Text style={[styles.wearCountText, { color: theme.textSecondary }]}>
-          This outfit has been worn {wearCount} {wearCount === 1 ? 'time' : 'times'}
+          {formatWornCount(wearCount, 'This outfit has been worn')}
         </Text>
 
         {isClosetOwner ? (
@@ -193,7 +194,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
             onPress={handleToggleWornToday}
             disabled={isTogglingWorn}
             role="button"
-            aria-label={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
+            aria-label={todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as worn today'}
             aria-disabled={isTogglingWorn}
             aria-busy={isTogglingWorn}
             style={({ pressed }) => [
@@ -214,7 +215,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
                   { color: todayWearLogId ? theme.textPrimary : theme.onAccent },
                 ]}
               >
-                {todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as Worn Today'}
+                {todayWearLogId ? 'Remove outfit worn today' : 'Mark this outfit as worn today'}
               </Text>
             )}
           </Pressable>
@@ -276,7 +277,7 @@ export default function OutfitDetailPage({ outfit, closetItems, onConflict }: Pr
         )}
 
         <Text role="heading" style={[styles.sectionLabel, { color: theme.textPrimary }]}>
-          Worn in the Wild
+          Worn in the wild
         </Text>
 
         <View style={styles.pieceGrid}>

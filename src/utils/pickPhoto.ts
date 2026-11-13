@@ -26,7 +26,7 @@ export async function pickPhoto(): Promise<string | null> {
 }
 
 /**
- * Asks "Take Photo" or "Choose from Library" with the platform's own sheet,
+ * Asks "Take photo" or "Choose from library" with the platform's own sheet,
  * which VoiceOver and TalkBack read and navigate without any extra work.
  * Resolves null when dismissed.
  */
@@ -36,7 +36,7 @@ function choosePhotoSource(): Promise<PhotoSource | null> {
   if (Platform.OS === 'ios') {
     return new Promise(resolve => {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Take Photo', 'Choose from Library', 'Cancel'], cancelButtonIndex: 2 },
+        { options: ['Take photo', 'Choose from library', 'Cancel'], cancelButtonIndex: 2 },
         buttonIndex => resolve(buttonIndex === 0 ? 'camera' : buttonIndex === 1 ? 'library' : null),
       );
     });
@@ -47,8 +47,8 @@ function choosePhotoSource(): Promise<PhotoSource | null> {
       'Add photo',
       undefined,
       [
-        { text: 'Take Photo', onPress: () => resolve('camera') },
-        { text: 'Choose from Library', onPress: () => resolve('library') },
+        { text: 'Take photo', onPress: () => resolve('camera') },
+        { text: 'Choose from library', onPress: () => resolve('library') },
         { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
       ],
       { cancelable: true, onDismiss: () => resolve(null) },

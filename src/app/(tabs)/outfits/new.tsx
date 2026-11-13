@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 export default function NewOutfit() {
   return (
     <>
-      <Stack.Screen options={{ title: 'Create A New Outfit' }} />
+      <Stack.Screen options={{ title: 'New outfit' }} />
       <RequireCloset>
         <CreateOutfitForm />
       </RequireCloset>

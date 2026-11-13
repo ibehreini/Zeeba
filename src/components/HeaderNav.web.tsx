@@ -13,7 +13,7 @@ type NavItem = {
 // the Settings link current on /settings/logs and /settings/tags.
 const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Home' },
-  { href: '/closet', label: 'My Closet' },
+  { href: '/closet', label: 'My closet' },
   { href: '/outfits', label: 'Outfits' },
   { href: '/settings', label: 'Settings' },
 ];
